@@ -8,6 +8,7 @@ import { Keyboard } from '../keyboard/Keyboard';
 import { useOwnedDisposal } from '../resources/ownership';
 import { StudioWall } from './StudioWall';
 import { FloorContact } from './FloorContact';
+import { DeskProps } from './props/DeskProps';
 
 function StudioFloor() {
   const roughness = useMemo(() => {
@@ -28,8 +29,7 @@ export function Stage() {
   return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [-0.073, 1.125, 0.570], fov: 32, near: 0.008, far: 25 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl }) => { gl.toneMappingExposure = 1; }}>
     <color attach="background" args={['#000000']} />
     <Suspense fallback={null}>
-      <Lighting />
-      <Desk />
+      <Lighting><Desk /><DeskProps /></Lighting>
       <Keyboard />
       <CameraRig />
       <StudioFloor />

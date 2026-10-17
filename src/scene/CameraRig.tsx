@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { CameraValues, CameraView } from '../debug';
+import { PerspectiveCamera } from 'three';
 
 const HERO_TARGET: [number, number, number] = [0, 0.825, 0.005];
 // Preserved until the user chooses new limits with the Camera panel.
@@ -55,7 +56,17 @@ export function CameraRig() {
       }
       const aspect = size.width / size.height;
       const mobileScale = Math.max(1, (aspect < 0.75 ? 1.62 : 1.12) / aspect);
-      if (view === 'desk') { camera.position.set(-1.32, 1.23, 1.75); controls.current?.target.set(0, 0.39, -0.185); }
+      // Evidence presets use explicit lens choices without changing orbit bounds.
+      if (camera instanceof PerspectiveCamera) {
+        camera.fov = view === 'props-wide' ? 64 : view === 'props-airpods' ? 35 : view === 'props-streamdeck' ? 23 : view === 'deskmat-closeup' ? 22 : view === 'desk-sheen' ? 48 : 32;
+        camera.updateProjectionMatrix();
+      }
+      if (view === 'props-wide') { camera.position.set(-0.05, 1.24, 0.54); controls.current?.target.set(-0.025, 0.9, -0.12); }
+      else if (view === 'props-streamdeck') { camera.position.set(0.41, 1.02, 0.12); controls.current?.target.set(0.298, 0.790, -0.173); }
+      else if (view === 'props-airpods') { camera.position.set(-0.11, 1.10, 0.15); controls.current?.target.set(-0.315, 0.90, -0.326); }
+      else if (view === 'deskmat-closeup') { camera.position.set(-0.17, 0.87, 0.25); controls.current?.target.set(-0.14, 0.758, 0.12); }
+      else if (view === 'desk-sheen') { camera.position.set(0.85, 0.88, 0.25); controls.current?.target.set(0.48, 0.751, -0.08); }
+      else if (view === 'desk') { camera.position.set(-1.32, 1.23, 1.75); controls.current?.target.set(0, 0.39, -0.185); }
       else if (view === 'lighting-wide') { camera.position.set(2.7, 1.85, 2.8); controls.current?.target.set(0, 0.99, -0.18); }
       else if (view === 'lighting-closeup') { camera.position.set(0.19, 0.99, 0.26); controls.current?.target.set(0.076, 0.797, -0.025); }
       else if (view === 'desk-frame') { camera.position.set(-1.15, 0.70, 1.75); controls.current?.target.set(0, 0.25, -0.185); }

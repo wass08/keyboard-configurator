@@ -2,7 +2,7 @@ import type { LightingValues } from './scene/lightingControls';
 import type { Phase } from './state/store';
 import type { ColorGroup } from './keyboard/layout';
 import type { ResourceCount } from './resources/ownership';
-export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup';
+export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup' | 'props-wide' | 'props-streamdeck' | 'props-airpods' | 'deskmat-closeup' | 'desk-sheen';
 
 export interface CameraValues {
   minDistance: number; maxDistance: number; distance: number; polarDeg: number; azimuthDeg: number; position: number[]; target: number[];
@@ -23,6 +23,7 @@ export interface KeyboardHook {
   inspect: () => { capOffsets: number[]; knobOffset: number; meshes: number; geometries: number; calls: number; triangles: number; palette: Record<string, string>; keys: Record<string, { group: ColorGroup; cap: string; legend: string | null; labels: string[] }>; colorSamples: { key: string; group: ColorGroup; x: number; y: number }[]; framing: { keyboardWidthRatio: number; deskFrontEdgeNdcY: number; keyboardCenterFromEdge: number } };
 }
 declare global { interface Window {
+  __props?: () => { headphones: { cups: { localPosition: number[]; up: number[]; inwardDot: number; stemGeometry: string }[]; aluminum: { color: string; metalness: number; roughness: number }; canopy: { alphaTest: number; hasAlphaMap: boolean; hasNormalMap: boolean; hasRoughnessMap: boolean; sheen: number } }; screenSamples: number[][]; sheenRemoteSample: number[]; matTop: number; feetBottom: number[]; bodyBottom: number; headrestOverlapMm: number[]; streamdeck: { keyCount: number; lcdRecessMm: number }; sheenSample: number[]; contactErrorMm: number; props: Record<string, { min: number[]; max: number[]; inFrame: boolean }>; wood: { type: string; clearcoat: number; clearcoatRoughness: number; envMapIntensity: number; explicitEnvironment: boolean; roughnessMin: number; roughnessScale: number } };
   __kb?: KeyboardHook;
   __camera?: () => CameraValues;
   __environment?: () => { captures: number; frames: number; probeOrigin: number[]; hdriIntensity: number; hdriRotation: number; lightformers: Record<string, { position: number[]; size: number[]; quaternion: number[]; color: string; radiance: number[] }> };

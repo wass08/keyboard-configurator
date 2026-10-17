@@ -1,5 +1,5 @@
 export const PITCH = 0.01905;
-export const TILT = 7 * Math.PI / 180;
+export { CASE_TILT as TILT } from '../scene/dimensions';
 export type ColorGroup = 'alpha' | 'mod' | 'accent';
 export interface KeyDefinition {
   id: string;

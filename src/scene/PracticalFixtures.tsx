@@ -9,7 +9,26 @@ import type { LightingSettings } from './lightingControls';
 import { OffScreenReflection } from './OffScreenReflection';
 
 const graphite = '#303638';
+export const SCREEN_RADIANCE = 0.62;
 export const SCREEN_WIDTH = 0.598, SCREEN_HEIGHT = 0.336;
+// LCD content has its own radiance; the user's rim/bias-light color controls
+// the luminaires, not the wallpaper's white balance.
+function wallpaperRGB(u: number, v: number) {
+  const lavender = Math.exp(-((u - 0.2) ** 2 / 0.20 + (v - 0.82) ** 2 / 0.35));
+  const mint = Math.exp(-((u - 0.83) ** 2 / 0.24 + (v - 0.18) ** 2 / 0.30));
+  const horizon = (1 + Math.tanh((v - 0.94) * 18)) / 2;
+  return [152 + lavender * 20 + horizon * 18, 152 + lavender * 7 + mint * 32 + horizon * 18, 153 + lavender * 27 + mint * 18 + horizon * 18];
+}
+// Average the wallpaper in linear light. The reflection card matches actual
+// LCD content, independently of the red rear bias-light control.
+export const SCREEN_REFLECTION_COLOR = (() => {
+  const mean = new Color(0, 0, 0), sample = new Color();
+  for (let y = 0; y < 24; y++) for (let x = 0; x < 40; x++) {
+    const rgb = wallpaperRGB((x + 0.5) / 40, (y + 0.5) / 24);
+    mean.add(sample.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, SRGBColorSpace));
+  }
+  return mean.multiplyScalar(1 / (40 * 24));
+})();
 // The lower luminous screen band supplies the grazing rim. A full-height
 // emitter averages too many high-angle rays into an even wash on the cap tops.
 export const RIM_BAND_HEIGHT = 0.028;
@@ -23,14 +42,12 @@ function wallpaper() {
     const u = x / (canvas.width - 1), v = y / (canvas.height - 1);
     // Smooth Gaussian color fields have no central gradient stop or join.
     // Sub-LSB deterministic dither prevents 8-bit quantization bands.
-    const lavender = Math.exp(-((u - 0.2) ** 2 / 0.20 + (v - 0.82) ** 2 / 0.35));
-    const mint = Math.exp(-((u - 0.83) ** 2 / 0.24 + (v - 0.18) ** 2 / 0.30));
-    const horizon = (1 + Math.tanh((v - 0.94) * 18)) / 2;
+    const rgb = wallpaperRGB(u, v);
     const noise = (((x * 1664525 ^ y * 1013904223) >>> 0) % 257) / 256 - 0.5;
     const i = (y * canvas.width + x) * 4;
-    pixels.data[i] = 143 + lavender * 37 + mint * 9 + horizon * 30 + noise;
-    pixels.data[i + 1] = 164 + lavender * 8 + mint * 27 + horizon * 25 + noise;
-    pixels.data[i + 2] = 184 + lavender * 16 + mint * 13 + horizon * 21 + noise;
+    pixels.data[i] = rgb[0] + noise;
+    pixels.data[i + 1] = rgb[1] + noise;
+    pixels.data[i + 2] = rgb[2] + noise;
     pixels.data[i + 3] = 255;
   }
   ctx.putImageData(pixels, 0, 0);
@@ -56,7 +73,7 @@ export function Monitor({ settings, enabled }: { settings: LightingSettings; ena
       <mesh name="monitor-screen" position={[0, 0.003, 0.0001]}>
         <planeGeometry args={[SCREEN_WIDTH, SCREEN_HEIGHT]} />
         {powered
-          ? <meshBasicMaterial key="on" map={screen} color={new Color(settings.rimColor).multiplyScalar(1.35)} />
+          ? <meshBasicMaterial key="on" map={screen} color={new Color('#ffffff').multiplyScalar(SCREEN_RADIANCE)} />
           : <meshPhysicalMaterial key="off" color="#030405" emissiveIntensity={0} roughness={0.22} metalness={0.08} clearcoat={1} clearcoatRoughness={0.12} />}
       </mesh>
       {!powered && <OffScreenReflection width={SCREEN_WIDTH} height={SCREEN_HEIGHT} revision={JSON.stringify(settings)} />}

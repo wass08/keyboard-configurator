@@ -1,5 +1,6 @@
 import { SoftShadows } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
+import { DeskSettings } from './Desk';
 import { useThree } from '@react-three/fiber';
 import { Box3, Frustum, Matrix4, Object3D, Quaternion, Vector3 } from 'three';
 import type { Mesh, RectAreaLight, SpotLight } from 'three';
@@ -12,7 +13,7 @@ import { areaOrientation } from './lightTransforms';
 import { Monitor, RIM_BAND_HEIGHT, RIM_BAND_Y, SCREEN_WIDTH } from './PracticalFixtures';
 
 RectAreaLightUniformsLib.init();
-export function Lighting() {
+export function Lighting({ children }: { children: ReactNode }) {
   const settings = useLightingControls();
   const requestedSolo = new URLSearchParams(location.search).get('solo');
   const solo = ['key', 'softbox', 'spot', 'fill', 'rim', 'env'].includes(requestedSolo ?? '') ? requestedSolo : null;
@@ -67,7 +68,7 @@ export function Lighting() {
     };
     return () => { delete window.__lighting; delete window.__lightingStore; };
   }, [gl, scene, camera, solo, settings]);
-  return <>
+  return <DeskSettings.Provider value={settings}>
     <SoftShadows size={settings.shadowSoftness * settings.shadowRadius / 3} samples={24} />
     <RigEnvironment settings={settings} enabled={env} />
     <Monitor settings={settings} enabled={rim || env} />
@@ -79,5 +80,6 @@ export function Lighting() {
     {/* Screen-motivated rear glow illuminates real plaster, not a backdrop
         texture or emissive decal. It follows the monitor's transform. */}
     <rectAreaLight name="screen-wall-glow" position={backPosition} quaternion={screenOrientation} width={0.5} height={0.26} intensity={rim && settings.screenOn ? settings.wallGlow : 0} color={settings.rimColor} />
-  </>;
+    {children}
+  </DeskSettings.Provider>;
 }

@@ -107,3 +107,44 @@ Attached: 7 reference photos, one per variant, saved in [`references/`](referenc
 > about the environment, what are you using? the same as our lighting setup?
 
 (Answers: environment = rig-matched Lightformers + dim HDRI; mobile portrait cropping at the 0.719 m max distance = leave it for now, desktop first.)
+
+---
+
+## 10 — Dev server (2026-10-17)
+
+> please run the dev server
+
+---
+
+## 11 — Save lighting, desk props, wood reflections (2026-10-17)
+
+> awesome. save these lighting settings.
+>
+> ```json
+> {
+>   "lights": {
+>     "softbox": { "type": "RectAreaLight", "intensity": 0.75, "color": "#fff7f0", "width": 0.44, "height": 0.68, "position": [-0.67, 1.75, 0.8], "aim": [0, 0.79, -0.02] },
+>     "spot": { "type": "SpotLight", "intensity": 6.235, "color": "#fff7f0", "angle": 0.21, "penumbra": 0.78, "shadowSoftness": 147, "shadowRadius": 4.1, "linkedToSoftbox": true, "position": [-0.67, 1.75, 0.8], "aim": [0, 0.79, -0.02] },
+>     "fill": { "type": "RectAreaLight", "intensity": 0.25, "color": "#eee4ff", "width": 1.8, "height": 1.5, "position": [1.4, 1.4, 0.4], "aim": [0, 0.79, -0.02] },
+>     "monitor": { "screenOn": true, "type": "RectAreaLight", "intensity": 0, "color": "#8d2d2d", "width": 0.598, "height": 0.028, "position": [0, 1.025, -0.43], "aim": [0, 0.99, 0],
+>       "wallGlow": { "intensity": 23.3, "color": "#8d2d2d", "width": 0.5, "height": 0.26, "localPosition": [0, 0, -0.06] } }
+>   },
+>   "environment": { "lightformerIntensity": 1.28, "hdriIntensity": 0.095, "rotation": -1.29 },
+>   "rendering": { "exposure": 1 }
+> }
+> ```
+>
+> then I want you to:
+> - add a desk mat with thith gray mat material
+> - add a stream deck on the right  between the screen and keyboard
+> -  add a airpods max on a stand on the left
+>
+> I don't see much reflections on the wood of the desk, why is that? could we make it a bit more impacted by the env?
+
+Attached: 3 prop references, saved as `references/props-desk-mat.png`, `references/props-stream-deck.png`, `references/props-airpods-max-stand.png`.
+
+---
+
+## 12 — Status question (2026-10-17)
+
+> what is it waiting?

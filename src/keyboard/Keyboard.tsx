@@ -35,6 +35,11 @@ export function Keyboard() {
   const variant = getVariant(started.current ? displayedId : selectedId);
 
   useEffect(() => {
+    // Keep plastic's reflection response independent of the lacquered desk.
+    for (const material of Object.values(materials.caps)) { material.envMap = scene.environment; material.needsUpdate = true; }
+  }, [materials, scene]);
+
+  useEffect(() => {
     const hook: KeyboardHook = {
       ready: true,
       generation: 0,

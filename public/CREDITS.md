@@ -1,6 +1,6 @@
 # Asset credits
 
-All downloaded assets are by Poly Haven and licensed CC0 1.0 (public domain).
+Downloaded assets are from Poly Haven and ambientCG, licensed CC0 1.0 (public domain).
 License: https://polyhaven.com/license · https://creativecommons.org/publicdomain/zero/1.0/
 
 ## Oak Veneer 01 (2K)
@@ -20,6 +20,18 @@ Used for studio reflections and ambient illumination.
 https://polyhaven.com/a/plastered_wall_04
 
 Diffuse, OpenGL normal and roughness. Tinted neutral charcoal for the studio wall.
+
+## Fabric 034 — felt (2K)
+
+https://ambientcg.com/a/Fabric034
+
+Charcoal-tinted felt scan: color (sRGB), OpenGL normal and roughness (linear), also used for the headphone cushions. License: https://docs.ambientcg.com/license/ — CC0 1.0.
+
+Archive: https://ambientcg.com/get?file=Fabric034_2K-JPG.zip . Shipped members:
+
+- `Fabric034_2K-JPG_Color.jpg` → `textures/felt/Fabric034_Color_2K.jpg`
+- `Fabric034_2K-JPG_NormalGL.jpg` → `textures/felt/Fabric034_NormalGL_2K.jpg`
+- `Fabric034_2K-JPG_Roughness.jpg` → `textures/felt/Fabric034_Roughness_2K.jpg`
 
 ## Exact download URLs
 
@@ -42,4 +54,4 @@ Wood Table 001 (2K), https://polyhaven.com/a/wood_table_001, CC0 1.0. Replaced a
 - https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/wood_table_001/wood_table_001_rough_2k.jpg — CC0 1.0
 - https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/wood_table_001/wood_table_001_ao_2k.jpg — CC0 1.0
 
-Keyboard and desk geometry, glyph atlas and UI are generated locally. Reference photos in references/ were supplied by the project owner and are not redistributed as app assets.
+Keyboard, desk and prop geometry, generic control-pad icon atlas, wallpaper and UI are generated locally. No third-party logos or wordmarks are used. Reference photos in references/ were supplied by the project owner and are not redistributed as app assets.
