@@ -31,3 +31,18 @@ export function useOwnedDisposal(owner: string, resources: readonly OwnedResourc
 
 // Counts observe actual Three.js dispose events; no resource references retained.
 export const getOwnedResourceStats = () => Object.fromEntries(Object.entries(counts).map(([owner, count]) => [owner, { ...count }]));
+
+// Observe a library-owned allocation without disposing it twice. Drei owns the
+// Environment portal's FBO; its actual dispose event must still be verified.
+const managed = new WeakSet<OwnedResource>();
+export function observeManagedDisposal(owner: string, resource: OwnedResource) {
+  if (managed.has(resource)) return;
+  managed.add(resource);
+  const count = counts[owner] ??= { registered: 0, disposed: 0, active: 0 };
+  count.registered++; count.active++;
+  const release = () => {
+    count.disposed++; count.active--;
+    resource.removeEventListener('dispose', release);
+  };
+  resource.addEventListener('dispose', release);
+}

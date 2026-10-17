@@ -1,8 +1,12 @@
+import type { LightingValues } from './scene/lightingControls';
 import type { Phase } from './state/store';
 import type { ColorGroup } from './keyboard/layout';
 import type { ResourceCount } from './resources/ownership';
 export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup';
 
+export interface CameraValues {
+  minDistance: number; maxDistance: number; distance: number; polarDeg: number; azimuthDeg: number; position: number[]; target: number[];
+}
 export interface KeyboardHook {
   ready: boolean;
   generation: number;
@@ -20,6 +24,9 @@ export interface KeyboardHook {
 }
 declare global { interface Window {
   __kb?: KeyboardHook;
-  __lighting?: () => { solo: string | null; lights: { type: string; intensity: number; castShadow: boolean; position: number[] }[]; lampAlignment: { shadeAxis: number[]; spotlightDirection: number[]; angleDegrees: number; openingToCameraDot: number }; screenRegion: { minX: number; maxX: number; minY: number; maxY: number }; environment: number; exposure: number; shadowAutoUpdate: boolean };
+  __camera?: () => CameraValues;
+  __environment?: () => { captures: number; frames: number; probeOrigin: number[]; hdriIntensity: number; hdriRotation: number; lightformers: Record<string, { position: number[]; size: number[]; quaternion: number[]; color: string; radiance: number[] }> };
+  __lightingStore?: { set: (values: Record<string, unknown>) => void };
+  __lighting?: () => { solo: string | null; lights: { name: string; type: string; intensity: number; color: string; castShadow: boolean; position: number[]; quaternion: number[]; size?: number[] }[]; keyFrustum: { outside: boolean; position: number[]; ndc: number[] }; areaFrusta: Record<string, { outside: boolean; position: number[]; corners: number[][] }>; values: LightingValues; monitor: { screenOn: boolean; material: string; hasWallpaper: boolean; color: string; emissiveIntensity: number; roughness: number; clearcoat: number; reflectionCaptures: number; position: number[]; quaternion: number[] }; screenRegion: { minX: number; maxX: number; minY: number; maxY: number }; environment: number; exposure: number; shadowAutoUpdate: boolean };
   __app?: { setMounted: (mounted: boolean) => void; resources: () => Record<string, ResourceCount> };
 } }

@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { Color } from 'three';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 
 const port = 4175;
@@ -14,6 +15,24 @@ let browser;
 const variants = ['glacial-blue', 'cool-black', 'emerald', 'pink', 'overnight', 'white-blue-purple', 'white-brown'];
 const errors = [];
 const checks = {};
+const expectedEnvironment = { lightformerIntensity: 2, hdriIntensity: 0.09, rotation: 1.2 };
+const nearArray = (actual, expected, message) => {
+  assert.equal(actual.length, expected.length, message);
+  actual.forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-9, `${message}: ${actual} vs ${expected}`));
+};
+const idleFrames = (page, count = 20) => page.evaluate(count => new Promise(resolve => {
+  const tick = () => { if (--count <= 0) resolve(); else requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+}), count);
+function assertReflectionCards(lighting, environment) {
+  for (const [source, card] of [['key-softbox', 'reflection-softbox'], ['studio-fill', 'reflection-fill']]) {
+    const light = lighting.lights.find(light => light.name === source);
+    const reflection = environment.lightformers[card];
+    nearArray(reflection.position, light.position, `${card}: actual world position`);
+    nearArray(reflection.quaternion, light.quaternion, `${card}: actual plane orientation`);
+    nearArray(reflection.size, light.size, `${card}: physical size`);
+    nearArray(reflection.radiance, new Color(light.color).multiplyScalar(light.intensity * lighting.values.environment.lightformerIntensity).toArray(), `${card}: linear radiance/color`);
+  }
+}
 const expectedPalettes = {
   'glacial-blue': { body: 'e5e8e9', frame: 'f2f3ef', knob: 'e8ecea', ring: 'e5e6e5', alpha: 'edf0ed', mod: 'a9c3d9', accent: '23263a', alphaLegend: '28313a', modLegend: '28313a', accentLegend: 'f9f9f4' },
   'cool-black': { body: '1d1e21', frame: '282a2b', knob: '26282a', ring: '6c7278', alpha: '2b3040', mod: '202123', accent: 'e3b232', alphaLegend: 'e3b232', modLegend: 'e3b232', accentLegend: '242323' },
@@ -96,14 +115,9 @@ try {
     const points = await page.evaluate(() => window.__kb.inspect().colorSamples);
     checks.colorFidelity ??= {};
     checks.colorFidelity[id] = measureCapColors(buffer, points, expectedPalettes[id]);
-    if (id === 'glacial-blue') {
-      const region = await page.evaluate(() => window.__lighting().screenRegion);
-      checks.screenContinuity = measureScreenContinuity(buffer, region);
-    }
     // Keep actionable pixel deltas even if a later assertion fails.
     await writeFile('screenshots/checks.json', `${JSON.stringify(checks, null, 2)}\n`);
     assert.equal(checks.colorFidelity[id].status, 'passed', `${id}: rendered cap hue/saturation must match (see checks.json)`);
-    if (id === 'glacial-blue') assert.equal(checks.screenContinuity.status, 'passed', 'Wallpaper must have no narrow dark seams or stand-edge fragments');
   };
   const change = async id => {
     const previous = await page.evaluate(() => window.__kb.generation);
@@ -134,14 +148,68 @@ try {
   await shot('glacial-blue');
   await colorShot('lighting-hero', 'glacial-blue');
   const lighting = await page.evaluate(() => window.__lighting());
-  assert.ok(lighting.lampAlignment.angleDegrees <= 3, 'Spotlight direction must follow the actual diffuser normal in world space');
-  assert.ok(lighting.lampAlignment.openingToCameraDot < 0, 'Hero must see the shade exterior, not look into its opening');
-  checks.lampAlignment = { status: 'passed', maximumDegrees: 3, ...lighting.lampAlignment };
-  assert.deepEqual(lighting.lights.map(light => light.type).sort(), ['HemisphereLight', 'RectAreaLight', 'RectAreaLight', 'SpotLight']);
+  assert.equal(lighting.keyFrustum.outside, true, 'Studio key must be outside the default hero frustum');
+  checks.keyOutsideHeroFrustum = { status: 'passed', ...lighting.keyFrustum };
+  assert.deepEqual(Object.keys(lighting.areaFrusta).sort(), ['key-softbox', 'studio-fill']);
+  for (const [name, source] of Object.entries(lighting.areaFrusta)) assert.equal(source.outside, true, `${name}: entire area source must be outside the hero frustum`);
+  checks.areasOutsideHeroFrustum = { status: 'passed', sources: lighting.areaFrusta };
+  assert.deepEqual(lighting.lights.map(light => light.type).sort(), ['RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'SpotLight']);
   assert.equal(lighting.lights.filter(light => light.castShadow).length, 1);
   assert.equal(lighting.shadowAutoUpdate, false);
-  assert.ok(lighting.environment < 0.1);
-  checks.practicalLighting = { status: 'passed', ...lighting };
+  assert.equal(lighting.environment, 1, 'Individual source intensities are baked into the environment');
+  assert.deepEqual(lighting.values.environment, expectedEnvironment);
+  assert.deepEqual(lighting.values.rendering, { exposure: 1 });
+  assert.deepEqual(lighting.values.lights, {
+    softbox: { type: 'RectAreaLight', intensity: 10.8, color: '#fff7f0', width: 0.6, height: 0.9, position: [-0.67, 1.75, 0.8], aim: [0, 0.79, -0.02] },
+    spot: { type: 'SpotLight', intensity: 2.385, color: '#fff7f0', angle: 0.23, penumbra: 0.8, shadowSoftness: 147, shadowRadius: 4.1, linkedToSoftbox: true, position: [-0.67, 1.75, 0.8], aim: [0, 0.79, -0.02], unlinkedPosition: [-0.67, 1.75, 0.8], unlinkedAim: [0, 0.79, -0.02] },
+    fill: { type: 'RectAreaLight', intensity: 0.85, color: '#eee4ff', width: 1.8, height: 1.5, position: [1.4, 1.4, 0.4], aim: [0, 0.79, -0.02] },
+    monitor: { screenOn: false, type: 'RectAreaLight', intensity: 0, color: '#be7cff', width: 0.598, height: 0.028, position: [0, 1.025, -0.43], aim: [0, 0.99, 0], wallGlow: { intensity: 0, color: '#be7cff', width: 0.5, height: 0.26, localPosition: [0, 0, -0.06] } },
+  }, 'Keep every user-tuned default exactly');
+  for (const [name, role] of [['key-softbox', 'softbox'], ['studio-key', 'spot'], ['studio-fill', 'fill'], ['screen-rim', 'monitor']]) {
+    const actual = lighting.lights.find(light => light.name === name), expected = lighting.values.lights[role];
+    assert.equal(actual.intensity, expected.intensity); assert.equal(actual.color, expected.color);
+  }
+  const environment = await page.evaluate(() => window.__environment());
+  assert.equal(environment.frames, 1); assert.equal(environment.captures, 1, 'Assembly must not rebake the environment');
+  assert.equal(environment.hdriIntensity, expectedEnvironment.hdriIntensity);
+  assert.equal(environment.hdriRotation, expectedEnvironment.rotation);
+  assert.deepEqual(Object.keys(environment.lightformers).sort(), ['reflection-fill', 'reflection-softbox']);
+  assertReflectionCards(lighting, environment);
+  checks.rigMatchedEnvironment = { status: 'passed', defaults: expectedEnvironment, ...environment };
+  checks.studioLighting = { status: 'passed', ...lighting };
+
+  assert.equal(lighting.monitor.screenOn, false); assert.equal(lighting.monitor.hasWallpaper, false);
+  assert.equal(lighting.monitor.material, 'MeshPhysicalMaterial');
+  assert.equal(lighting.monitor.emissiveIntensity, 0); assert.equal(lighting.monitor.color, '030405');
+  assert.equal(lighting.monitor.clearcoat, 1); assert.ok(lighting.monitor.roughness < 0.3);
+  assert.ok(lighting.monitor.reflectionCaptures > 0, 'Off screen must reflect the actual scene');
+  await shot('monitor-off');
+  await idleFrames(page);
+  assert.equal(await page.evaluate(() => window.__environment().captures), environment.captures, 'Idle frames must not rebake the cubemap');
+  assert.equal(await page.evaluate(() => window.__lighting().monitor.reflectionCaptures), lighting.monitor.reflectionCaptures, 'Stationary panel reflections must also be cached');
+  checks.monitorOff = { status: 'passed', ...lighting.monitor, idleReflectionCaptures: lighting.monitor.reflectionCaptures };
+
+  // Retain wallpaper regression coverage behind the default-off control. Its
+  // seam check belongs on the on-screen image, not real reflected geometry.
+  await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.screenOn': true }));
+  await page.waitForFunction(() => window.__lighting().monitor.material === 'MeshBasicMaterial' && window.__environment().lightformers['reflection-screen']);
+  const powered = await page.evaluate(() => ({ lighting: window.__lighting(), environment: window.__environment() }));
+  assert.equal(powered.lighting.monitor.hasWallpaper, true);
+  const panel = powered.environment.lightformers['reflection-screen'];
+  nearArray(panel.position, powered.lighting.monitor.position, 'Screen reflection world position');
+  nearArray(panel.quaternion, powered.lighting.monitor.quaternion, 'Screen reflection orientation');
+  nearArray(panel.size, [0.598, 0.336], 'Full screen reflection size');
+  const screenBuffer = await shot('monitor-on');
+  checks.screenContinuity = measureScreenContinuity(screenBuffer, powered.lighting.screenRegion);
+  assert.equal(checks.screenContinuity.status, 'passed', 'Powered-on wallpaper must have no narrow dark seams or stand-edge fragments');
+  await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.rimIntensity': 42, 'Monitor · rim.wallGlow': 16 }));
+  await page.waitForFunction(() => window.__lighting().lights.find(light => light.name === 'screen-rim').intensity === 42);
+  await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.screenOn': false }));
+  await page.waitForFunction(() => window.__lighting().monitor.material === 'MeshPhysicalMaterial' && !window.__environment().lightformers['reflection-screen']);
+  const offAgain = await page.evaluate(() => window.__lighting());
+  assert.ok(offAgain.lights.filter(light => light.name.startsWith('screen-')).every(light => light.intensity === 0), 'screenOn=false must gate both monitor lights even when their configured values are positive');
+  await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.rimIntensity': 0, 'Monitor · rim.wallGlow': 0 }));
+  checks.monitorToggle = { status: 'passed', onMaterial: powered.lighting.monitor.material, screenLightformer: panel, offGatesBothLights: true, wallpaperContinuity: checks.screenContinuity.status };
   for (const id of variants.slice(1)) {
     await change(id);
     if (id === 'cool-black') { await page.evaluate(() => window.__kb.seek(0.88)); await shot('switch-mid'); }
@@ -153,8 +221,10 @@ try {
   await change('glacial-blue'); await finish();
   await page.evaluate(() => window.__kb.camera('lighting-wide'));
   await shot('lighting-wide');
+  await change('cool-black'); await finish();
   await page.evaluate(() => window.__kb.camera('lighting-closeup'));
   await shot('lighting-closeup');
+  await change('glacial-blue'); await finish();
   await page.evaluate(() => window.__kb.camera('closeup'));
   await shot('closeup');
   await change('cool-black'); await finish();
@@ -210,7 +280,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'FloorContact']) {
+    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -225,7 +295,7 @@ try {
   await context.close();
 
   checks.soloLights = {};
-  for (const role of ['key', 'rim', 'fill']) {
+  for (const role of ['key', 'softbox', 'spot', 'fill', 'rim', 'env']) {
     const soloContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
     const soloPage = await soloContext.newPage(); observeErrors(soloPage);
     await soloPage.goto(`${url}/?capture=1&solo=${role}`);
@@ -235,15 +305,17 @@ try {
     await renderedPage(soloPage);
     const info = await soloPage.evaluate(() => window.__lighting());
     const active = info.lights.filter(light => light.intensity > 0);
-    assert.equal(active.length, role === 'fill' ? 2 : 1, `Only the ${role} emitter (and ceiling bounce in fill) may be active`);
-    const practical = active.find(light => light.type !== 'HemisphereLight');
-    assert.equal(practical.type, role === 'key' ? 'SpotLight' : 'RectAreaLight');
-    assert.equal(practical.castShadow, role === 'key');
-    assert.equal(info.environment, 0.008);
+    const expected = { key: ['key-softbox', 'studio-key'], softbox: ['key-softbox'], spot: ['studio-key'], fill: ['studio-fill'], rim: [], env: [] }[role];
+    assert.deepEqual(active.map(light => light.name).sort(), expected.sort(), `Only the ${role} role may be active`);
+    assert.equal(active.some(light => light.castShadow), role === 'key' || role === 'spot');
+    assert.equal(info.environment, 1);
+    const soloEnvironment = await soloPage.evaluate(() => window.__environment());
+    assert.equal(soloEnvironment.hdriIntensity, role === 'env' ? expectedEnvironment.hdriIntensity : 0.008);
+    assert.equal(Object.keys(soloEnvironment.lightformers).length, role === 'env' ? 2 : 0);
     assert.equal(info.shadowAutoUpdate, false);
-    assert.ok(info.lampAlignment.angleDegrees <= 3);
-    assert.ok(info.lampAlignment.openingToCameraDot < 0);
-    checks.soloLights[role] = { status: 'passed', ...info };
+    assert.equal(info.keyFrustum.outside, true);
+    for (const source of Object.values(info.areaFrusta)) assert.equal(source.outside, true);
+    checks.soloLights[role] = { status: 'passed', ...info, environmentCapture: soloEnvironment };
     await soloPage.screenshot({ path: `screenshots/solo-${role}.png` });
     console.log(`screenshots/solo-${role}.png`);
     await soloContext.close();
@@ -260,28 +332,131 @@ try {
   const mobileInfo = await mobilePage.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, info: window.__kb.inspect() }));
   assert.equal(mobileInfo.width, mobileInfo.scrollWidth);
   assert.ok(mobileInfo.info.capOffsets.every(y => y === 0));
-  assert.ok(mobileInfo.info.framing.keyboardWidthRatio < 0.98, 'Portrait framing must fit the complete keyboard');
+  const mobileCamera = await mobilePage.evaluate(() => window.__camera());
+  assert.equal(mobileCamera.minDistance, 0.317);
+  assert.equal(mobileCamera.maxDistance, 0.719, "Never override the user's max orbit distance for mobile");
+  assert.ok(mobileCamera.distance <= 0.719 + 1e-8);
+  // Spec 04 explicitly retains this limit and requires an honest framing report,
+  // rather than automatically widening the mobile camera to make a fit test pass.
+  checks.mobileFraming = { status: 'measured', fits: mobileInfo.info.framing.keyboardWidthRatio < 0.98, keyboardWidthRatio: mobileInfo.info.framing.keyboardWidthRatio, camera: mobileCamera, viewport: [390, 844] };
   await mobilePage.screenshot({ path: 'screenshots/mobile.png' });
   console.log('screenshots/mobile.png');
   checks.reducedMotionAndMobile = 'passed';
   await mobile.close();
 
-  const debugContext = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+  const debugContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5, permissions: ['clipboard-read', 'clipboard-write'] });
   const debugPage = await debugContext.newPage(); observeErrors(debugPage);
   await debugPage.goto(`${url}/?capture=1&debug`);
-  await debugPage.waitForFunction(() => window.__kb?.ready);
+  await debugPage.waitForFunction(() => window.__kb?.ready && window.__camera);
   await debugPage.evaluate(() => window.__kb.finish());
-  const intensityControl = debugPage.getByRole('textbox', { name: 'Intensity', exact: true }).first();
-  await intensityControl.fill('1.15'); await intensityControl.press('Enter');
-  await debugPage.waitForFunction(() => window.__lighting().lights.find(light => light.type === 'SpotLight').intensity === 1.15);
-  const positionControl = debugPage.getByRole('textbox', { name: 'Head position', exact: true });
-  await positionControl.fill('-0.25'); await positionControl.press('Enter');
-  await debugPage.waitForFunction(() => window.__lighting().lights.find(light => light.type === 'SpotLight').position[0] === -0.25);
+  const originalCamera = await debugPage.evaluate(() => window.__camera());
+  const edit = async (name, value) => {
+    const input = debugPage.getByRole('textbox', { name, exact: true }).first();
+    await input.fill(String(value)); await input.press('Enter');
+  };
+  // Drag both real slider tracks and inspect the actual OrbitControls limits.
+  // The adjacent numeric fields exercise precise values separately.
+  const dragLimit = async (name, fraction) => {
+    const range = debugPage.getByRole('textbox', { name, exact: true }).locator('..').locator('..').locator(':scope > div').first();
+    const bounds = await range.boundingBox();
+    assert.ok(bounds, `${name}: slider track must be visible`);
+    const handle = await range.locator(':scope > div').last().boundingBox();
+    assert.ok(handle);
+    await debugPage.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await debugPage.mouse.down();
+    await debugPage.mouse.move(bounds.x + bounds.width * fraction, bounds.y + bounds.height / 2, { steps: 4 });
+    await debugPage.mouse.up();
+    await renderedPage(debugPage);
+  };
+  await dragLimit('minDistance', 0.08); await dragLimit('maxDistance', 0.85);
+  const draggedLimits = await debugPage.evaluate(() => window.__camera());
+  assert.ok(draggedLimits.minDistance > 0.30 && draggedLimits.minDistance < 0.50);
+  assert.ok(draggedLimits.maxDistance > 4.9 && draggedLimits.maxDistance < 5.3);
+  await edit('minDistance', 0.31); await edit('maxDistance', 5.6);
+  await debugPage.waitForFunction(() => window.__camera().minDistance === 0.31 && window.__camera().maxDistance === 5.6);
+  const sliderLimits = await debugPage.evaluate(() => window.__camera());
+  await debugPage.getByRole('button', { name: 'Set min = current', exact: true }).click();
+  await debugPage.waitForFunction(distance => Math.abs(window.__camera().minDistance - distance) < 0.0011, originalCamera.distance);
+  const setMin = await debugPage.evaluate(() => window.__camera());
+  assert.ok(Math.abs(setMin.minDistance - setMin.distance) <= 0.0011);
+  await debugPage.getByRole('button', { name: 'Set max = current', exact: true }).click();
+  await debugPage.waitForFunction(() => Math.abs(window.__camera().maxDistance - window.__camera().distance) <= 0.0011);
+  const setMax = await debugPage.evaluate(() => window.__camera());
+  await debugPage.getByRole('button', { name: 'Copy camera values', exact: true }).click();
+  const copied = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
+  assert.deepEqual(Object.keys(copied).sort(), ['minDistance', 'maxDistance', 'distance', 'polarDeg', 'azimuthDeg', 'position', 'target'].sort());
+  assert.ok(Math.abs(copied.distance - setMax.distance) < 0.0001);
+  await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
+  await debugPage.waitForFunction(() => window.__camera().minDistance === 0.317 && window.__camera().maxDistance === 0.719);
+  const resetCamera = await debugPage.evaluate(() => window.__camera());
+  assert.ok(Math.abs(resetCamera.distance - originalCamera.distance) < 0.0001);
+  checks.cameraControls = { status: 'passed', defaults: originalCamera, draggedLimits, sliderLimits, setMin, setMax, copied, reset: resetCamera };
   await renderedPage(debugPage);
-  assert.equal(await debugPage.evaluate(() => window.__lighting().shadowAutoUpdate), false);
-  const tunedAlignment = await debugPage.evaluate(() => window.__lighting().lampAlignment);
-  assert.ok(tunedAlignment.angleDegrees <= 3, 'Shade and spotlight must stay aligned after moving the head');
-  checks.debugControls = { status: 'passed', intensity: 1.15, headX: -0.25, assembledShadowCache: true, lampAlignment: tunedAlignment };
+  await debugPage.screenshot({ path: 'screenshots/debug-camera.png' });
+  console.log('screenshots/debug-camera.png');
+
+  const defaultLighting = await debugPage.evaluate(() => window.__lighting().values);
+  await debugPage.getByRole('button', { name: 'Copy lighting values', exact: true }).click();
+  const lightingCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
+  assert.deepEqual(lightingCopy, defaultLighting, 'Clipboard must contain every current light parameter');
+  assert.deepEqual(Object.keys(lightingCopy.lights).sort(), ['softbox', 'spot', 'fill', 'monitor'].sort());
+  assert.deepEqual(lightingCopy.lights.softbox.position, [-0.67, 1.75, 0.8]);
+  assert.deepEqual(lightingCopy.lights.spot.position, [-0.67, 1.75, 0.8]);
+  checks.lightingClipboard = { status: 'passed', values: lightingCopy };
+
+  // Use the real debug Leva store. Verify actual portal mesh transforms and
+  // camera.update calls, rather than merely checking copied control values.
+  const beforeEnvironment = await debugPage.evaluate(() => window.__environment());
+  await idleFrames(debugPage);
+  assert.equal(await debugPage.evaluate(() => window.__environment().captures), beforeEnvironment.captures);
+  await debugPage.evaluate(() => window.__lightingStore.set({
+    'Key · softbox.keyPosition': { x: -0.81, y: 1.82, z: 0.91 },
+    'Key · softbox.keyAim': { x: 0.02, y: 0.80, z: -0.01 },
+    'Key · softbox.softboxWidth': 0.72, 'Key · softbox.keyColor': '#faf1e9',
+  }));
+  await debugPage.waitForFunction(previous => window.__environment().captures > previous && window.__environment().lightformers['reflection-softbox'].position[0] === -0.81, beforeEnvironment.captures);
+  await renderedPage(debugPage);
+  const movedEnvironment = await debugPage.evaluate(() => window.__environment());
+  const movedLighting = await debugPage.evaluate(() => window.__lighting());
+  assertReflectionCards(movedLighting, movedEnvironment);
+  nearArray(movedEnvironment.lightformers['reflection-softbox'].position, [-0.81, 1.82, 0.91], 'Debug store moves the actual environment Lightformer');
+  await idleFrames(debugPage);
+  const idleCaptureCount = await debugPage.evaluate(() => window.__environment().captures);
+  assert.equal(idleCaptureCount, movedEnvironment.captures);
+  checks.lightformerFollowsDebugStore = { status: 'passed', before: beforeEnvironment.lightformers['reflection-softbox'], moved: movedEnvironment.lightformers['reflection-softbox'], actualLight: movedLighting.lights.find(light => light.name === 'key-softbox'), captures: { before: beforeEnvironment.captures, afterMove: movedEnvironment.captures, afterIdle: idleCaptureCount } };
+  await debugPage.evaluate(() => window.__lightingStore.set({
+    'Key · softbox.keyPosition': { x: -0.67, y: 1.75, z: 0.8 },
+    'Key · softbox.keyAim': { x: 0, y: 0.79, z: -0.02 },
+    'Key · softbox.softboxWidth': 0.6, 'Key · softbox.keyColor': '#fff7f0',
+  }));
+
+  const editFolder = async (folder, key, value) => {
+    const input = debugPage.locator(`[id="${folder}.${key}"]`);
+    await input.fill(String(value)); await input.press('Enter');
+  };
+  await debugPage.getByText('Key · softbox', { exact: true }).click();
+  await editFolder('Key · softbox', 'softboxIntensity', 13.15);
+  await editFolder('Key · softbox', 'keyPosition', -0.75);
+  await debugPage.waitForFunction(() => {
+    const lights = window.__lighting().lights;
+    return lights.find(light => light.name === 'key-softbox').intensity === 13.15 &&
+      lights.find(light => light.name === 'studio-key').position[0] === -0.75;
+  });
+  await debugPage.getByText('Key · softbox', { exact: true }).click();
+  await debugPage.getByText('Key · spot (shadows)', { exact: true }).click();
+  await debugPage.getByText('Link to softbox', { exact: true }).click();
+  await editFolder('Key · spot (shadows)', 'spotPosition', -0.67);
+  await debugPage.waitForFunction(() => window.__lighting().lights.find(light => light.name === 'studio-key').position[0] === -0.67);
+  await editFolder('Key · spot (shadows)', 'keyIntensity', 2.35);
+  await editFolder('Key · spot (shadows)', 'shadowRadius', 3.2);
+  await renderedPage(debugPage);
+  const tuned = await debugPage.evaluate(() => window.__lighting());
+  assert.equal(tuned.shadowAutoUpdate, false);
+  assert.equal(tuned.lights.find(light => light.name === 'studio-key').intensity, 2.35);
+  await debugPage.getByRole('button', { name: 'Copy lighting values', exact: true }).click();
+  const tunedCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
+  assert.deepEqual(tunedCopy, tuned.values, 'Copy must use live edited values, not mount-time defaults');
+  checks.debugControls = { status: 'passed', linkedPosition: [-0.75, 1.75, 0.8], unlinkedPosition: tunedCopy.lights.spot.position, assembledShadowCache: true, values: tunedCopy };
   await debugContext.close();
   assert.deepEqual(errors, [], 'Browser must have no runtime or console errors');
   checks.browserErrors = errors;

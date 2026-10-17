@@ -6,6 +6,7 @@ import { Lighting } from './Lighting';
 import { CameraRig } from './CameraRig';
 import { Keyboard } from '../keyboard/Keyboard';
 import { useOwnedDisposal } from '../resources/ownership';
+import { StudioWall } from './StudioWall';
 import { FloorContact } from './FloorContact';
 
 function StudioFloor() {
@@ -20,19 +21,19 @@ function StudioFloor() {
   }, []);
   useOwnedDisposal('StudioFloor', [roughness]);
   return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-    <planeGeometry args={[80, 80]} /><meshStandardMaterial color="#d3d1c8" roughness={0.96} roughnessMap={roughness} />
+    <planeGeometry args={[80, 80]} /><meshStandardMaterial color="#292b2f" roughness={0.96} roughnessMap={roughness} />
   </mesh>;
 }
 export function Stage() {
-  return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [-0.073, 1.125, 0.570], fov: 32, near: 0.008, far: 25 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl }) => { gl.toneMappingExposure = 0.88; }}>
-    <color attach="background" args={['#d8d8d2']} />
-    <fog attach="fog" args={['#d8d8d2', 2.7, 8]} />
+  return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [-0.073, 1.125, 0.570], fov: 32, near: 0.008, far: 25 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl }) => { gl.toneMappingExposure = 1; }}>
+    <color attach="background" args={['#000000']} />
     <Suspense fallback={null}>
       <Lighting />
       <Desk />
       <Keyboard />
       <CameraRig />
       <StudioFloor />
+      <StudioWall />
       {/* Static floor contact is a cached occlusion pass, not another emitter.
           The moving caps are above its capture range. */}
       <FloorContact />

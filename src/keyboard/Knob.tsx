@@ -21,7 +21,7 @@ export const Knob = forwardRef<Group, { materials: KeyboardMaterials }>(function
   return <group ref={ref} position={KNOB_POSITION}>
     <mesh position={[0, 0.002, 0]} material={materials.ring} castShadow><cylinderGeometry args={[0.0113, 0.0109, 0.003, 80]} /></mesh>
     <mesh geometry={flutes} material={materials.ring} castShadow />
-    <mesh position={[0, 0.012, 0]} rotation={[Math.PI / 2, 0, 0]} material={materials.ring} castShadow><torusGeometry args={[0.0098, 0.00075, 12, 80]} /></mesh>
+    <mesh position={[0, 0.012, 0]} rotation={[Math.PI / 2, 0, 0]} material={materials.ring} castShadow><torusGeometry args={[0.0098, 0.00105, 24, 80]} /></mesh>
     <mesh position={[0, 0.012, 0]} material={materials.knob} castShadow><cylinderGeometry args={[0.0092, 0.0095, 0.0014, 80]} /></mesh>
   </group>;
 });

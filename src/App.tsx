@@ -14,7 +14,7 @@ export default function App() {
   return <main aria-label="Interactive 3D keyboard configurator">
     <SceneBoundary><Stage /></SceneBoundary>
     <VariantPicker />
-    <Leva hidden={!new URLSearchParams(location.search).has('debug')} titleBar={{ title: 'Practical lighting rig' }} />
+    <Leva theme={{ sizes: { rootWidth: '320px', controlWidth: '160px' } }} hidden={!new URLSearchParams(location.search).has('debug')} titleBar={{ title: 'Studio · camera & lighting' }} />
     <div className="sr-only">Drag to orbit the keyboard. Scroll or pinch to zoom. Use arrow keys in the colorway picker to explore seven finishes.</div>
   </main>;
 }

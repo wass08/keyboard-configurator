@@ -59,3 +59,51 @@ Attached: 7 reference photos, one per variant, saved in [`references/`](referenc
 > - turn the background to black and add a wall behind the desk.
 > - remove the desk lamp instead we will use a nice studio key spot light (not on frame), remove the top light
 > - give me controls so I can give you min/max camera distance
+
+---
+
+## 7 — Camera limits and key light values (2026-10-17)
+
+> thanks let's use this as cam values {
+>   "minDistance": 0.3166593512537758,
+>   "maxDistance": 0.7194732194342892,
+> }
+>
+> for studio key light :
+> intensity 6.95
+> position -0.67 1.75 0.80
+>
+> what type of light are you using for this?
+
+---
+
+## 8 — Pro studio key (area light + spot for shadows) and big dim fill (2026-10-17)
+
+> make it a pro grade product studio light using a react area light but keep the spotlight for the shadows
+>
+> on the opposite side (right) use another rect area light, much bigger, much dimmer for the fill light
+
+("react area light" = `RectAreaLight`.)
+
+---
+
+## 9 — Tuned lighting values, screen off, environment question (2026-10-17)
+
+> ```json
+> {
+>   "lights": {
+>     "softbox": { "type": "RectAreaLight", "intensity": 10.8, "color": "#fff7f0", "width": 0.6, "height": 0.9, "position": [-0.67, 1.75, 0.8], "aim": [0, 0.79, -0.02] },
+>     "spot": { "type": "SpotLight", "intensity": 2.385, "color": "#fff7f0", "angle": 0.23, "penumbra": 0.8, "shadowSoftness": 147, "shadowRadius": 4.1, "linkedToSoftbox": true, "position": [-0.67, 1.75, 0.8], "aim": [0, 0.79, -0.02] },
+>     "fill": { "type": "RectAreaLight", "intensity": 0.85, "color": "#eee4ff", "width": 1.8, "height": 1.5, "position": [1.4, 1.4, 0.4], "aim": [0, 0.79, -0.02] },
+>     "monitor": { "type": "RectAreaLight", "intensity": 0, "color": "#be7cff", "width": 0.598, "height": 0.028, "position": [0, 1.025, -0.43], "aim": [0, 1, 0],
+>       "wallGlow": { "intensity": 0, "color": "#be7cff", "width": 0.5, "height": 0.26, "localPosition": [0, 0, -0.06] } }
+>   },
+>   "rendering": { "environment": 0.26, "exposure": 1 }
+> }
+> ```
+>
+> for now please turn off the screen and wall glow.
+>
+> about the environment, what are you using? the same as our lighting setup?
+
+(Answers: environment = rig-matched Lightformers + dim HDRI; mobile portrait cropping at the 0.719 m max distance = leave it for now, desktop first.)
