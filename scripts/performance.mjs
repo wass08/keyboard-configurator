@@ -22,6 +22,8 @@ try {
   // A real click on empty desk unlocks the audio engine, so typing is measured with sound.
   await page.mouse.click(8, 450);
   const result = await page.evaluate(async () => {
+    const defaults = window.__camera().lens;
+    if (!defaults.depthOfField || !defaults.autoFocus || defaults.focalRange !== 0.285) throw new Error('Measure the production DoF/autofocus defaults');
     const gl = document.querySelector('canvas').getContext('webgl2');
     const debug = gl.getExtension('WEBGL_debug_renderer_info');
     const renderer = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
@@ -85,8 +87,7 @@ try {
     const depthOfField = await measure(180, 30);
     const depthOfFieldRender = window.__kb.inspect();
     const lens = window.__camera().lens;
-    window.__cameraStore.set({ depthOfField: false });
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, intro, dust, typing, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, defaults, assembled, intro, dust, typing, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');

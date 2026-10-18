@@ -5,7 +5,7 @@ export async function screenPolishChecks(browser, url, observeErrors) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
   const page = await context.newPage(); observeErrors(page);
   const frames = (n = 4) => page.evaluate(n => new Promise(resolve => { const tick = () => --n <= 0 ? resolve() : requestAnimationFrame(tick); requestAnimationFrame(tick); }), n);
-  const shot = async name => { await frames(2); const buffer = await page.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`); return buffer; };
+  const shot = async name => { await frames(2); await page.waitForFunction(() => { const focus = window.__cameraStore.focusState(); return focus.distance === focus.target; }); const buffer = await page.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`); return buffer; };
   const read = () => page.evaluate(() => window.__screen());
   try {
     await page.goto(`${url}/?capture=1`);
@@ -66,9 +66,25 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     await page.evaluate(() => window.__kb.camera('closeup')); await frames();
     const kp = await page.evaluate(() => window.__interaction.knobPoint());
     const [kx, ky] = [kp.x * 1600, kp.y * 1000];
+    await page.evaluate(() => {
+      window.__osdSamples = [];
+      const end = performance.now() + 700;
+      const sample = () => {
+        if (!window.__osdSamples) return;
+        const osd = window.__screen().osd;
+        window.__osdSamples.push({ at: performance.now(), ...osd });
+        if (performance.now() < end) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
     await page.mouse.move(kx, ky); await page.mouse.down(); await page.mouse.move(kx + 42, ky, { steps: 5 }); await page.mouse.up();
     await frames(2); const osd = await read(); assert.equal(osd.osd.visible, true); assert.equal(osd.osd.alpha, 1);
     assert.ok(Math.abs(osd.osd.volume - 0.82) < 1e-9);
+    await frames(36);
+    const samplesOSD = await page.evaluate(() => { const samples = window.__osdSamples; delete window.__osdSamples; return samples; });
+    assert.ok(samplesOSD.some(s => s.visible && s.displayedVolume > 0.7 && s.displayedVolume < s.volume - 0.002), 'A real knob turn must paint intermediate bar levels');
+    for (let i = 1; i < samplesOSD.length; i++) assert.ok(samplesOSD[i].displayedVolume >= samplesOSD[i - 1].displayedVolume - 1e-9, 'Fast consecutive upward detents stay smooth and monotonic');
+    assert.ok(Math.abs((await read()).osd.displayedVolume - 0.82) < 1e-5, 'The bar settles promptly at the latest volume');
     assert.equal(await page.locator('.sound-level').count(), 0);
     await page.evaluate(() => window.__kb.camera('default')); await shot('screen-volume-osd');
     await page.waitForFunction(() => !window.__screen().osd.visible, null, { timeout: 3000 });
@@ -90,6 +106,6 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     }
     assert.ok(Math.abs(normals.body.max[0] - normals.body.min[0] - 0.344) < 1e-7);
     assert.ok(Math.abs(normals.body.max[2] - normals.body.min[2] - 0.153) < 1e-7);
-    return { status: 'passed', terminal: { submitted: typed.transcript, input: typed.text, wrappedLines: wrapped.promptLines, scrolledRows: wrapped.scroll, idleRedraws, idleSeconds: 2.1 }, practical: { status: 'passed', steadyIntensity: steady.practical.intensity, luminanceDelta, samples: deltas, flareIntensity: flare, settledIntensity: settled, environmentCaptures: captures }, volumeOSD: { status: 'passed', volume: osd.osd.volume, hiddenAfterTimeout: true, holdMs: 1200, fadeMs: 300 }, corners: { status: 'passed', normals } };
+    return { status: 'passed', terminal: { submitted: typed.transcript, input: typed.text, wrappedLines: wrapped.promptLines, scrolledRows: wrapped.scroll, idleRedraws, idleSeconds: 2.1 }, practical: { status: 'passed', steadyIntensity: steady.practical.intensity, luminanceDelta, samples: deltas, flareIntensity: flare, settledIntensity: settled, environmentCaptures: captures }, volumeOSD: { status: 'passed', volume: osd.osd.volume, animationSamples: samplesOSD, settling95PercentMs: 150, hiddenAfterTimeout: true, holdMs: 1200, fadeMs: 300 }, corners: { status: 'passed', normals } };
   } finally { await context.close(); }
 }

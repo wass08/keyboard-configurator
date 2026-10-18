@@ -6,6 +6,7 @@ import { useOwnedDisposal } from '../resources/ownership';
 import { useSound } from '../audio/soundStore';
 import type { LightingSettings } from '../scene/lightingControls';
 import { typing } from './typing';
+import { dampedScalar } from '../animation/dampedScalar';
 import { PROMPT_BOTTOM_M, PROMPT_FONT_M, PROMPT_MARGIN_M, TERMINAL_ACCENT, TERMINAL_FONT, TERMINAL_INK, terminalBackground } from './terminalTheme';
 
 const BLINK_MS = 530, SOLID_AFTER_EDIT_MS = 600, OSD_HOLD_MS = 1200, OSD_FADE_MS = 300;
@@ -48,7 +49,7 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
   }, [width, height, radiance]);
   useOwnedDisposal('Monitor.Typing', [resources.texture, resources.material, resources.geometry, resources.footerTexture, resources.footerMaterial, resources.footerGeometry]);
   const light = useRef<RectAreaLight>(null);
-  const drawn = useRef({ version: -1, historyVersion: -1, historyHeight: -1, caretOn: false, caretFrozen: false, redraws: 0, staticRedraws: 0, lines: [] as string[], promptLines: 1, coverage: 0, osdAlpha: 0, osdAt: -Infinity, lastDraw: 0, promptHeight: 0.026, scroll: 0 });
+  const drawn = useRef({ version: -1, historyVersion: -1, historyHeight: -1, caretOn: false, caretFrozen: false, redraws: 0, staticRedraws: 0, lines: [] as string[], promptLines: 1, coverage: 0, osdAlpha: 0, osdAt: -Infinity, osdVolume: useSound.getState().master, osdVelocity: 0, osdPaintedVolume: useSound.getState().master, lastDraw: 0, promptHeight: 0.026, scroll: 0 });
   useEffect(() => {
     const { context: ctx, canvas } = resources, px = canvas.width / width;
     const measure = (s: string) => { ctx.font = `400 ${Math.round(PROMPT_FONT_M * px)}px ${TERMINAL_FONT}`; return ctx.measureText(s).width; };
@@ -62,19 +63,28 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
       for (let i = line.start; i <= last; i++) { const d = Math.abs(measure(text.slice(line.start, i)) - x); if (d < distance) { distance = d; best = i; } }
       return best;
     });
-    window.__screen = () => ({ redraws: drawn.current.redraws, staticRedraws: drawn.current.staticRedraws, dynamicCanvas: [resources.footer.width, resources.footer.height], text: typing.text, transcript: [...typing.transcript], caret: typing.caret, lines: drawn.current.lines.slice(), canvas: [canvas.width, canvas.height], fontPx: Math.round(PROMPT_FONT_M * px), promptLines: drawn.current.promptLines, scroll: drawn.current.scroll, caretOn: drawn.current.caretOn, osd: { visible: drawn.current.osdAlpha > 0, alpha: drawn.current.osdAlpha, volume: useSound.getState().master }, practical: { intensity: light.current?.intensity ?? 0, coverage: drawn.current.coverage } });
+    window.__screen = () => ({ redraws: drawn.current.redraws, staticRedraws: drawn.current.staticRedraws, dynamicCanvas: [resources.footer.width, resources.footer.height], text: typing.text, transcript: [...typing.transcript], caret: typing.caret, lines: drawn.current.lines.slice(), canvas: [canvas.width, canvas.height], fontPx: Math.round(PROMPT_FONT_M * px), promptLines: drawn.current.promptLines, scroll: drawn.current.scroll, caretOn: drawn.current.caretOn, osd: { visible: drawn.current.osdAlpha > 0, alpha: drawn.current.osdAlpha, volume: useSound.getState().master, displayedVolume: drawn.current.osdPaintedVolume, animating: drawn.current.osdVelocity !== 0 }, practical: { intensity: light.current?.intensity ?? 0, coverage: drawn.current.coverage } });
     window.__screenControl = { freezeCaret: freeze => { drawn.current.caretFrozen = freeze; }, clear: () => typing.clear() };
     const unsubscribe = useSound.subscribe((state, previous) => { if (state.master !== previous.master) drawn.current.osdAt = performance.now(); });
     return () => { unsubscribe(); typing.setVerticalResolver(null); delete window.__screen; delete window.__screenControl; };
   }, [resources, width]);
-  useFrame(() => {
+  useFrame((_, delta) => {
     const now = performance.now(), since = now - typing.editedAt, state = drawn.current;
     const caretOn = state.caretFrozen ? state.caretOn : since < SOLID_AFTER_EDIT_MS || Math.floor((since - SOLID_AFTER_EDIT_MS) / BLINK_MS) % 2 === 1;
     const osdAge = now - state.osdAt, osdAlpha = osdAge < OSD_HOLD_MS ? 1 : Math.max(0, 1 - (osdAge - OSD_HOLD_MS) / OSD_FADE_MS);
+    const targetVolume = useSound.getState().master;
+    if (osdAlpha > 0 && (state.osdVolume !== targetVolume || state.osdVelocity !== 0)) {
+      // Keep velocity across rapid detents. The bar reaches 95% in ~150ms,
+      // without restarting a tween (or repainting the full screen texture).
+      const next = dampedScalar(state.osdVolume, state.osdVelocity, targetVolume, Math.min(delta, 0.1), 32);
+      state.osdVolume = next.value; state.osdVelocity = next.velocity;
+    }
     const changed = state.version !== typing.version || state.caretOn !== caretOn;
     const osdChanged = osdAlpha !== state.osdAlpha && (osdAlpha === 0 || osdAlpha === 1 || now - state.lastDraw > 1000 / 30);
-    if (changed || osdChanged) {
+    const levelChanged = osdAlpha > 0 && state.osdPaintedVolume !== state.osdVolume;
+    if (changed || osdChanged || levelChanged) {
       state.version = typing.version; state.caretOn = caretOn; state.osdAlpha = osdAlpha; state.lastDraw = now; state.redraws++;
+      state.osdPaintedVolume = state.osdVolume;
       const { canvas, texture } = resources, px = canvas.width / width;
       let ctx = resources.context;
       const text = typing.text, caret = typing.caret, margin = PROMPT_MARGIN_M * px, font = Math.round(PROMPT_FONT_M * px), lineHeight = 0.012 * px;
@@ -142,7 +152,7 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
         else { ctx.beginPath(); ctx.arc(cx + unit, cy, 2.7 * unit, -0.7, 0.7); ctx.stroke(); }
         const barX = x + 0.034 * px, barY = cy - 0.0015 * px, barW = w - 0.043 * px, barH = 0.003 * px;
         rounded(ctx, barX, barY, barW, barH, barH / 2); ctx.fillStyle = '#1c1c21'; ctx.fill();
-        if (volume > 0) { rounded(ctx, barX, barY, Math.max(barH, barW * volume), barH, barH / 2); ctx.fillStyle = '#edecf0'; ctx.fill(); }
+        if (state.osdVolume > 0) { rounded(ctx, barX, barY, Math.max(barH, barW * state.osdVolume), barH, barH / 2); ctx.fillStyle = '#edecf0'; ctx.fill(); }
         ctx.restore();
       }
       resources.footerTexture.needsUpdate = true;

@@ -34,8 +34,9 @@ function assertHeroCamera(value, aspect = 1.6) {
   assert.ok(Math.abs(value.lens.focalLengthMm - expectedHero.focalLengthMm) < 1e-9);
   assert.ok(Math.abs(value.lens.verticalFovDeg - expectedFov) < 1e-9, 'FOV must derive from 80.343 mm and the current aspect');
   assert.equal(value.lens.filmGaugeMm, 35); assert.equal(value.lens.near, 0.008); assert.equal(value.lens.far, 25);
-  assert.equal(value.lens.depthOfField, false); assert.equal(value.lens.focusDistance, 0.719);
-  assert.equal(value.lens.bokehScale, 1); assert.equal(value.lens.focalRange, 0.1);
+  assert.equal(value.lens.depthOfField, true); assert.equal(value.lens.autoFocus, true);
+  assert.ok(value.lens.focusDistance > 1.3 && value.lens.focusDistance < 1.5);
+  assert.equal(value.lens.bokehScale, 1); assert.equal(value.lens.focalRange, 0.285);
 }
 const expectedLayout = {
   headphones: { x: -0.5380, z: -0.3517, rotationY: 0.0, y: 0.75 },
@@ -50,6 +51,13 @@ const nearArray = (actual, expected, message) => {
 const idleFrames = (page, count = 20) => page.evaluate(count => new Promise(resolve => {
   const tick = () => { if (--count <= 0) resolve(); else requestAnimationFrame(tick); }; requestAnimationFrame(tick);
 }), count);
+const settledFocus = async page => {
+  await renderedPage(page); // Let the target observe an immediately preceding pose/intro edit.
+  await page.waitForFunction(() => {
+    const state = window.__cameraStore.focusState();
+    return !window.__camera().lens.autoFocus || state.distance === state.target;
+  });
+};
 function assertReflectionCards(lighting, environment) {
   for (const [source, card] of [['key-softbox', 'reflection-softbox'], ['studio-fill', 'reflection-fill']]) {
     const light = lighting.lights.find(light => light.name === source);
@@ -499,7 +507,7 @@ try {
   await page.goto(`${url}/?capture=1`);
   await page.waitForFunction(() => window.__kb?.ready && window.__kb.generation > 0);
   const rendered = () => renderedPage(page);
-  const shot = async name => { await rendered(); const buffer = await page.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`); return buffer; };
+  const shot = async name => { await rendered(); await settledFocus(page); const buffer = await page.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`); return buffer; };
   const colorShot = async (name, id) => {
     const buffer = await shot(name);
     const points = await page.evaluate(() => window.__kb.inspect().colorSamples);
@@ -790,6 +798,9 @@ try {
   await shot('desk-frame');
   // Unobscured product details; ordinary hero/mobile/UI captures retain the picker.
   await page.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
+  // These material/geometry diagnostics inspect other subjects, rather than the
+  // keyboard focal plane. Keep grain and recessed LCD details optically sharp.
+  await page.evaluate(() => window.__cameraStore.set({ depthOfField: false }));
   for (const view of ['props-wide', 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen', 'desk-sheen-closeup', 'wall-paint']) {
     await page.evaluate(view => window.__kb.camera(view), view);
     const coatedBuffer = await shot(view);
@@ -889,6 +900,8 @@ try {
     }
   }
   await page.evaluate(() => window.__kb.camera('default'));
+  await page.evaluate(() => window.__cameraStore.set({ depthOfField: true }));
+  await settledFocus(page);
 
   // Lens evidence uses one unchanged hero pose/target. An 85 mm lens crops in
   // optically; the controls must not dolly the camera to disguise that change.
@@ -1021,7 +1034,12 @@ try {
     await dustPage.waitForFunction(() => window.__kb.finished);
     // The merged typing layer blinks independently of the frozen dust clock.
     // Hold its current caret phase so on/off pixels differ only by dust.
-    await dustPage.evaluate(() => window.__screenControl.freezeCaret(true));
+    await dustPage.evaluate(() => {
+      window.__screenControl.freezeCaret(true);
+      // The CPU cone-footprint test measures the dust shader's exact pixels,
+      // before optical blur spreads them beyond the projected point sprites.
+      window.__cameraStore.set({ depthOfField: false });
+    });
     await dustPage.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
     await renderedPage(dustPage); await idleFrames(dustPage, 4);
     const settle = async () => { await renderedPage(dustPage); await idleFrames(dustPage, 4); };
@@ -1200,8 +1218,44 @@ try {
   await debugPage.goto(`${url}/?capture=1&debug`);
   await debugPage.waitForFunction(() => window.__kb?.ready && window.__camera);
   await debugPage.evaluate(() => window.__kb.finish());
+  await settledFocus(debugPage);
   const originalCamera = await debugPage.evaluate(() => window.__camera());
   assertHeroCamera(originalCamera);
+  const focusMeasurement = () => debugPage.evaluate(() => {
+    const camera = window.__camera(), bounds = window.__props().props['keyboard-case-body'];
+    const center = bounds.min.map((value, i) => (value + bounds.max[i]) / 2);
+    return { actual: camera.lens.focusDistance, expected: Math.hypot(...camera.position.map((value, i) => value - center[i])), position: camera.position, center, state: window.__cameraStore.focusState() };
+  });
+  const orbitForFocus = async () => {
+    await debugPage.mouse.move(450, 850); await debugPage.mouse.down();
+    await debugPage.mouse.move(650, 700, { steps: 8 }); await debugPage.mouse.up();
+    await idleFrames(debugPage, 100); await settledFocus(debugPage);
+  };
+  await orbitForFocus();
+  const orbitFocus = await focusMeasurement();
+  assert.notDeepEqual(orbitFocus.position, originalCamera.position, 'Use an actual orbit gesture, including its damping tail');
+  assert.ok(Math.abs(orbitFocus.actual - orbitFocus.expected) < 1e-6, 'Autofocus follows the world-space case center after orbit');
+  await debugPage.evaluate(() => window.__cameraStore.set({ autoFocus: false, focusDistance: 0.8 }));
+  await orbitForFocus();
+  const manualFocus = await focusMeasurement();
+  assert.equal(manualFocus.actual, 0.8, 'Manual distance survives orbit when autofocus is disabled');
+  await debugPage.evaluate(() => window.__cameraStore.focusOnKeyboard());
+  const buttonFocus = await focusMeasurement();
+  assert.ok(Math.abs(buttonFocus.actual - buttonFocus.expected) < 1e-9, 'Button and autofocus use the identical focus point');
+  await debugPage.evaluate(() => window.__cameraStore.reset()); await idleFrames(debugPage, 30); await settledFocus(debugPage);
+  const resetFocus = await focusMeasurement(); assertHeroCamera(await debugPage.evaluate(() => window.__camera()));
+  assert.ok(Math.abs(resetFocus.actual - resetFocus.expected) < 1e-6);
+  const idleFocusUpdates = resetFocus.state.updates;
+  await idleFrames(debugPage, 30);
+  assert.equal((await focusMeasurement()).state.updates, idleFocusUpdates, 'A stationary camera does not animate focus or write post uniforms');
+  // Seeking an intro beat moves the frame even while the camera is still.
+  await debugPage.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
+  await idleFrames(debugPage, 30); await settledFocus(debugPage);
+  const raisedFrameFocus = await focusMeasurement();
+  assert.ok(Math.abs(raisedFrameFocus.expected - resetFocus.expected) > 0.01);
+  assert.ok(Math.abs(raisedFrameFocus.actual - raisedFrameFocus.expected) < 1e-6);
+  await debugPage.evaluate(() => window.__kb.finish()); await idleFrames(debugPage, 30); await settledFocus(debugPage);
+  checks.autofocus = { status: 'passed', orbit: orbitFocus, manual: manualFocus, button: buttonFocus, reset: resetFocus, introRaised: raisedFrameFocus, idleFocusUpdates: 0, settling95PercentMs: 120 };
   const edit = async (name, value) => {
     // Linked numeric fields update together. Let Leva render the previous
     // conversion before focusing another field and committing its text buffer.
@@ -1272,7 +1326,12 @@ try {
   assert.ok(Math.abs(reverseLens.focalLengthMm - (50 / 1.6) / (2 * Math.tan(40 * Math.PI / 360))) < 1e-9);
   await edit('Near (m)', 0.015); await edit('Far (m)', 32);
   // Leva's native checkbox has zero dimensions; its visible label is the UI.
+  assert.equal(await debugPage.evaluate(() => window.__camera().lens.depthOfField), true);
   await debugPage.getByText('Enabled', { exact: true }).click();
+  await debugPage.waitForFunction(() => !window.__camera().lens.depthOfField);
+  await debugPage.getByText('Enabled', { exact: true }).click();
+  await debugPage.getByText('Auto focus', { exact: true }).click();
+  await debugPage.waitForFunction(() => !window.__camera().lens.autoFocus);
   await edit('Bokeh scale', 0.85); await edit('Focal range (m)', 0.12);
   await debugPage.getByRole('button', { name: 'Focus on keyboard', exact: true }).click();
   await debugPage.waitForFunction(() => {
@@ -1286,9 +1345,10 @@ try {
   await debugPage.getByRole('button', { name: 'Copy camera values', exact: true }).click();
   const lensCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(lensCopy.lens, editedLens);
-  assert.equal(Object.keys(lensCopy.lens).length, 9);
+  assert.equal(Object.keys(lensCopy.lens).length, 10); assert.equal(lensCopy.lens.autoFocus, false);
   await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
-  await debugPage.waitForFunction(() => !window.__camera().lens.depthOfField && Math.abs(window.__camera().lens.focalLengthMm - 80.343) < 1e-9);
+  await debugPage.waitForFunction(() => window.__camera().lens.depthOfField && window.__camera().lens.autoFocus && Math.abs(window.__camera().lens.focalLengthMm - 80.343) < 1e-9);
+  await settledFocus(debugPage);
   const lensReset = await debugPage.evaluate(() => window.__camera());
   assert.deepEqual(lensReset.lens, originalCamera.lens);
   assertHeroCamera(lensReset);

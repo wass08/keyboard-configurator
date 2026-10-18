@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { observeManagedDisposal } from '../resources/ownership';
 import type { LightingSettings } from './lightingControls';
-import { useDepthOfField } from './lens';
+import { DEFAULT_DOF, keyboardFocus, useDepthOfField } from './lens';
 
 export function StudioPost({ settings }: { settings: LightingSettings }) {
   const { gl, scene, camera, size } = useThree();
@@ -18,10 +18,10 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     const composer = new EffectComposer(gl, target);
     const render = new RenderPass(scene, camera);
     const bloom = new UnrealBloomPass(new Vector2(1, 1), settings.bloomStrength, 0.25, settings.bloomThreshold);
-    const depth = new BokehPass(scene, camera, { focus: 0.719, aperture: 0.04, maxblur: 0.012 });
+    const depth = new BokehPass(scene, camera, { focus: DEFAULT_DOF.focusDistance, aperture: 0.04, maxblur: 0.012 });
     // A sharp band in real meters keeps the whole keyboard readable. The
     // library shader otherwise has only one infinitely thin focal plane.
-    depth.materialBokeh.uniforms.focalRange = { value: 0.1 };
+    depth.materialBokeh.uniforms.focalRange = { value: DEFAULT_DOF.focalRange };
     depth.materialBokeh.fragmentShader = depth.materialBokeh.fragmentShader
       .replace('uniform float focus;', 'uniform float focus;\nuniform float focalRange;')
       .replace('float factor = ( focus + viewZ );', 'float difference = focus + viewZ;\nfloat factor = sign(difference) * max(abs(difference) - focalRange * 0.5, 0.0);');
@@ -53,11 +53,16 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
   useEffect(() => { const previous = gl.info.autoReset; gl.info.autoReset = false; return () => { gl.info.autoReset = previous; }; }, [gl]);
   pipeline.bloom.strength = settings.bloomStrength; pipeline.bloom.threshold = settings.bloomThreshold;
   pipeline.depth.enabled = dof.depthOfField;
-  pipeline.depth.materialBokeh.uniforms.focus.value = dof.focusDistance;
   pipeline.depth.materialBokeh.uniforms.focalRange.value = dof.focalRange;
   pipeline.depth.materialBokeh.uniforms.aperture.value = 0.04 * dof.bokehScale;
   pipeline.depth.materialBokeh.uniforms.maxblur.value = 0.012 * dof.bokehScale;
   // OutputPass uses the existing Neutral tone mapper and exposure exactly once.
-  useFrame((_, delta) => { gl.info.reset(); pipeline.composer.render(delta); }, 1);
+  useFrame((_, delta) => {
+    const lens = useDepthOfField.getState();
+    const distance = lens.autoFocus ? keyboardFocus.distance : lens.focusDistance;
+    const uniform = pipeline.depth.materialBokeh.uniforms.focus;
+    if (uniform.value !== distance) uniform.value = distance;
+    gl.info.reset(); pipeline.composer.render(delta);
+  }, 1);
   return null;
 }
