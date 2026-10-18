@@ -321,3 +321,9 @@ Attached: headphone stand intersection, saved as `references/issue-headphone-sta
 > Do you have an idea to make it non visible at all on the right of the wall? my only usage of the wall is to see  the back light of the monitor. please discuss it with me before taking any action.
 
 Attached: saved as `references/issue-wall-fill-visible-right.png`.
+
+---
+
+## 30 — Run on 5180 (2026-10-18)
+
+> run the proj on 5180 please
