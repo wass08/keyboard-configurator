@@ -84,6 +84,25 @@ export function analyse(samples, fs) {
   };
 }
 
+/**
+ * Background noise / room air carried by a short clip, relative to its peak (dB):
+ *  - preDb: RMS of the first 1 ms (the pre-roll before the hit);
+ *  - tailDb: RMS of the last 20 ms before the fade-out;
+ *  - hissDb: RMS above 6 kHz over the second half of the clip (air in the tail).
+ */
+export function noiseFloor(samples, fs) {
+  const x = Float64Array.from(samples), n = x.length;
+  let peak = 0; for (const v of x) peak = Math.max(peak, Math.abs(v));
+  const rms = (y, a, b) => { let s = 0; for (let i = a; i < b; i++) s += y[i] * y[i]; return Math.sqrt(s / Math.max(1, b - a)); };
+  const fade = Math.round(fs * 0.008);
+  const hf = highpass(highpass(x, 6000, fs), 6000, fs);
+  return {
+    preDb: round(db(rms(x, 0, Math.round(fs * 0.001))) - db(peak), 1),
+    tailDb: round(db(rms(x, Math.max(0, n - fade - Math.round(fs * 0.02)), n - fade)) - db(peak), 1),
+    hissDb: round(db(rms(hf, n >> 1, n - fade)) - db(peak), 1),
+  };
+}
+
 export function wav(samples, fs) {
   const n = samples.length, buffer = Buffer.alloc(44 + n * 2);
   buffer.write('RIFF', 0); buffer.writeUInt32LE(36 + n * 2, 4); buffer.write('WAVE', 8);
@@ -126,7 +145,8 @@ export async function exportSampleVoices(voices, fs, dir = 'screenshots/audio/sa
     const median = key => { const s = stats.map(x => x[key]).sort((a, b) => a - b); return s[s.length >> 1]; };
     const spread = key => [Math.min(...stats.map(s => s[key])), Math.max(...stats.map(s => s[key]))];
     const bands = Object.fromEntries(BANDS.map(([b]) => [b, round(stats.map(s => s.bandsPercent[b]).sort((x, y) => x - y)[stats.length >> 1], 1)]));
-    report[name] = { variants: variants.length, durationMs: median('durationMs'), peakDb: median('peakDb'), rmsDb: median('rmsDb'), attackMs: median('attackMs'), decay20Ms: median('decay20Ms'), decay40Ms: median('decay40Ms'), centroidHz: median('centroidHz'), bandsPercent: bands, above4kPeakDbRel: median('above4kPeakDbRel'), peak3to8kDb: median('peak3to8kDb'), spread: { centroidHz: spread('centroidHz'), peakDb: spread('peakDb'), rmsDb: spread('rmsDb'), durationMs: spread('durationMs') } };
+    const noise = variants.map(v => noiseFloor(v, fs)), nmed = key => { const s = noise.map(x => x[key]).sort((a, b) => a - b); return s[s.length >> 1]; };
+    report[name] = { noise: { preDb: nmed('preDb'), tailDb: nmed('tailDb'), hissDb: nmed('hissDb'), worstHissDb: Math.max(...noise.map(x => x.hissDb)) }, variants: variants.length, durationMs: median('durationMs'), peakDb: median('peakDb'), rmsDb: median('rmsDb'), attackMs: median('attackMs'), decay20Ms: median('decay20Ms'), decay40Ms: median('decay40Ms'), centroidHz: median('centroidHz'), bandsPercent: bands, above4kPeakDbRel: median('above4kPeakDbRel'), peak3to8kDb: median('peak3to8kDb'), spread: { centroidHz: spread('centroidHz'), peakDb: spread('peakDb'), rmsDb: spread('rmsDb'), durationMs: spread('durationMs') } };
   }
   report.relations = {
     alphaReleaseVsPressDb: round(report['alpha-release'].rmsDb - report['alpha-press'].rmsDb, 2),

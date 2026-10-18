@@ -4,7 +4,7 @@
 // Stages: "explore" prints diagnostics; the default runs the full pipeline.
 import { readFile, writeFile, mkdir, stat, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { analyse, wav } from './audio-analysis.mjs';
+import { analyse, noiseFloor, wav } from './audio-analysis.mjs';
 
 export function readWav(buffer) {
   let offset = 12, fmt = null, data = null;
@@ -120,12 +120,21 @@ async function main() {
     if (p.sustainDb > -6 || p.sustainDb < -26) continue; // precursor or truncated detections
     pairs.push({ press: p, release: r, holdMs: p.gapMs });
   }
+  // Looser keystrokes for the spacebar search: the cleanest loud hits matter more
+  // than isolation, so the release may be followed sooner by the next stroke.
+  const loosePairs = [];
+  for (let i = 1; i + 1 < events.length; i++) {
+    const p = events[i], r = events[i + 1];
+    if (p.prevMs < 60 || p.gapMs < 45 || p.gapMs > 200 || r.gapMs < 38 || p.clipped || r.clipped) continue;
+    if (p.peakDb < -24 || r.peakDb < -36 || p.preQuietDb < 16 || r.preQuietDb < 8 || p.sustainDb > -6 || p.sustainDb < -26) continue;
+    loosePairs.push({ press: p, release: r, holdMs: p.gapMs });
+  }
   if (stage === 'pairs') {
     const pct = (k, q) => percentile(pairs.map(x => x.press[k]), q).toFixed(3);
     console.log('pairs', pairs.length, Object.fromEntries(['centroid', 'lowRatio', 'deepRatio', 'peakDb', 'sustainDb'].map(k => [k, [pct(k, 0.1), pct(k, 0.5), pct(k, 0.9)]])));
     await writeFile(`${work}/pairs.json`, JSON.stringify(pairs));
   }
-  if (stage === 'all') await build(mono, rate, events, pairs, work, process.argv[5] ?? 'public/audio');
+  if (stage === 'all') await build(mono, rate, events, pairs, loosePairs, work, process.argv[5] ?? 'public/audio');
   if (stage === 'explore') {
     // Stereo correlation, noise floor, density, distributions.
     let lr = 0, ll = 0, rr = 0; if (channels.length > 1) for (let i = 0; i < mono.length; i += 7) { lr += channels[0][i] * channels[1][i]; ll += channels[0][i] ** 2; rr += channels[1][i] ** 2; }
@@ -147,8 +156,14 @@ async function main() {
  */
 const CLASSES = {
   alpha: { count: 16, test: p => p.fullCentroid >= 1550 && p.fullCentroid <= 2150 && p.deepRatio >= 0.08 && p.deepRatio < 0.3 && p.sustainDb <= -12, maxMs: 150 },
-  space: { count: 7, test: p => p.fullCentroid <= 1350 && p.deepRatio >= 0.2 && p.sustainDb >= -19, maxMs: 200, ratio: [-9, 2] },
+  // Spacebar: searched in the looser pool and ranked by cleanliness first (the
+  // previous set carried audible room air): no hiss, quiet pre-roll, loud source.
+  // Its own releases are buried in the next stroke's onset (hiss -31..-51 dB), so
+  // the spacebar releases are derived from the clean stabilized ones (deepen()).
+  space: { count: 6, min: 4, pool: 'loose', test: p => p.fullCentroid <= 1350 && p.deepRatio >= 0.2 && p.sustainDb >= -21, maxMs: 200, ratio: [-14, 4], releaseMinMs: 35, releaseFrom: 'stab', clean: { hiss: -53.5, tail: -36, pre: -33 } },
   stab: { count: 5, test: p => p.fullCentroid > 1300 && p.fullCentroid < 1600 && p.deepRatio >= 0.18 && p.sustainDb >= -19, maxMs: 170 },
+  // Knob push switch: short, bright, clean keystrokes, reshaped below (processKnob).
+  knob: { count: 3, test: p => p.fullCentroid >= 1800 && p.fullCentroid <= 2400 && p.sustainDb <= -16 && p.deepRatio < 0.2, maxMs: 90, clean: { hiss: -53, tail: -40, pre: -36 } },
 };
 const PRE_MS = 2.5;
 
@@ -159,16 +174,75 @@ function cut(x, fs, onset, maxEnd, maxMs) {
   for (let i = 0; i < fadeOut; i++) out[out.length - 1 - i] *= 0.5 - 0.5 * Math.cos(Math.PI * i / fadeOut);
   return out;
 }
+/**
+ * Tail cleanup, every class. `floor` is the room-tone RMS measured in the source
+ * just before the keystroke. After the first 12 ms (the transient is never
+ * touched), a smooth 2:1 downward expander acts below floor +12 dB, and the clip
+ * is trimmed where the envelope settles to floor +4 dB, with a 10 ms fade.
+ */
+function cleanTail(clip, fs, minMs, floor) {
+  const win = Math.round(fs * 0.003), n = clip.length, env = new Float32Array(n);
+  const sq = new Float64Array(n + 1); for (let i = 0; i < n; i++) sq[i + 1] = sq[i] + clip[i] * clip[i];
+  for (let i = 0; i < n; i++) { const a = Math.max(0, i - win), b = Math.min(n, i + win); env[i] = Math.sqrt((sq[b] - sq[a]) / (b - a)); }
+  const knee = floor * 4, start = Math.round(fs * 0.012), out = Float32Array.from(clip), k = Math.exp(-1 / (fs * 0.004));
+  let g = 1, last = start;
+  for (let i = start; i < n; i++) {
+    g = Math.min(1, env[i] / knee) + (g - Math.min(1, env[i] / knee)) * k;
+    out[i] *= g;
+    if (env[i] >= floor * 1.6) last = i;
+  }
+  const end = Math.min(n, Math.max(Math.round(fs * minMs / 1000), last + Math.round(fs * 0.004)));
+  const trimmed = out.slice(0, end), fade = Math.min(Math.round(fs * 0.01), trimmed.length >> 2);
+  for (let i = 0; i < fade; i++) trimmed[trimmed.length - 1 - i] *= 0.5 - 0.5 * Math.cos(Math.PI * i / fade);
+  return trimmed;
+}
+/** Room tone before an onset: the quietest 5 ms window in the 60 ms before it. */
+function floorAt(x, fs, onset) {
+  const w = Math.round(fs * 0.005); let best = Infinity;
+  for (let a = onset - Math.round(fs * 0.06); a + w <= onset - Math.round(fs * 0.003); a += w >> 1) { if (a < 0) continue; let s = 0; for (let i = a; i < a + w; i++) s += x[i] * x[i]; best = Math.min(best, Math.sqrt(s / w)); }
+  return Number.isFinite(best) ? best : 1e-4;
+}
+/** Resample by `ratio` (>1 = higher and shorter), cubic Hermite. */
+function resample(clip, ratio) {
+  const n = Math.floor((clip.length - 2) / ratio), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = i * ratio, j = Math.floor(p), t = p - j, y0 = clip[Math.max(0, j - 1)], y1 = clip[j], y2 = clip[j + 1], y3 = clip[Math.min(clip.length - 1, j + 2)];
+    out[i] = y1 + 0.5 * t * (y2 - y0 + t * (2 * y0 - 5 * y1 + 4 * y2 - y3 + t * (3 * (y1 - y2) + y3 - y0)));
+  }
+  return out;
+}
+/**
+ * Knob push switch from a keystroke: up 2 semitones (smaller part), less low end,
+ * a tighter tail, and a very subtle short metallic layer (the aluminium knob),
+ * tuned near the detent tick's partials so the two sound related.
+ */
+function processKnob(clip, fs, rng, floor) {
+  const out = resample(clip, 2 ** (2 / 12)), n = out.length;
+  const shaped = biquad(biquad(out, 'hp', 280, 0.707, fs), 'hp', 280, 0.707, fs);
+  let peak = 0; for (const v of shaped) peak = Math.max(peak, Math.abs(v));
+  for (const [f, tau, amp] of [[2380, 0.005, 0.05], [3460, 0.0035, 0.035]]) { // -26 / -29 dB re. peak
+    const w = 2 * Math.PI * f * (1 + (rng() - 0.5) * 0.02) / fs, r = Math.exp(-1 / (tau * fs)), at = Math.round(fs * 0.0028);
+    for (let i = at; i < n; i++) shaped[i] += Math.sin(w * (i - at)) * r ** (i - at) * amp * peak * Math.min(1, (i - at) / (fs * 0.0003));
+  }
+  return cleanTail(shaped, fs, 30, floor * 0.7).slice(0, Math.round(fs * 0.07));
+}
+/** Spacebar release derived from a stabilized release: -1.25 semitones, a touch more low end. */
+function deepen(clip, fs) {
+  const out = resample(clip, 2 ** (-1.25 / 12)), low = biquad(Float32Array.from(out), 'lp', 260, 0.707, fs);
+  for (let i = 0; i < out.length; i++) out[i] += 0.26 * low[i]; // ~ +2 dB below 260 Hz
+  return out;
+}
 const rmsDb = (x, fs, ms = 40) => { const n = Math.min(x.length, Math.round(fs * ms / 1000)); let s = 0; for (let i = 0; i < n; i++) s += x[i] * x[i]; return db(Math.sqrt(s / n)); };
 const peakOf = x => { let m = 0; for (const v of x) m = Math.max(m, Math.abs(v)); return m; };
 /** dB the clip has decayed by at its end, vs its peak (a cut through a loud body sounds chopped). */
 function tailDb(x, fs) { const n = Math.round(fs * 0.004); let m = 0; for (let i = x.length - n - Math.round(fs * 0.008); i < x.length - Math.round(fs * 0.008); i++) m = Math.max(m, Math.abs(x[i] ?? 0)); return db(peakOf(x)) - db(m); }
 
-async function build(mono, fs, events, pairs, work, outDir) {
+async function build(mono, fs, events, pairs, loosePairs, work, outDir) {
+  let seed = 7; const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const x = biquad(biquad(mono, 'hp', 35, 0.707, fs), 'hp', 35, 0.707, fs); // rumble only
   const used = new Set(), report = { detectedOnsets: events.length, cleanPairs: pairs.length, classes: {} }, chosen = {};
   for (const [name, spec] of Object.entries(CLASSES)) {
-    const candidates = pairs.filter(({ press, release, holdMs }) => spec.test(press) && holdMs >= 60 && release.peakDb - press.peakDb <= (spec.ratio?.[1] ?? 1) && release.peakDb - press.peakDb >= (spec.ratio?.[0] ?? -7) && press.fullCentroid >= 650 && release.fullCentroid >= 700 && !used.has(press.sample));
+    const candidates = (spec.pool === 'loose' ? loosePairs : pairs).filter(({ press, release, holdMs }) => spec.test(press) && holdMs >= 60 && release.peakDb - press.peakDb <= (spec.ratio?.[1] ?? 1) && release.peakDb - press.peakDb >= (spec.ratio?.[0] ?? -7) && press.fullCentroid >= 650 && release.fullCentroid >= 700 && !used.has(press.sample));
     // Typical members only: distance to the class median over the shaping features.
     const keys = ['fullCentroid', 'deepRatio', 'sustainDb', 'peakDb'];
     const med = Object.fromEntries(keys.map(k => [k, percentile(candidates.map(c => c.press[k]), 0.5)]));
@@ -179,15 +253,33 @@ async function build(mono, fs, events, pairs, work, outDir) {
     const spreadRatio = Math.max(0.5, percentile(candidates.map(c => Math.abs(ratio(c) - medRatio)), 0.5));
     const spreadRel = Math.max(1, percentile(candidates.map(c => Math.abs(c.release.fullCentroid - medRel)), 0.5));
     const scored = candidates.map(c => {
-      const press = cut(x, fs, c.press.sample, c.release.sample - Math.round(fs * 0.001), spec.maxMs);
-      const release = cut(x, fs, c.release.sample, c.release.sample + Math.round(fs * (c.release.gapMs - 1) / 1000), 120);
-      const score = keys.reduce((s, k) => s + Math.abs(c.press[k] - med[k]) / spread[k], 0) + Math.abs(ratio(c) - medRatio) / spreadRatio + Math.abs(c.release.fullCentroid - medRel) / spreadRel;
-      return { ...c, pressClip: press, releaseClip: release, score, pressTail: tailDb(press, fs), releaseTail: tailDb(release, fs) };
-    }).filter(c => c.pressClip.length >= fs * 0.06 && c.releaseClip.length >= fs * 0.045 && c.pressTail >= 18 && c.releaseTail >= 14).sort((a, b) => a.score - b.score);
+      const rawPress = cut(x, fs, c.press.sample, c.release.sample - Math.round(fs * 0.001), spec.maxMs);
+      const rawRelease = cut(x, fs, c.release.sample, c.release.sample + Math.round(fs * (c.release.gapMs - 1) / 1000), 120);
+      // Noise is judged on the raw cut (what the source carries), then cleaned.
+      const noise = { press: noiseFloor(rawPress, fs), release: noiseFloor(rawRelease, fs) };
+      const floor = floorAt(x, fs, c.press.sample);
+      const press = name === 'knob' ? processKnob(rawPress, fs, rng, floor) : cleanTail(rawPress, fs, 45, floor);
+      const release = name === 'knob' ? processKnob(rawRelease, fs, rng, floor) : cleanTail(rawRelease, fs, spec.releaseMinMs ?? 40, floor);
+      let score = keys.reduce((s, k) => s + Math.abs(c.press[k] - med[k]) / spread[k], 0) + Math.abs(ratio(c) - medRatio) / spreadRatio + Math.abs(c.release.fullCentroid - medRel) / spreadRel;
+      if (spec.clean) score += Math.max(0, noise.press.hissDb + 60) / 2 + (spec.releaseFrom ? 0 : Math.max(0, noise.release.hissDb + 60) / 3);
+      return { ...c, pressClip: press, releaseClip: release, score, noise, pressTail: tailDb(rawPress, fs), releaseTail: tailDb(rawRelease, fs), rawLen: [rawPress.length, rawRelease.length] };
+    }).filter(c => c.rawLen[0] >= fs * (name === 'knob' ? 0.05 : 0.06) && c.rawLen[1] >= fs * (spec.releaseMinMs ?? 45) / 1000 && c.pressTail >= 18 && c.releaseTail >= 14)
+      .filter(c => { if (process.env.DEBUG_CLASS && process.env.DEBUG_CLASS === name) console.error(JSON.stringify({ t: +(c.press.t + 52).toFixed(2), len: c.rawLen.map(v => Math.round(v / fs * 1000)), pt: +c.pressTail.toFixed(1), rt: +c.releaseTail.toFixed(1), n: c.noise })); return true; })
+      .filter(c => !spec.clean || (c.noise.press.hissDb <= spec.clean.hiss && (spec.releaseFrom || c.noise.release.hissDb <= spec.clean.hiss + 3) && c.noise.press.tailDb <= spec.clean.tail && c.noise.press.preDb <= spec.clean.pre))
+      .sort((a, b) => a.score - b.score);
     const picked = [];
     for (const c of scored) { if (picked.length >= spec.count) break; if (picked.some(p => Math.abs(p.press.t - c.press.t) < 1.5)) continue; picked.push(c); used.add(c.press.sample); }
     chosen[name] = picked;
-    report.classes[name] = { candidates: candidates.length, usable: scored.length, kept: picked.length, median: med };
+    report.classes[name] = { candidates: candidates.length, usable: scored.length, kept: picked.length, median: med, rawNoise: picked.map(c => c.noise) };
+  }
+  // Spacebar releases from the stabilized ones, keeping the stabilized release/press ratio.
+  if (chosen.space?.length && chosen.stab?.length) {
+    const stabRatio = percentile(chosen.stab.map(c => rmsDb(c.releaseClip, fs) - rmsDb(c.pressClip, fs)), 0.5);
+    chosen.space.forEach((c, i) => {
+      const deep = deepen(chosen.stab[i % chosen.stab.length].releaseClip, fs);
+      const g = 10 ** ((rmsDb(c.pressClip, fs) + stabRatio - rmsDb(deep, fs)) / 20);
+      c.releaseClip = deep.map(v => v * g); c.releaseDerived = true;
+    });
   }
   // Loudness: each press to its class median (40 ms RMS), same factor on its release
   // (keeps the natural press/release ratio). Then one global gain: alpha presses
@@ -195,7 +287,7 @@ async function build(mono, fs, events, pairs, work, outDir) {
   // Classes are levelled to the alphas (the recording's per-key loudness mostly
   // reflects finger force): Space +1 dB, stabilized +0.5 dB.
   const alphaLevel = percentile(chosen.alpha.map(c => rmsDb(c.pressClip, fs)), 0.5);
-  const level = { alpha: alphaLevel, space: alphaLevel + 1, stab: alphaLevel + 0.5 };
+  const level = { alpha: alphaLevel, space: alphaLevel + 1, stab: alphaLevel + 0.5, knob: alphaLevel - 3 };
   for (const list of Object.values(chosen)) for (const c of list) {
     const target = level[Object.keys(chosen).find(n => chosen[n] === list)];
     const g = 10 ** ((target - rmsDb(c.pressClip, fs)) / 20);
