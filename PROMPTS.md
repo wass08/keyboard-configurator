@@ -327,3 +327,26 @@ Attached: saved as `references/issue-wall-fill-visible-right.png`.
 ## 30 — Run on 5180 (2026-10-18)
 
 > run the proj on 5180 please
+
+---
+
+## 31 — Bring back the fake Claude Code transcript (2026-10-18)
+
+> on the screen, we I asked you for the prompt. there was some fake text on the top, but it's not here any more. It was nice because now the first line we hit enter, they don't appear near the text box. could you bring it back or add fake past promopts/claude discussion?
+
+---
+
+## 32 — Performance pass, depth of field in all situations (2026-10-18)
+
+> if you can do a :
+> - performance pass
+> - and find a way for the depth of field to work in all situations. I think 0.38 focal range is great. but too zoomed in the  edge of the further away keys is blurred weirdly
+
+Attached: saved as `references/issue-dof-close-edges.png`.
+
+---
+
+## 33 — Opening screen from Open Design + UI refresh with Wawa Sensei logo (2026-10-18)
+
+> thanks. in parallel, use an opus agent to add this /Users/wawa/Library/Application Support/Open Design/namespaces/release-stable/data/projects/26defe7d-948b-4177-8c39-44ce1a6af9ab/index.html opening screen and adjust our UI.
+> Use wawa sensei logo (you can find it in the aquarium folder)
