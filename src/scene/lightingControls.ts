@@ -67,6 +67,14 @@ export function useLightingControls() {
       wallRoughness: { value: 0.55, min: 0.3, max: 0.9, step: 0.01, label: 'Roughness' },
       wallNormal: { value: 0.035, min: 0, max: 0.2, step: 0.005, label: 'Normal strength' },
     }, { collapsed: true, order: 5.6 }),
+    Dust: folder({
+      dustEnabled: { value: true, label: 'Show dust' },
+      dustCount: { value: 240, min: 0, max: 600, step: 1, label: 'Count' },
+      dustSize: { value: 0.9, min: 0.2, max: 2, step: 0.01, label: 'Size (mm)' },
+      dustIntensity: { value: 0.5, min: 0, max: 2, step: 0.005, label: 'Intensity' },
+      dustSpeed: { value: 1, min: 0, max: 5, step: 0.05, label: 'Speed' },
+      dustPadding: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Volume padding (m)' },
+    }, { collapsed: true, order: 5.7 }),
     Rendering: folder({
       exposure: { value: 1, min: 0.2, max: 2, step: 0.01, label: 'Exposure' },
     }, { collapsed: true, order: 6 }),
@@ -94,6 +102,7 @@ export function lightingValues(s: LightingSettings) {
     streamDeck: { emissiveIntensity: s.deckEmissive, bloomStrength: s.bloomStrength, bloomThreshold: s.bloomThreshold, spillIntensity: s.deckSpill },
     wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal },
     rendering: { exposure: s.exposure },
+    dust: { enabled: s.dustEnabled, count: s.dustCount, size: s.dustSize, intensity: s.dustIntensity, speed: s.dustSpeed, padding: s.dustPadding },
   };
 }
 export type LightingValues = ReturnType<typeof lightingValues>;
