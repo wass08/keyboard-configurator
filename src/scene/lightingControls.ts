@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { button, folder, useControls } from 'leva';
+import { FILM_DEFAULTS as F, TONE_OPERATORS } from './film';
 
 // Meters, candela (spot), and luminance (area lights). User-tuned defaults.
 const KEY_POSITION = { x: -0.67, y: 1.75, z: 0.80 };
@@ -35,11 +36,11 @@ export function useLightingControls() {
     }, { collapsed: true, order: 2 }),
     'Monitor · rim': folder({
       screenOn: { value: true, label: 'Screen on' },
-      rimIntensity: { value: 0, min: 0, max: 80, step: 0.1, label: 'Intensity' },
-      rimColor: { value: '#8d2d2d', label: 'Color' },
+      rimIntensity: { value: 7.1, min: 0, max: 80, step: 0.1, label: 'Intensity' },
+      rimColor: { value: '#8f77ff', label: 'Color' },
       rimPosition: { value: { x: 0, y: 1.025, z: -0.43 }, step: 0.01, label: 'Screen center' },
       rimAim: { value: { x: 0, y: 0.99, z: 0 }, step: 0.01, label: 'Aim' },
-      wallGlow: { value: 23.3, min: 0, max: 60, step: 0.05, label: 'Wall glow' },
+      wallGlow: { value: 27.2, min: 0, max: 60, step: 0.05, label: 'Wall glow' },
     }, { collapsed: true, order: 3 }),
     Screen: folder({
       textLightEnabled: { value: true, label: 'Text practical light' },
@@ -75,13 +76,32 @@ export function useLightingControls() {
     Dust: folder({
       dustEnabled: { value: true, label: 'Show dust' },
       dustCount: { value: 120, min: 0, max: 600, step: 1, label: 'Count' },
-      dustSize: { value: 0.4, min: 0.1, max: 2, step: 0.01, label: 'Size (mm)' },
-      dustIntensity: { value: 0.06, min: 0, max: 2, step: 0.005, label: 'Intensity' },
+      dustSize: { value: 0.5, min: 0.1, max: 3, step: 0.01, label: 'Size (mm)' },
+      dustIntensity: { value: 0.25, min: 0, max: 12, step: 0.01, label: 'Intensity' },
       dustSpeed: { value: 1, min: 0, max: 5, step: 0.05, label: 'Speed' },
       dustPadding: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Volume padding (m)' },
     }, { collapsed: true, order: 5.7 }),
-    Rendering: folder({
+    Film: folder({
+      anamorphicEnabled: { value: F.anamorphicEnabled, label: 'Anamorphic' },
+      anamorphicThreshold: { value: F.anamorphicThreshold, min: 0.5, max: 6, step: 0.05, label: 'Flare threshold' },
+      anamorphicIntensity: { value: F.anamorphicIntensity, min: 0, max: 2, step: 0.01, label: 'Flare intensity' },
+      anamorphicLength: { value: F.anamorphicLength, min: 0.01, max: 0.5, step: 0.005, label: 'Streak length' },
+      anamorphicTint: { value: F.anamorphicTint, label: 'Flare tint' },
+      anamorphicResolution: { value: F.anamorphicResolution, options: [0.125, 0.25, 0.5, 1], label: 'Flare resolution' },
+      anamorphicSamples: { value: F.anamorphicSamples, min: 8, max: 32, step: 2, label: 'Flare samples' },
+      toneOperator: { value: F.toneOperator, options: Object.keys(TONE_OPERATORS), label: 'Tone mapping' },
       exposure: { value: 1, min: 0.2, max: 2, step: 0.01, label: 'Exposure' },
+      gradeEnabled: { value: F.gradeEnabled, label: 'Color grading' },
+      contrast: { value: F.contrast, min: 0.5, max: 1.6, step: 0.01, label: 'Contrast' },
+      saturation: { value: F.saturation, min: 0, max: 2, step: 0.01, label: 'Saturation' },
+      vibrance: { value: F.vibrance, min: -1, max: 1, step: 0.01, label: 'Vibrance' },
+      temperature: { value: F.temperature, min: -1, max: 1, step: 0.01, label: 'Temperature' },
+      tint: { value: F.tint, min: -1, max: 1, step: 0.01, label: 'Tint' },
+      lift: { value: F.lift, step: 0.005, label: 'Lift RGB' },
+      gamma: { value: F.gamma, step: 0.01, label: 'Gamma RGB' },
+      gain: { value: F.gain, step: 0.01, label: 'Gain RGB' },
+      vignetteAmount: { value: F.vignetteAmount, min: 0, max: 0.6, step: 0.01, label: 'Vignette' },
+      vignetteSoftness: { value: F.vignetteSoftness, min: 0.1, max: 1, step: 0.01, label: 'Vignette softness' },
     }, { collapsed: true, order: 6 }),
     'Copy lighting values': { ...button(() => { void navigator.clipboard.writeText(JSON.stringify(latest.current, null, 2)); }), order: 7 },
   });
@@ -108,6 +128,12 @@ export function lightingValues(s: LightingSettings) {
     screen: { textLightEnabled: s.textLightEnabled, textIntensity: s.textIntensity, textFlare: s.textFlare },
     wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal },
     rendering: { exposure: s.exposure },
+    film: {
+      toneMapping: s.toneOperator, exposure: s.exposure,
+      anamorphic: { enabled: s.anamorphicEnabled, threshold: s.anamorphicThreshold, intensity: s.anamorphicIntensity, length: s.anamorphicLength, tint: s.anamorphicTint, resolution: s.anamorphicResolution, samples: s.anamorphicSamples },
+      grade: { enabled: s.gradeEnabled, contrast: s.contrast, saturation: s.saturation, vibrance: s.vibrance, temperature: s.temperature, tint: s.tint, lift: xyz(s.lift), gamma: xyz(s.gamma), gain: xyz(s.gain) },
+      vignette: { amount: s.vignetteAmount, softness: s.vignetteSoftness },
+    },
     dust: { enabled: s.dustEnabled, count: s.dustCount, size: s.dustSize, intensity: s.dustIntensity, speed: s.dustSpeed, padding: s.dustPadding },
   };
 }

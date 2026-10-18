@@ -7,13 +7,14 @@ import { useOwnedDisposal } from '../../resources/ownership';
 import { MovableProp } from '../PropLayout';
 import { FELT_MAPS } from './DeskMat';
 import { earShell, roundedPath, softRing, woodUV } from './geometry';
+import { headbandClearance } from './headbandClearance';
 
 const railPoints = (z: number) => Array.from({ length: 33 }, (_, i) => { const a = -Math.PI / 2 + i * Math.PI / 32; return new Vector3(0.082 * Math.sin(a), 0.19 + 0.092 * Math.cos(a), z); });
 function canopyGeometry() {
   const p: number[] = [], uv: number[] = [], indices: number[] = [];
   for (let i = 0; i <= 64; i++) for (let j = 0; j <= 8; j++) {
     const a = -Math.PI / 2 + i * Math.PI / 64, v = j / 8;
-    p.push(0.082 * Math.sin(a), 0.19 + 0.092 * Math.cos(a) - 0.006 * Math.sin(v * Math.PI), (v - 0.5) * 0.034);
+    p.push(0.082 * Math.sin(a), 0.19 + 0.092 * Math.cos(a) - 0.006 * Math.sin(v * Math.PI), (v - 0.5) * 0.048);
     uv.push(i / 64 * 3, v);
     if (i < 64 && j < 8) { const k = i * 9 + j; indices.push(k, k + 9, k + 1, k + 1, k + 9, k + 10); }
   }
@@ -25,8 +26,17 @@ export function Headphones() {
   const r = useMemo(() => {
     const clones = maps.map((map, i) => { const t = map.clone(); t.wrapS = t.wrapT = RepeatWrapping; t.anisotropy = 16; if (i === 0) t.colorSpace = SRGBColorSpace; return t; });
     clones[2].repeat.set(3, 3); clones[3].repeat.set(3, 3);
-    const shape = new Shape(); shape.moveTo(-0.068, 0); shape.lineTo(0.068, 0); shape.lineTo(0.068, 0.009); shape.quadraticCurveTo(0, 0.079, -0.068, 0.009); shape.closePath();
-    const headrest = new ExtrudeGeometry(shape, { depth: 0.038, bevelEnabled: true, bevelThickness: 0.0025, bevelSize: 0.0025, bevelSegments: 4, curveSegments: 24 }); headrest.translate(0, 0.234, -0.019); woodUV(headrest);
+    // Follow the real suspended canopy instead of a taller, unrelated Bezier
+    // dome. Offset inward for the chamfer and a sub-millimeter knit allowance.
+    const shape = new Shape(); shape.moveTo(-0.064, 0.234); shape.lineTo(0.064, 0.234);
+    for (let i = 64; i >= 0; i--) {
+      const x = -0.064 + i / 64 * 0.128, arc = Math.sqrt(1 - (x / 0.082) ** 2);
+      const y = 0.003 + 0.19 + 0.092 * arc - 0.006;
+      const slope = -0.092 * x / (0.082 ** 2 * arc), normalLength = Math.hypot(slope, 1), inset = 0.0017;
+      shape.lineTo(x + inset * slope / normalLength, y - inset / normalLength);
+    }
+    shape.closePath();
+    const headrest = new ExtrudeGeometry(shape, { depth: 0.034, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0008, bevelSegments: 4, steps: 1, curveSegments: 24 }); headrest.translate(0, 0, -0.017); woodUV(headrest);
     const trayLip = softRing(0.216, 0.116, 0.014, 0.201, 0.101, 0.011, 0.010, 0.0017); trayLip.rotateX(-Math.PI / 2); trayLip.translate(0, 0.010, 0); woodUV(trayLip);
     const tray = new ExtrudeGeometry(roundedPath(new Shape(), 0.2186, 0.1186, 0.014), { depth: 0.0076, bevelEnabled: true, bevelSize: 0.0007, bevelThickness: 0.0007, bevelSegments: 4, curveSegments: 16 });
     tray.rotateX(-Math.PI / 2); tray.translate(0, -0.0038, 0); woodUV(tray);
@@ -50,13 +60,18 @@ export function Headphones() {
   const { clones, ...owned } = r;
   useOwnedDisposal('Props.Headphones', [...Object.values(owned), ...clones]);
   useEffect(() => { r.aluminum.envMap = scene.environment; r.aluminum.needsUpdate = true; }, [r, scene]);
+  useEffect(() => {
+    let cached: ReturnType<typeof headbandClearance> | null = null;
+    window.__headphones = () => cached ??= headbandClearance(scene);
+    return () => { delete window.__headphones; };
+  }, [r, scene]);
   return <MovableProp id="headphones"><group name="prop-headphones">
     <mesh geometry={r.tray} material={r.walnut} position={[0, 0.0045, 0]} castShadow receiveShadow />
     <mesh geometry={r.trayLip} material={r.walnut} castShadow receiveShadow />
-    <mesh name="headphone-upright" geometry={r.upright} material={r.metal} position={[0, 0.13, -0.024]} castShadow receiveShadow />
+    <mesh name="headphone-upright" geometry={r.upright} material={r.metal} position={[0, 0.13, -0.016]} castShadow receiveShadow />
     <mesh name="headphone-headrest" geometry={r.headrest} material={r.walnut} castShadow receiveShadow />
     <group position={[0, 0.003, 0]}>
-      {[-0.018, 0.018].map(z => <mesh key={z} position={[0, 0, z]} geometry={r.rail} material={r.steel} castShadow receiveShadow />)}
+      {[-0.024, 0.024].map(z => <mesh name={`headphone-rail-${z > 0 ? 'front' : 'back'}`} key={z} position={[0, 0, z]} geometry={r.rail} material={r.steel} castShadow receiveShadow />)}
       <mesh name="headphone-canopy" geometry={r.canopy} material={r.net} castShadow receiveShadow />
       {[-1, 1].map(side => <group key={side}>
         <mesh name={`headphone-stem-${side}`} geometry={r.arm} material={r.steel} position={[side * 0.082, 0.178, 0]} castShadow receiveShadow />

@@ -39,10 +39,11 @@ that exact pose without changing the displayed/stored bounds. Reset restores it.
 Portrait retains its previous **32° FOV and 0.317–0.719 m bounds**, composition,
 and existing right-side keyboard crop; it has not been reframed.
 **Copy camera values** includes all nine lens parameters; **Reset camera** restores
-the lens, pose and orbit bounds. The optional depth-of-field controls default off,
-with focus distance 0.719 m, bokeh scale 1 and a 0.1 m sharp focal range.
+the lens, pose and orbit bounds. Depth of field and autofocus default on, with
+bokeh scale 1 and a 0.285 m sharp focal range. Autofocus smoothly follows the keyboard as the camera moves;
+the manual focus-distance fallback is 0.719 m.
 **Focus on keyboard** measures from the current camera to the case's world-space
-center. DoF uses a disabled-by-default BokehPass after selective HDR bloom and
+center. DoF uses a BokehPass after selective HDR bloom and
 before tone mapping; its depth draw and blur are skipped when off. Per-mount
 depth targets/materials are disposed with the existing composer.
 `npm run shots` also checks lens conversion, sensor/FOV linking, copy/reset,
@@ -87,13 +88,13 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   charcoal visible in the dim studio while the physical softbox and rear
   monitor glow supply the falloff and sheen. The background is
   black, without fog. A dark floor grounds the desk in wide views.
-  `Lighting.tsx` saves the spec 05 user-tuned rig exactly: **44 × 68 cm**
+  `Lighting.tsx` saves the user-tuned rig: **44 × 68 cm**
   softbox at **(-0.67, 1.75, 0.80)** m, aimed at **(0, 0.79, -0.02)**,
   intensity **0.75**, **#fff7f0**; linked spot **6.235**, angle **0.21 rad**,
   penumbra **0.78**, softness **147**, radius **4.1**. The right **1.8 × 1.5 m**
   fill is **0.25**, **#eee4ff**, at **(1.4, 1.4, 0.4)**, with the same aim.
-  Monitor **Screen on** defaults true; rim **0**, rear wall glow **23.3**, both
-  **#8d2d2d**. Exposure is **1**. RectAreaLight LTC uniforms are initialized once;
+  Monitor **Screen on** defaults true; rim **7.1**, rear wall glow **27.2**, both
+  **#8f77ff**. Exposure is **1**. RectAreaLight LTC uniforms are initialized once;
   the 2048px spot map is cached while assembled and uses 24-sample PCSS edges.
   `RigEnvironment.tsx` uses **lightformerIntensity 1.28**, **hdriIntensity 0.095**,
   **HDRI rotation −1.29 rad**. Cards match the real source positions, sizes,
@@ -101,10 +102,10 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   independently. Stable memoized portal children and **frames={1}** at 256²
   capture only when a reflection-affecting setting changes, never for assembly,
   orbit or idle frames. The main background remains black.
-  The monitor's wallpaper is independent of its red rear bias light. Its screen
-  card uses the generated wallpaper's measured mean in linear light, preserving
-  neutral plastic reflections while the wall stays red. Caps retain their palette
-  hexes and satin finish, with explicit environment response **1.45**. Turning
+  The monitor's screen card is independent of its purple rear bias light and
+  uses the display's measured mean in linear light. Caps retain their palette
+  hexes with broad matte lobes and explicit environment response **4.5**, keeping
+  dark cap colors legible under the stronger purple grazing light. Turning
   Screen on off restores near-black coated glass and a dim planar reflection of
   the actual desk and keyboard. That pass is cached while stationary and limited
   to 30 Hz during assembly. All of its allocated resources are owned/disposed.
@@ -130,7 +131,7 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   it is shared and captured only when reflection-source controls/layout change.
   No reflection-specific rectangles, extra render passes, or textures are added.
   The wall reflection card represents diffuse paint return (0.035 gain),
-  following the saved 23.3 / #8d2d2d bias light and gating with screenOn.
+  following the saved 27.2 / #8f77ff bias light and gating with screenOn.
   The LCD uses 0.62 radiance and a subdued continuous mint/lavender gradient;
   its environment card uses the same radiance and linear average color. The front-left softbox
   catches the eased front edge; the rear screen is seen in the horizontal top
@@ -152,7 +153,8 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   the atlas's measured linear average, aims down across the plate and nearby support surface.
   The area source avoids a point-like specular pinprick on wood. It follows the deck
   and is disabled in all isolated-light captures. No logos or wordmarks.
-  `StudioPost.tsx` uses Three's HDR EffectComposer, UnrealBloomPass and OutputPass.
+  `StudioPost.tsx` uses Three's WebGL HDR EffectComposer: scene → selective bloom
+  → DoF → occluded dust overlay → anamorphic streaks → grading/tone mapping/sRGB.
   The high luminance threshold blooms bright LCD content while leaving the
   monitor gradient and ordinary paint/caps alone. Neutral tone mapping/exposure
   run once at output. MSAA preserves edges; all per-mount targets and materials
@@ -191,12 +193,12 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   numeric/debug-store edits refresh once, with no idle captures. Prop moves also
   invalidate the spot's cached shadows.
   Below Layout, Leva groups **Key · softbox**, **Key · spot (shadows)**,
-  **Fill · area**, **Monitor · rim**, **Desk**, **Environment**, **Stream Deck**, **Wall**, **Dust**, and **Rendering**.
+  **Fill · area**, **Monitor · rim**, **Desk**, **Environment**, **Stream Deck**, **Wall**, **Dust**, and **Film**.
   Copy lighting values exports
-  `{ lights: { softbox, spot, fill, monitor }, desk, environment, streamDeck, wall, rendering, dust }`.
+  `{ lights: { softbox, spot, fill, monitor }, desk, environment, streamDeck, wall, rendering, dust, film }`.
   The spot follows the softbox by default and can be unlinked.
   `?solo=key|softbox|spot|fill|rim|env` isolates each role. Key includes both key
-  emitters; rim now shows only the saved red wall glow (screen rim is zero).
+  emitters; rim shows the saved purple screen rim (7.1) and wall glow (27.2), both #8f77ff.
   Env has four reflection cards plus dim HDRI. Other solos keep 0.008 HDRI
   and no Lightformers. Khronos PBR Neutral tone mapping preserves palette hues.
   `CameraRig.tsx` puts **Camera first** in the `?debug` panel. It shows distance
@@ -242,23 +244,51 @@ CPU loop. The vertex shader computes slow drift, slight upward convection and a
 Brownian-like wander from time and a per-mote seed. Each mote wraps inside an
 oriented box around the cone, from mid-beam to the aim point. The box faces fade
 out, so wrapping never pops. Brightness uses the **live** `studio-key` spot:
-three's cone/penumbra smoothstep (squared, so dust gathers in the core) and
+three's cone/penumbra smoothstep (cubed, so dust gathers in the core) and
 distance falloff, with a mild forward-scatter phase and a per-mote twinkle. Motes
 outside the cone are exactly zero and emit no fragments. Sprites are soft radial
 falloffs tinted by the key color, with additive blending, `depthWrite: false` and
-depth testing on. Size follows distance, with a gentle defocus away from the
-product. It is clamped to 1.25–9 CSS px, so close motes stay faint and never
-become blobs, and motes fade out near the camera's near plane. Peak luminance is
-capped at half the bloom threshold. The motes cast and receive no shadows,
-draw nothing in depth-override passes, and are not part of the environment portal.
-Reduced motion keeps the dust and slows it 5×. `?capture` freezes dust time.
-`?debug` → **Dust** has: Show dust (on), Count **240**, Size **0.9 mm**,
-Intensity **0.5**, Speed **1** and Volume padding **0.03 m**. These export as
-`dust` in Copy lighting values. The `dust-*` checks in `npm run shots` cover:
-exactly one extra draw call, on/off pixel diffs that land only on lit in-cone
-motes, no shadow-map or probe updates, shader-time motion, the live key light,
-reduced motion, and disposal over two unmounts. `npm run perf` reports fps with
-dust on and off.
+occlusion against the existing DoF depth texture (or the hardware scene depth
+when DoF is off). A separate layer renders after DoF with one Points draw. Size
+follows distance and a gentle circle-of-confusion enlargement relative to the
+keyboard focus point; the shader preserves energy as it softens. Sprites clamp
+to 0.7–8 CSS pixels. No extra depth render or fullscreen dust pass is needed.
+
+Before tuning, 44/120 motes were inside the cone, but the old default brightness
+and 0.08× bloom luminance ceiling made even maximum intensity plateau. DoF
+further scattered their few pixels. The default now caps at 0.45× bloom;
+intensity can reach 12 and the cap rises smoothly to 2× bloom only at the high
+end, allowing genuinely bright dust to streak. Defaults: **120 motes, 0.5 mm,
+intensity 0.25, speed 1, padding 0.03 m**. A few faint dots survive default DoF;
+max intensity is distinctly stronger. Reduced motion slows drift 5×;
+`?capture` freezes it. Dust never intercepts pointer raycasts, casts shadows,
+or enters depth-override/environment passes. Copy lighting values includes it.
+Checks cover DoF-on pixel deltas, real cone containment/occlusion, one extra
+draw, live controls, caching, reduced motion and disposal.
+
+## Film controls (spec 09)
+
+`?debug` → **Film** exposes six tone operators, exposure, anamorphic flare,
+contrast, saturation, vibrance, temperature/tint, per-channel lift/gamma/gain and
+vignette amount/softness. Copy lighting values includes the complete `film`
+section. **Neutral, exposure 1** and identity grading preserve Three's original
+single OutputPass pixel-for-pixel; the scene renderer stays NoToneMapping and
+one final raw shader performs grading → tone mapping → vignette → sRGB.
+
+The WebGL anamorphic port uses an HDR high-pass, three weighted horizontal blur
+iterations at quarter resolution and a tinted additive composite. Defaults:
+**on, threshold 1.4, intensity 0.12, length 0.12, tint #83cfff, resolution 0.25,
+16 taps**. It streaks highlights rather than blurring the scene. Grading remains
+neutral by default. All per-mount targets/materials are disposed by their owner;
+Three's shared fullscreen triangle remains cached. `scripts/film-checks.mjs`
+compares Neutral to the official OutputShader, checks ACES/AgX deltas, flare and
+grade pixels, DoF-on dust and actual headphone/bar geometry clearance.
+
+`npm run perf` measures all effects with non-identity grading at native Metal
+speed, then records asynchronous whole-frame GPU timer queries with each effect
+disabled in turn. This avoids ANGLE/Metal assigning the entire command-buffer
+duration to every pass. Per-pass CPU submission times are also recorded;
+queries are disabled during normal viewing and FPS sampling.
 
 ## Interaction, typing and sound (spec 07c)
 
@@ -346,6 +376,10 @@ Studio evidence includes `lighting-hero.png`, `lighting-hero-cool-black.png`,
 `lighting-hero-pink.png`, `lighting-wide.png`, `lighting-closeup.png`,
 `solo-key.png`, `solo-softbox.png`, `solo-spot.png`, `solo-fill.png`,
 `solo-rim.png`, `solo-env.png`, `monitor-off.png`, `monitor-on.png`, and `debug-camera.png`.
+Spec 09 adds `headphones-fixed.png`, `film-anamorphic-on.png`,
+`film-anamorphic-off.png`, `tonemap-aces.png`, `tonemap-agx.png`,
+`tonemap-neutral.png`, `grade-example.png`, `dust-default-dof.png`, and
+`dust-max-dof.png`.
 The solo views share the default hero camera; the debug view exposes Camera.
 `lighting-closeup.png` uses Cool Black so the broad cap-edge and chrome highlights
 are easier to inspect. The separate `closeup.png` retains Glacial Blue.

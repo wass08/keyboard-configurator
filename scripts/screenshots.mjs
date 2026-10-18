@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
 import { screenPolishChecks } from './screen-polish.mjs';
+import { filmChecks } from './film-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
 
@@ -637,6 +638,7 @@ try {
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
+  checks.film = await filmChecks(browser, url, observeErrors);
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
   const page = await context.newPage();
   observeErrors(page);
@@ -845,7 +847,7 @@ try {
     softbox: { type: 'RectAreaLight', intensity: 0.75, color: '#fff7f0', width: 0.44, height: 0.68, position: [-0.67, 1.75, 0.8], aim: [0, 0.79, -0.02] },
     spot: { type: 'SpotLight', intensity: 6.235, color: '#fff7f0', angle: 0.21, penumbra: 0.78, shadowSoftness: 147, shadowRadius: 4.1, linkedToSoftbox: true, position: [-0.67, 1.75, 0.8], aim: [0, 0.79, -0.02], unlinkedPosition: [-0.67, 1.75, 0.8], unlinkedAim: [0, 0.79, -0.02] },
     fill: { type: 'RectAreaLight', intensity: 0.25, color: '#eee4ff', width: 1.8, height: 1.5, position: [1.4, 1.4, 0.4], aim: [0, 0.79, -0.02] },
-    monitor: { screenOn: true, type: 'RectAreaLight', intensity: 0, color: '#8d2d2d', width: 0.598, height: 0.028, position: [0, 1.025, -0.43], aim: [0, 0.99, 0], wallGlow: { intensity: 23.3, color: '#8d2d2d', width: 0.5, height: 0.26, localPosition: [0, 0, -0.06] } },
+    monitor: { screenOn: true, type: 'RectAreaLight', intensity: 7.1, color: '#8f77ff', width: 0.598, height: 0.028, position: [0, 1.025, -0.43], aim: [0, 0.99, 0], wallGlow: { intensity: 27.2, color: '#8f77ff', width: 0.5, height: 0.26, localPosition: [0, 0, -0.06] } },
   }, 'Keep every user-tuned default exactly');
   for (const [name, role] of [['key-softbox', 'softbox'], ['studio-key', 'spot'], ['studio-fill', 'fill'], ['screen-rim', 'monitor']]) {
     const actual = lighting.lights.find(light => light.name === name), expected = lighting.values.lights[role];
@@ -857,7 +859,7 @@ try {
   assert.equal(environment.hdriRotation, expectedEnvironment.rotation);
   assert.deepEqual(Object.keys(environment.lightformers).sort(), ['reflection-fill', 'reflection-screen', 'reflection-softbox', 'reflection-wall-glow']);
   assertReflectionCards(lighting, environment);
-  nearArray(environment.lightformers['reflection-wall-glow'].radiance, new Color('#8d2d2d').multiplyScalar(23.3 * 0.035 * 1.28).toArray(), 'Wall-bounce reflection radiance');
+  nearArray(environment.lightformers['reflection-wall-glow'].radiance, new Color('#8f77ff').multiplyScalar(27.2 * 0.035 * 1.28).toArray(), 'Wall-bounce reflection radiance');
   const rawMonitor = lighting.values.lights.monitor, pose = startupLayout.monitor;
   const screenQ = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(...rawMonitor.aim).sub(new Vector3(...rawMonitor.position)).normalize());
   const origin = new Vector3(pose.x, rawMonitor.position[1], pose.z);
@@ -902,7 +904,7 @@ try {
   assert.equal(await page.evaluate(() => window.__environment().captures), off.environment.captures);
   assert.equal(await page.evaluate(() => window.__lighting().monitor.reflectionCaptures), off.lighting.monitor.reflectionCaptures);
   checks.monitorOff = { status: 'passed', ...off.lighting.monitor, idleReflectionCaptures: off.lighting.monitor.reflectionCaptures };
-  await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.screenOn': true, 'Monitor · rim.rimIntensity': 0, 'Monitor · rim.wallGlow': 23.3 }));
+  await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.screenOn': true, 'Monitor · rim.rimIntensity': 7.1, 'Monitor · rim.wallGlow': 27.2 }));
   await page.waitForFunction(() => window.__lighting().monitor.material === 'MeshBasicMaterial' && window.__environment().lightformers['reflection-screen']);
   assert.deepEqual(await page.evaluate(() => window.__lighting().values), lighting.values, 'Restore the exact saved rig for every colorway');
   checks.monitorToggle = { status: 'passed', onMaterial: lighting.monitor.material, screenLightformer: panel, offGatesBothLights: true, wallpaperContinuity: checks.screenContinuity.status };
@@ -1114,7 +1116,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Keyboard.Precompile', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Background', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'DustMotes']) {
+    for (const owner of ['Keyboard', 'Keyboard.Precompile', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Background', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'StudioPost.Anamorphic', 'DustMotes']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -1143,7 +1145,7 @@ try {
     await renderedPage(soloPage);
     const info = await soloPage.evaluate(() => window.__lighting());
     const active = info.lights.filter(light => light.intensity > 0);
-    const expected = { key: ['key-softbox', 'studio-key'], softbox: ['key-softbox'], spot: ['studio-key'], fill: ['studio-fill'], rim: ['screen-wall-glow'], env: [] }[role];
+    const expected = { key: ['key-softbox', 'studio-key'], softbox: ['key-softbox'], spot: ['studio-key'], fill: ['studio-fill'], rim: ['screen-rim', 'screen-wall-glow'], env: [] }[role];
     assert.deepEqual(active.map(light => light.name).sort(), expected.sort(), `Only the ${role} role may be active`);
     assert.equal(active.some(light => light.castShadow), role === 'key' || role === 'spot');
     assert.equal(info.environment, 1);
@@ -1161,7 +1163,7 @@ try {
 
   // --- dust motes (spec 07a) ---
   {
-    const expectedDust = { enabled: true, count: 120, size: 0.4, intensity: 0.06, speed: 1, padding: 0.03 };
+    const expectedDust = { enabled: true, count: 120, size: 0.5, intensity: 0.25, speed: 1, padding: 0.03 };
     const dustContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
     const dustPage = await dustContext.newPage(); observeErrors(dustPage);
     await dustPage.goto(`${url}/?capture=1`);
@@ -1175,6 +1177,7 @@ try {
       // The CPU cone-footprint test measures the dust shader's exact pixels,
       // before optical blur spreads them beyond the projected point sprites.
       window.__cameraStore.set({ depthOfField: false });
+      window.__lightingStore.set({ 'Film.anamorphicEnabled': false });
     });
     await dustPage.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
     await renderedPage(dustPage); await idleFrames(dustPage, 4);
@@ -1223,7 +1226,7 @@ try {
       assert.ok(outside.every(m => m.luminance === 0 && m.spot === 0), 'Motes outside the cone must evaluate to zero brightness');
       assert.ok(outside.length > 0 && (!requireOutsideInFrame || outsideInFrame.length > 0), 'The test needs out-of-cone motes in frame');
       assert.ok(lit.length >= 3, 'Some motes must be lit inside the beam');
-      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.08 + 1e-9, 'Every mote stays well below the bloom threshold');
+      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.45 + 1e-9, 'Default motes stay below the bloom and streak thresholds');
       let changed = 0, stray = 0, maxDelta = 0;
       for (let y = 0; y < on.height; y++) for (let x = 0; x < on.width; x++) {
         const i = (y * on.width + x) * 4;
@@ -1244,7 +1247,7 @@ try {
 
     // Editing dust never updates shadow maps or the environment probe.
     await setDust({ 'Dust.dustCount': 400, 'Dust.dustSize': 1.2, 'Dust.dustIntensity': 0.8, 'Dust.dustSpeed': 2, 'Dust.dustPadding': 0.06 });
-    await setDust({ 'Dust.dustCount': 120, 'Dust.dustSize': 0.4, 'Dust.dustIntensity': 0.06, 'Dust.dustSpeed': 1, 'Dust.dustPadding': 0.03 });
+    await setDust({ 'Dust.dustCount': 120, 'Dust.dustSize': 0.5, 'Dust.dustIntensity': 0.25, 'Dust.dustSpeed': 1, 'Dust.dustPadding': 0.03 });
     const after = await dustState();
     const lighting = await dustPage.evaluate(() => window.__lighting());
     assert.equal(after.shadowUpdates, shadowsBefore, 'Dust must add no shadow-map updates when assembled');
@@ -1516,6 +1519,7 @@ try {
   await debugPage.getByRole('button', { name: 'Copy lighting values', exact: true }).click();
   const lightingCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(lightingCopy, defaultLighting, 'Clipboard must contain every current light parameter');
+  assert.deepEqual(lightingCopy.film, checks.film.defaults, 'Copy includes every neutral grade, operator, exposure, vignette and anamorphic control');
   assert.deepEqual(Object.keys(lightingCopy.lights).sort(), ['softbox', 'spot', 'fill', 'monitor'].sort());
   assert.deepEqual(lightingCopy.lights.softbox.position, [-0.67, 1.75, 0.8]);
   assert.deepEqual(lightingCopy.lights.spot.position, [-0.67, 1.75, 0.8]);

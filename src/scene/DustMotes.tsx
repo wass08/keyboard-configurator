@@ -4,6 +4,8 @@ import { AddEquation, BufferAttribute, BufferGeometry, Color, CustomBlending, Ma
 import type { SpotLight } from 'three';
 import type { LightingSettings } from './lightingControls';
 import { useOwnedDisposal } from '../resources/ownership';
+import { DUST_LAYER } from './film';
+import { keyboardFocus, useDepthOfField } from './lens';
 import { DUST_BLOOM_HEADROOM, DUST_DEFOCUS, DUST_DRIFT, DUST_MAX_COUNT, DUST_NEAR_FRACTION, DUST_SCATTER_G, DUST_WANDER, REDUCED_MOTION_SCALE, dustFragmentShader, dustSeeds, dustVertexShader, evaluateMote } from './dustShader';
 import type { DustUniformValues } from './dustShader';
 
@@ -36,6 +38,7 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
         uLightPos: { value: new Vector3() }, uLightDir: { value: new Vector3(0, -1, 0) }, uConeCos: { value: 1 }, uPenumbraCos: { value: 1 }, uCutoff: { value: 0 }, uDecay: { value: 2 },
         uLightColor: { value: new Color() }, uIntensity: { value: 0 }, uScatterG: { value: DUST_SCATTER_G }, uSize: { value: 0.0007 }, uScale: { value: 1 },
         uPointRange: { value: new Vector2(1, 10) }, uNearFade: { value: new Vector2(0.03, 0.1) }, uMaxLuminance: { value: 0.6 }, uFocus: { value: 1 }, uDefocus: { value: 0 },
+        uSceneDepth: { value: null }, uUseSceneDepth: { value: false }, uViewport: { value: new Vector2(1, 1) }, uCameraNear: { value: 0.008 }, uCameraFar: { value: 25 },
       },
       // Premultiplied additive color; destination alpha is left untouched.
       transparent: true, depthWrite: false, depthTest: true,
@@ -44,6 +47,7 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
     });
     const points = new Points(geometry, material);
     points.name = 'dust-motes';
+    points.layers.set(DUST_LAYER);
     points.raycast = ignoreRaycast;
     // Positions live in the shader; the CPU bounds would be meaningless.
     points.frustumCulled = false; points.castShadow = false; points.receiveShadow = false;
@@ -72,7 +76,9 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
   resources.points.visible = s.dustEnabled && count > 0;
   const u = resources.material.uniforms;
   u.uIntensity.value = s.dustIntensity; u.uSize.value = s.dustSize / 1000;
-  u.uMaxLuminance.value = s.bloomThreshold * DUST_BLOOM_HEADROOM;
+  // Normal use stays below bloom. Let the deliberately bright end of the
+  // control produce real glints instead of plateauing at the old tiny cap.
+  u.uMaxLuminance.value = s.bloomThreshold * Math.min(2, DUST_BLOOM_HEADROOM * Math.max(1, Math.sqrt(s.dustIntensity / 0.25)));
 
   const spot = useRef<SpotLight | null>(null);
   const scratch = useMemo(() => ({ aim: new Vector3(), axis: new Vector3(), right: new Vector3(), up: new Vector3(), drift: new Vector3(...DUST_DRIFT), buffer: new Vector2() }), []);
@@ -114,10 +120,12 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
     const height = state.gl.getDrawingBufferSize(scratch.buffer).y;
     u.uScale.value = height * state.camera.projectionMatrix.elements[5] / 2;
     const dpr = state.gl.getPixelRatio();
-    (u.uPointRange.value as Vector2).set(0.55 * dpr, 4 * dpr);
+    (u.uPointRange.value as Vector2).set(0.7 * dpr, 8 * dpr);
     (u.uNearFade.value as Vector2).set(state.camera.near + 0.02, state.camera.near + 0.1);
-    // Focus on the lit product: the camera's distance to the key light's aim.
-    u.uFocus.value = state.camera.position.distanceTo(aim);
+    // Same autofocus as the lens. Soft sprites are composited after DoF rather
+    // than being blurred a second time using the depth of whatever lies behind.
+    const lens = useDepthOfField.getState();
+    u.uFocus.value = lens.autoFocus ? keyboardFocus.distance : lens.focusDistance;
     u.uDefocus.value = DUST_DEFOCUS * dpr;
   });
 

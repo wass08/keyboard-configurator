@@ -14,7 +14,7 @@ export const DUST_SCATTER_G = 0.25;
 export const DUST_DEFOCUS = 3;
 export const REDUCED_MOTION_SCALE = 0.2;
 /** Keep a single mote, and a couple of overlapping ones, under the bloom threshold. */
-export const DUST_BLOOM_HEADROOM = 0.08;
+export const DUST_BLOOM_HEADROOM = 0.45;
 
 export interface DustUniformValues {
   time: number; boxCenter: number[]; boxBasis: number[]; drift: number[]; wander: number;
@@ -48,6 +48,7 @@ uniform float uFocus;
 uniform float uDefocus;
 attribute vec4 aRandom;
 varying vec3 vColor;
+varying float vDepth;
 
 void main() {
   // Wrap in the unit box, then fade at its faces so wrapping never pops.
@@ -76,6 +77,7 @@ void main() {
 
   vec4 mv = viewMatrix * vec4(world, 1.0);
   float depth = -mv.z;
+  vDepth = depth;
   float nearFade = smoothstep(uNearFade.x, uNearFade.y, depth);
   vec3 color = uLightColor * (uIntensity * beam * falloff * scatter * twinkle * edgeFade * nearFade * aRandom.z);
   // Size attenuation in device pixels plus a soft lens defocus away from the
@@ -94,8 +96,19 @@ void main() {
 }`;
 
 export const dustFragmentShader = /* glsl */`
+#include <packing>
 varying vec3 vColor;
+varying float vDepth;
+uniform sampler2D uSceneDepth;
+uniform bool uUseSceneDepth;
+uniform vec2 uViewport;
+uniform float uCameraNear, uCameraFar;
 void main() {
+  if (uUseSceneDepth) {
+    float packedDepth = unpackRGBAToDepth(texture2D(uSceneDepth, gl_FragCoord.xy / uViewport));
+    float sceneDepth = -perspectiveDepthToViewZ(packedDepth, uCameraNear, uCameraFar);
+    if (vDepth > sceneDepth + 0.001) discard;
+  }
   vec2 c = gl_PointCoord * 2.0 - 1.0;
   float r2 = dot(c, c);
   if (r2 > 1.0) discard;
