@@ -19,13 +19,13 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1.5 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(url);
+  await page.goto(`${url}/?perf=1`);
   await page.waitForFunction(() => window.__kb?.finished && window.__kb.introPhase === 'done');
   // A real click on empty desk unlocks the audio engine, so typing is measured with sound.
   await page.mouse.click(8, 450);
   const result = await page.evaluate(async () => {
     const defaults = window.__camera().lens;
-    if (!defaults.depthOfField || !defaults.autoFocus || defaults.focalRange !== 0.285) throw new Error('Measure the production DoF/autofocus defaults');
+    if (!defaults.depthOfField || !defaults.autoFocus || defaults.focalRange !== 0.38 || !defaults.autoFocalRange) throw new Error('Measure the production DoF/autofocus defaults');
     const filmDefaults = window.__lighting().values.film;
     if (!filmDefaults.grade.enabled || filmDefaults.toneMapping !== 'ACES Filmic' || filmDefaults.grade.contrast !== 1.11 || filmDefaults.vignette.amount !== 0.52) throw new Error('Measure the production film defaults');
     const gl = document.querySelector('canvas').getContext('webgl2');

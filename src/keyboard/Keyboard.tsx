@@ -202,7 +202,7 @@ export function Keyboard() {
     if (window.__kb) window.__kb.generation = generation.current;
   }, [selectedId, materials]);
 
-  return <group ref={root} position={[0, KEYBOARD_Y, 0]} rotation={[TILT, 0, 0]}>
+  return <group name="keyboard-assembly" ref={root} position={[0, KEYBOARD_Y, 0]} rotation={[TILT, 0, 0]}>
     <Case materials={materials} />
     <Switches />
     <group ref={keys}>

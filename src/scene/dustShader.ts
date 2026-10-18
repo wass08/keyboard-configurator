@@ -105,7 +105,7 @@ uniform vec2 uViewport;
 uniform float uCameraNear, uCameraFar;
 void main() {
   if (uUseSceneDepth) {
-    float packedDepth = unpackRGBAToDepth(texture2D(uSceneDepth, gl_FragCoord.xy / uViewport));
+    float packedDepth = texture2D(uSceneDepth, gl_FragCoord.xy / uViewport).r;
     float sceneDepth = -perspectiveDepthToViewZ(packedDepth, uCameraNear, uCameraFar);
     if (vDepth > sceneDepth + 0.001) discard;
   }

@@ -12,6 +12,8 @@ import { DeskProps } from './props/DeskProps';
 import { HERO_POSITION, PORTRAIT_FOV } from './cameraDefaults';
 import { DEFAULT_FOCAL_LENGTH_MM, DEFAULT_PROJECTION } from './lens';
 import type { PerspectiveCamera } from 'three';
+import './ltcGuard';
+import { AdaptiveQuality } from './AdaptiveQuality';
 
 function StudioFloor() {
   const roughness = useMemo(() => {
@@ -35,6 +37,7 @@ export function Stage() {
     if (size.width / size.height >= 0.75) lens.setFocalLength(DEFAULT_FOCAL_LENGTH_MM);
   }}>
     <color attach="background" args={['#000000']} />
+    <AdaptiveQuality />
     <Suspense fallback={null}>
       <LayoutControls />
       <Lighting><Desk /><DeskProps /></Lighting>

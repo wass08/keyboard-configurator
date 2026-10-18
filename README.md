@@ -38,17 +38,40 @@ it 0.000000257 m over the maximum; a one-micrometer boundary tolerance preserves
 that exact pose without changing the displayed/stored bounds. Reset restores it.
 Portrait retains its previous **32° FOV and 0.317–0.719 m bounds**, composition,
 and existing right-side keyboard crop; it has not been reframed.
-**Copy camera values** includes all nine lens parameters; **Reset camera** restores
+**Copy camera values** includes all fourteen lens parameters; **Reset camera** restores
 the lens, pose and orbit bounds. Depth of field and autofocus default on, with
-bokeh scale 1 and a 0.285 m sharp focal range. Autofocus smoothly follows the keyboard as the camera moves;
-the manual focus-distance fallback is 0.719 m.
-**Focus on keyboard** measures from the current camera to the case's world-space
-center. DoF uses a BokehPass after selective HDR bloom and
-before tone mapping; its depth draw and blur are skipped when off. Per-mount
-depth targets/materials are disposed with the existing composer.
+bokeh scale 1 and **auto focal range** (minimum **0.38 m**, margin **0.025 m** per side).
+Focus and range use the eight world-bounds corners projected into camera depth,
+with approximately 120 ms critically damped settling. The distance-scaling amount
+is **0.65**; it gently reduces blur at close distances. Manual focus/range remain
+available, and Copy/Reset includes every optical setting.
+**Focus on keyboard** uses the same view-depth center. The full-resolution DoF
+uses a balanced disk gather with neighbor-depth rejection: far blur cannot paint
+focused caps, while near blur can softly overlap the background. Color and native
+depth use identical texel coordinates. One MSAA scene render supplies both DoF
+and dust; later fullscreen buffers are single-sample. Sparse HDR bloom blurs at
+quarter resolution with its physical Gaussian footprint preserved. The threshold
+seed stays at the original half resolution so tiny LCD/chrome sources survive.
+Pixel-delta checks bound the small differences around highlights. Resources are disposed with
+the composer; the shared fullscreen triangle remains a library cache.
 `npm run shots` also checks lens conversion, sensor/FOV linking, copy/reset,
 portrait resizing and DoF pixels/disposal; captures `lens-85mm.png` (same pose)
-and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
+and `lens-dof.png`. Spec-10 captures add `dof-close/default/far.png` plus two
+orbits, cap-edge contrast against DoF off, and a known-depth silhouette regression
+(with a one-pixel bleed limit). Five pixel comparisons test the exact LTC early
+zero guard and scene-only MSAA against the unoptimized reference switches.
+
+Ordinary viewing adapts DPR in 0.125 steps within 1–2, with two slow windows to
+step down, four fast windows to step up, and a five-second cooldown. Capture/perf
+URLs pin DPR so adaptation cannot hide regressions. Debug readouts update only
+with `?debug`. Leva registration remains eager: its
+shared store is used by scene/material initialization, and its global-root hook
+auto-mounts the panel if its explicit hidden owner is removed.
+`npm run perf` also runs `scripts/perf-profile.mjs`: GPU A/B timings with local
+before/after anchors, main-thread TaskDuration, draw/triangle/program counts,
+identified texture/attachment byte estimates, cold startup and bundle tables,
+and 4× CPU plus DPR-2 pixel-load stress. GPU-clock throttling is unavailable in
+CDP; raw results and machine load are recorded in `screenshots/perf-profile-*.json`.
 
 ## Architecture
 
@@ -264,8 +287,8 @@ three's cone/penumbra smoothstep (cubed, so dust gathers in the core) and
 distance falloff, with a mild forward-scatter phase and a per-mote twinkle. Motes
 outside the cone are exactly zero and emit no fragments. Sprites are soft radial
 falloffs tinted by the key color, with additive blending, `depthWrite: false` and
-occlusion against the existing DoF depth texture (or the hardware scene depth
-when DoF is off). A separate layer renders after DoF with one Points draw. Size
+occlusion against the shared native scene depth texture, including when DoF
+is off. A separate layer renders after DoF with one Points draw. Size
 follows distance and a gentle circle-of-confusion enlargement relative to the
 keyboard focus point; the shader preserves energy as it softens. Sprites clamp
 to 0.7–8 CSS pixels. No extra depth render or fullscreen dust pass is needed.
@@ -489,7 +512,7 @@ window.__lightingStore.set({ // same live Leva store used by the debug panel
   names no longer imply that the complete desk fits. The Camera panel can still
   be used to explore other bounds deliberately.
 - DPR is clamped to 1–2. Switches are instanced; cap geometries and materials are
-  shared. Screenshot evidence uses SwiftShader. A separate hardware Metal run on
+  shared. Screenshot evidence uses Metal on macOS (SwiftShader elsewhere). A separate hardware Metal run on
   Apple M5 Max measured approximately 60 fps both assembled and during a variant
   change in the production build at 1440 × 900, DPR 1.5; this is one
   machine, rather than a cross-device guarantee. See `screenshots/performance.json`.
@@ -499,5 +522,4 @@ window.__lightingStore.set({ // same live Leva store used by the debug panel
 - Later milestones (per-key editing, switch options, case options and export)
   are intentionally outside this milestone.
 
-No commit was created. This milestone does not alter `docs/`, `references/` or
-`PROMPTS.md`; pre-existing working-tree changes are preserved.
+Protected reference/spec files are not changed by implementation work.

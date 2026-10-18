@@ -1,51 +1,65 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { HalfFloatType, NoToneMapping, Vector2, Vector3, WebGLRenderTarget } from 'three';
 import type { PerspectiveCamera } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { DepthAwareDoFPass } from './post/DepthAwareDoFPass';
+import { SceneResolvePass } from './post/SceneResolvePass';
 import { observeManagedDisposal } from '../resources/ownership';
 import type { LightingSettings } from './lightingControls';
-import { DEFAULT_DOF, keyboardFocus, useDepthOfField } from './lens';
+import { keyboardFocus, useDepthOfField } from './lens';
 import { FilmOutputPass } from './post/FilmOutputPass';
 import { DustOverlayPass } from './post/DustOverlayPass';
 import { PassProfiler } from './post/PassProfiler';
 import { HighlightAudit } from './post/HighlightAudit';
 import type { FacePoint, LinearSample } from './post/HighlightAudit';
+import { renderMetrics } from './renderMetrics';
 
 declare global { interface Window {
-  __film?: () => { passes: { name: string; enabled: boolean }[]; rendererToneMapping: number; operator: string; outputColorSpace: string; toneMapStages: number; outputDefines: Record<string, unknown>; reference: boolean; gradingActive: boolean; gpu: ReturnType<PassProfiler['report']> };
-  __filmControl?: { referenceOutput: (value: boolean) => void; profile: (value: boolean) => void; bloom: (value: boolean) => void; measure: (points: FacePoint[]) => Promise<Record<string, LinearSample[]>> };
+  __film?: () => { passes: { name: string; enabled: boolean }[]; rendererToneMapping: number; operator: string; outputColorSpace: string; toneMapStages: number; outputDefines: Record<string, unknown>; reference: boolean; gradingActive: boolean; gpu: ReturnType<PassProfiler['report']>; metrics: ReturnType<typeof renderMetrics>; startup: { firstSceneFrameMs: number; introReadyMs: number } };
+  __filmControl?: { referenceOutput: (value: boolean) => void; profile: (value: boolean) => void; bloom: (value: boolean) => void; silhouetteProbe: () => Promise<unknown>; measure: (points: FacePoint[]) => Promise<Record<string, LinearSample[]>> };
 } }
 
 export function StudioPost({ settings }: { settings: LightingSettings }) {
-  const { gl, scene, camera, size } = useThree();
+  const { gl, scene, camera, size, viewport: { dpr } } = useThree();
   const dof = useDepthOfField();
+  const startup = useRef({ firstSceneFrameMs: 0, introReadyMs: 0 });
   const pipeline = useMemo(() => {
-    const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
+    const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false, samples: new URLSearchParams(location.search).has('postReference') ? 4 : 0 });
     const composer = new EffectComposer(gl, target);
-    const render = new RenderPass(scene, camera);
+    const render = new SceneResolvePass(scene, camera);
     const bloom = new UnrealBloomPass(new Vector2(1, 1), settings.bloomStrength, 0.25, settings.bloomThreshold);
-    const depth = new BokehPass(scene, camera, { focus: DEFAULT_DOF.focusDistance, aperture: 0.04, maxblur: 0.012 });
-    // A sharp band in real meters keeps the whole keyboard readable. The
-    // library shader otherwise has only one infinitely thin focal plane.
-    depth.materialBokeh.uniforms.focalRange = { value: DEFAULT_DOF.focalRange };
-    depth.materialBokeh.fragmentShader = depth.materialBokeh.fragmentShader
-      .replace('uniform float focus;', 'uniform float focus;\nuniform float focalRange;')
-      .replace('float factor = ( focus + viewZ );', 'float difference = focus + viewZ;\nfloat factor = sign(difference) * max(abs(difference) - focalRange * 0.5, 0.0);');
+    if (!new URLSearchParams(location.search).has('postReference')) {
+      const resizeBloom = bloom.setSize.bind(bloom);
+      // Preserve the original half-resolution HDR seed so tiny LCD/chrome
+      // sources survive thresholding; blur the sparse seed at quarter size.
+      // Keep its physical kernel footprint instead of doubling glow radius.
+      bloom.setSize = (width, height) => {
+        resizeBloom(Math.max(2, width / 2), Math.max(2, height / 2));
+        bloom.renderTargetBright.setSize(Math.round(width / 2), Math.round(height / 2));
+        for (const material of bloom.separableBlurMaterials) material.uniforms.invSize.value.multiplyScalar(0.5);
+      };
+    }
+    const depth = new DepthAwareDoFPass(camera as PerspectiveCamera);
+    depth.depthTexture = render.target.depthTexture;
     const dust = new DustOverlayPass(scene, camera as PerspectiveCamera, depth);
     const output = new FilmOutputPass(), profiler = new PassProfiler(gl);
     const audit = new HighlightAudit();
-    const renderScene = render.render.bind(render), renderBloom = bloom.render.bind(bloom);
+    const renderScene = render.render.bind(render), renderBloom = bloom.render.bind(bloom), renderDepth = depth.render.bind(depth);
     render.render = (...args) => { renderScene(...args); audit.capture('scene', args[0], args[2]); };
     bloom.render = (...args) => { renderBloom(...args); audit.capture('bloomSeed', args[0], bloom.renderTargetBright); audit.capture('bloomHalo', args[0], bloom.renderTargetsHorizontal[0]); };
+    depth.render = (...args) => { audit.capture('lensInput', args[0], args[2]); renderDepth(...args); audit.capture('depthOfField', args[0], args[1]); };
     const stages = [['scene', render], ['bloom', bloom], ['depthOfField', depth], ['dustAfterDoF', dust], ['gradingAndOutput', output]] as const;
     for (const [name, pass] of stages) { composer.addPass(pass); profiler.wrap(name, pass); }
-    return { composer, bloom, depth, dust, output, profiler, stages, audit };
+    return { composer, render, bloom, depth, dust, output, profiler, stages, audit };
   }, [gl, scene, camera]);
-  useEffect(() => { pipeline.composer.setPixelRatio(gl.getPixelRatio()); pipeline.composer.setSize(size.width, size.height); }, [pipeline, gl, size]);
+  useEffect(() => {
+    // Renderer drawing buffers truncate fractional CSS × DPR dimensions. Use
+    // those same integral texels for color, depth, CoC and dust at every DPR.
+    pipeline.composer.setPixelRatio(1);
+    pipeline.composer.setSize(Math.floor(size.width * dpr), Math.floor(size.height * dpr));
+  }, [pipeline, dpr, size]);
   useEffect(() => {
     // Observe the library owners' real dispose events. The shared fullscreen
     // triangle is Three's intentional cache, not a per-mount allocation.
@@ -55,13 +69,13 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
       bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical,
       bloom.materialHighPassFilter, ...bloom.separableBlurMaterials, bloom.compositeMaterial, bloom.blendMaterial, hidden._basic, output.material,
     ].forEach(resource => observeManagedDisposal('StudioPost', resource));
-    const depthOwned = depth as unknown as { _renderTargetDepth: WebGLRenderTarget; _materialDepth: import('three').Material };
-    [depthOwned._renderTargetDepth, depthOwned._materialDepth, depth.materialBokeh]
-      .forEach(resource => observeManagedDisposal('StudioPost.DoF', resource));
+    observeManagedDisposal('StudioPost.DoF', depth.material);
+    observeManagedDisposal('StudioPost', pipeline.render.target);
+    observeManagedDisposal('StudioPost', pipeline.render.material);
     return () => {
       composer.dispose(); bloom.dispose();
       // UnrealBloomPass does not release its high-pass material itself.
-      bloom.materialHighPassFilter.dispose(); depth.dispose(); output.dispose(); pipeline.profiler.dispose();
+      bloom.materialHighPassFilter.dispose(); depth.dispose(); pipeline.render.dispose(); output.dispose(); pipeline.profiler.dispose();
     };
   }, [pipeline]);
   useEffect(() => { const previous = gl.info.autoReset; gl.info.autoReset = false; return () => { gl.info.autoReset = previous; }; }, [gl]);
@@ -71,20 +85,19 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
   }, [gl]);
   pipeline.bloom.strength = settings.bloomStrength; pipeline.bloom.threshold = settings.bloomThreshold;
   pipeline.depth.enabled = dof.depthOfField;
-  pipeline.depth.materialBokeh.uniforms.focalRange.value = dof.focalRange;
-  pipeline.depth.materialBokeh.uniforms.aperture.value = 0.04 * dof.bokehScale;
-  pipeline.depth.materialBokeh.uniforms.maxblur.value = 0.012 * dof.bokehScale;
   pipeline.output.configure(settings);
   useEffect(() => {
     window.__film = () => ({
       passes: pipeline.stages.map(([name, pass]) => ({ name, enabled: pass.enabled })), rendererToneMapping: gl.toneMapping,
       operator: settings.toneOperator, outputColorSpace: gl.outputColorSpace, toneMapStages: pipeline.stages.filter(([, pass]) => pass.enabled && pass instanceof FilmOutputPass).length,
       outputDefines: { ...pipeline.output.material.defines }, reference: pipeline.output.reference, gradingActive: pipeline.output.uniforms.gradeEnabled.value, gpu: pipeline.profiler.report(),
+      metrics: renderMetrics(gl, scene, [pipeline.composer.renderTarget1, pipeline.composer.renderTarget2, pipeline.bloom.renderTargetBright, ...pipeline.bloom.renderTargetsHorizontal, ...pipeline.bloom.renderTargetsVertical, pipeline.render.target]), startup: { ...startup.current },
     });
     window.__filmControl = {
       referenceOutput: value => pipeline.output.useReference(value),
       profile: value => { if (value) pipeline.profiler.start(); else pipeline.profiler.enabled = false; },
       bloom: value => { pipeline.bloom.enabled = value; },
+      silhouetteProbe: async () => (await import('./post/dofProbe')).probeSilhouette(gl, camera as PerspectiveCamera),
       measure: points => {
         // Actual LCD triangle centroids provide a positive emissive control.
         const lcd = scene.getObjectByName('streamdeck-lcd-keys') as import('three').Mesh;
@@ -105,13 +118,17 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
   useFrame((_, delta) => {
     const lens = useDepthOfField.getState();
     const distance = lens.autoFocus ? keyboardFocus.distance : lens.focusDistance;
-    const uniform = pipeline.depth.materialBokeh.uniforms.focus;
+    const uniform = pipeline.depth.material.uniforms.focus;
     if (uniform.value !== distance) uniform.value = distance;
+    pipeline.depth.material.uniforms.focalRange.value = lens.autoFocalRange ? keyboardFocus.range : lens.focalRange;
+    pipeline.depth.material.uniforms.bokehScale.value = lens.bokehScale * (1 - lens.bokehDistanceScale + lens.bokehDistanceScale * Math.min(1.3, Math.max(0.35, distance / 1.35)));
     gl.info.reset(); pipeline.profiler.beginFrame();
     try { pipeline.composer.render(delta); }
     finally { pipeline.profiler.endFrame(); }
     pipeline.audit.finish();
     pipeline.profiler.poll();
+    if (!startup.current.firstSceneFrameMs) startup.current.firstSceneFrameMs = performance.now();
+    if (!startup.current.introReadyMs && window.__kb?.ready) startup.current.introReadyMs = performance.now();
   }, 1);
   return null;
 }

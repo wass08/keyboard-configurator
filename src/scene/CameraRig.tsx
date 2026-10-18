@@ -20,7 +20,7 @@ export function CameraRig() {
   const projectionEdited = useRef(false);
   const apply = useRef<(patch: Partial<LensValues>) => void>(() => {});
   const focus = useRef<() => void>(() => {});
-  const autofocus = useRef({ body: null as Object3D | null, matrix: new Matrix4(), bounds: new Box3(), center: new Vector3(...HERO_TARGET), velocity: 0, initialized: false });
+  const autofocus = useRef({ body: null as Object3D | null, matrix: new Matrix4(), view: new Matrix4(), bounds: new Box3(), center: new Vector3(...HERO_TARGET), corner: new Vector3(), velocity: 0, rangeVelocity: 0, initialized: false, wasAnimating: true, boundsChanged: true });
   const { camera: activeCamera, scene, size } = useThree();
   // Stage owns the default perspective camera throughout its lifetime.
   const camera = activeCamera as PerspectiveCamera;
@@ -32,6 +32,7 @@ export function CameraRig() {
     filmGaugeMm: camera.filmGauge, near: camera.near, far: camera.far,
     ...useDepthOfField.getState(),
     focusDistance: useDepthOfField.getState().autoFocus ? keyboardFocus.distance : useDepthOfField.getState().focusDistance,
+    focalRange: useDepthOfField.getState().autoFocalRange ? keyboardFocus.range : useDepthOfField.getState().focalRange,
   });
   const snapshot = (): CameraValues => {
     const orbit = controls.current!;
@@ -60,6 +61,10 @@ export function CameraRig() {
         'Depth of field': folder({
           depthOfField: { value: DEFAULT_DOF.depthOfField, label: 'Enabled', transient: false, onChange: (v, _, c) => opticalInput(v, 'depthOfField', c) },
           autoFocus: { value: DEFAULT_DOF.autoFocus, label: 'Auto focus', transient: false, onChange: (v, _, c) => opticalInput(v, 'autoFocus', c) },
+          autoFocalRange: { value: DEFAULT_DOF.autoFocalRange, label: 'Auto focal range', transient: false, onChange: (v, _, c) => opticalInput(v, 'autoFocalRange', c) },
+          minFocalRange: { value: DEFAULT_DOF.minFocalRange, min: 0.05, max: 1, step: 0.005, label: 'Min focal range (m)', transient: false, onChange: (v, _, c) => opticalInput(v, 'minFocalRange', c) },
+          focalMargin: { value: DEFAULT_DOF.focalMargin, min: 0, max: 0.2, step: 0.005, label: 'Range margin (m)', transient: false, onChange: (v, _, c) => opticalInput(v, 'focalMargin', c) },
+          bokehDistanceScale: { value: DEFAULT_DOF.bokehDistanceScale, min: 0, max: 1, step: 0.05, label: 'Bokeh distance scaling', transient: false, onChange: (v, _, c) => opticalInput(v, 'bokehDistanceScale', c) },
           focusDistance: { value: DEFAULT_DOF.focusDistance, min: 0.01, max: 10, step: 0.001, pad: 3, label: 'Focus distance (m)', transient: false, onChange: (v, _, c) => opticalInput(v, 'focusDistance', c) },
           'Focus on keyboard': button(() => focus.current()),
           bokehScale: { value: DEFAULT_DOF.bokehScale, min: 0, max: 4, step: 0.05, label: 'Bokeh scale', transient: false, onChange: (v, _, c) => opticalInput(v, 'bokehScale', c) },
@@ -96,23 +101,43 @@ export function CameraRig() {
       autoFocus: patch.autoFocus ?? dof.autoFocus,
       focusDistance: Number.isFinite(patch.focusDistance) ? Math.max(0.01, patch.focusDistance!) : patch.autoFocus === false && dof.autoFocus ? keyboardFocus.distance : dof.focusDistance,
       bokehScale: Number.isFinite(patch.bokehScale) ? Math.max(0, Math.min(4, patch.bokehScale!)) : dof.bokehScale,
-      focalRange: Number.isFinite(patch.focalRange) ? Math.max(0, patch.focalRange!) : dof.focalRange,
+      focalRange: Number.isFinite(patch.focalRange) ? Math.max(0, patch.focalRange!) : patch.autoFocalRange === false && dof.autoFocalRange ? keyboardFocus.range : dof.focalRange,
+      autoFocalRange: patch.autoFocalRange ?? dof.autoFocalRange,
+      minFocalRange: Number.isFinite(patch.minFocalRange) ? Math.max(0.05, patch.minFocalRange!) : dof.minFocalRange,
+      focalMargin: Number.isFinite(patch.focalMargin) ? Math.max(0, patch.focalMargin!) : dof.focalMargin,
+      bokehDistanceScale: Number.isFinite(patch.bokehDistanceScale) ? Math.max(0, Math.min(1, patch.bokehDistanceScale!)) : dof.bokehDistanceScale,
     });
     syncLens();
   };
   const focusTarget = () => {
     const state = autofocus.current;
-    const body = state.body ?? scene.getObjectByName('keyboard-case-body');
+    const body = state.body ?? scene.getObjectByName('keyboard-assembly');
+    const animating = window.__kb?.introPhase !== 'done' || !window.__kb?.finished;
     if (body) {
       body.updateWorldMatrix(true, false);
       // Bounds only change during the frame landing. At rest, neither a bounds
       // traversal nor any allocation is needed, even while orbiting the camera.
-      if (state.body !== body || !state.matrix.equals(body.matrixWorld)) {
+      if (animating || state.wasAnimating || state.body !== body || !state.matrix.equals(body.matrixWorld)) {
         state.bounds.setFromObject(body).getCenter(state.center);
         state.matrix.copy(body.matrixWorld); state.body = body;
+        state.boundsChanged = true;
+        state.bounds.min.toArray(keyboardFocus.bounds[0]); state.bounds.max.toArray(keyboardFocus.bounds[1]); state.center.toArray(keyboardFocus.center);
       }
     }
-    return camera.position.distanceTo(state.center);
+    state.wasAnimating = animating;
+    camera.updateMatrixWorld();
+    if (state.boundsChanged || !state.view.equals(camera.matrixWorldInverse)) {
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < 8; i++) {
+        state.corner.set(i & 1 ? state.bounds.max.x : state.bounds.min.x, i & 2 ? state.bounds.max.y : state.bounds.min.y, i & 4 ? state.bounds.max.z : state.bounds.min.z).applyMatrix4(camera.matrixWorldInverse);
+        min = Math.min(min, -state.corner.z); max = Math.max(max, -state.corner.z);
+      }
+      keyboardFocus.depthMin = min; keyboardFocus.depthMax = max;
+      state.view.copy(camera.matrixWorldInverse); state.boundsChanged = false;
+    }
+    const lens = useDepthOfField.getState();
+    keyboardFocus.rangeTarget = Math.max(lens.minFocalRange, keyboardFocus.depthMax - keyboardFocus.depthMin + 2 * lens.focalMargin);
+    return (keyboardFocus.depthMin + keyboardFocus.depthMax) / 2;
   };
   focus.current = () => {
     keyboardFocus.distance = keyboardFocus.target = focusTarget();
@@ -154,6 +179,13 @@ export function CameraRig() {
     } else {
       keyboardFocus.distance = lens.focusDistance; state.velocity = 0;
     }
+    if (!lens.autoFocus && lens.autoFocalRange) focusTarget();
+    if (lens.autoFocalRange) {
+      if (keyboardFocus.range !== keyboardFocus.rangeTarget || state.rangeVelocity !== 0) {
+        const next = dampedScalar(keyboardFocus.range, state.rangeVelocity, keyboardFocus.rangeTarget, Math.min(delta, 0.1));
+        keyboardFocus.range = next.value; state.rangeVelocity = next.velocity; keyboardFocus.rangeUpdates++;
+      }
+    } else { keyboardFocus.range = lens.focalRange; state.rangeVelocity = 0; }
     // No React frame-loop updates in normal production viewing. Debug readouts
     // refresh at 10 Hz; their strings retain exactly three decimal places.
     if (!debug || !controls.current || clock.elapsedTime - lastReadout.current < 0.1) return;
@@ -246,7 +278,18 @@ export function CameraRig() {
     setView('default');
     if (window.__kb) window.__kb.camera = setView;
     window.__camera = snapshot;
-    window.__cameraStore = { set: patch => apply.current(patch), focusOnKeyboard: () => focus.current(), reset: () => reset.current(), focusState: () => ({ ...keyboardFocus }) };
+    window.__cameraStore = { set: patch => apply.current(patch), focusOnKeyboard: () => focus.current(), reset: () => reset.current(), focusState: () => ({ ...keyboardFocus }),
+      orbit: pose => {
+        const orbit = controls.current!;
+        const damping = orbit.enableDamping; orbit.enableDamping = false; orbit.update();
+        if (pose.target) orbit.target.fromArray(pose.target);
+        const distance = Math.max(orbit.minDistance, Math.min(orbit.maxDistance, pose.distance ?? camera.position.distanceTo(orbit.target)));
+        const polar = Math.max(orbit.minPolarAngle, Math.min(orbit.maxPolarAngle, (pose.polarDeg ?? orbit.getPolarAngle() * 180 / Math.PI) * Math.PI / 180));
+        const azimuth = Math.max(orbit.minAzimuthAngle, Math.min(orbit.maxAzimuthAngle, (pose.azimuthDeg ?? orbit.getAzimuthalAngle() * 180 / Math.PI) * Math.PI / 180));
+        camera.position.setFromSphericalCoords(distance, polar, azimuth).add(orbit.target);
+        orbit.update(); orbit.enableDamping = damping;
+      },
+    };
     return () => { delete window.__camera; delete window.__cameraStore; };
   }, [camera, size, set]);
   useEffect(() => () => { useDepthOfField.setState(DEFAULT_DOF); }, []);

@@ -13,6 +13,7 @@ export class PassProfiler {
   private cpu: Record<string, number[]> = {};
   private frame = 0;
   private active: WebGLQuery | null = null;
+  private cpuStart = 0;
   constructor(renderer: WebGLRenderer) { this.gl = renderer.getContext() as WebGL2RenderingContext; }
   start() {
     this.extension = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
@@ -32,11 +33,13 @@ export class PassProfiler {
   // ANGLE/Metal may give every pass the command buffer's entire duration.
   // Query whole frames instead; effect costs come from enabled/disabled A/Bs.
   beginFrame() {
+    if (this.enabled && this.frame % 3 === 0) this.cpuStart = performance.now();
     if (!this.enabled || this.frame % 3 !== 0 || !this.extension || this.pending.length >= 20) return;
     this.active = this.gl.createQuery();
     if (this.active) this.gl.beginQuery(this.extension.TIME_ELAPSED_EXT, this.active);
   }
   endFrame() {
+    if (this.enabled && this.frame % 3 === 0) (this.cpu.frame ??= []).push(performance.now() - this.cpuStart);
     if (!this.active) return;
     this.gl.endQuery(this.extension!.TIME_ELAPSED_EXT);
     this.pending.push({ query: this.active, label: 'frame' }); this.active = null;

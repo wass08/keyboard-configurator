@@ -7,6 +7,7 @@ import { PNG } from 'pngjs';
 import { screenPolishChecks, screenCacheRefreshChecks } from './screen-polish.mjs';
 import { filmChecks } from './film-checks.mjs';
 import { wallChecks } from './wall-checks.mjs';
+import { dofChecks, perfPixelChecks, adaptiveQualityCheck } from './dof-checks.mjs';
 import { highlightChecks } from './highlight-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
@@ -40,7 +41,9 @@ function assertHeroCamera(value, aspect = 1.6) {
   assert.equal(value.lens.filmGaugeMm, 35); assert.equal(value.lens.near, 0.008); assert.equal(value.lens.far, 25);
   assert.equal(value.lens.depthOfField, true); assert.equal(value.lens.autoFocus, true);
   assert.ok(value.lens.focusDistance > 1.3 && value.lens.focusDistance < 1.5);
-  assert.equal(value.lens.bokehScale, 1); assert.equal(value.lens.focalRange, 0.285);
+  assert.equal(value.lens.bokehScale, 1); assert.equal(value.lens.focalRange, 0.38);
+  assert.equal(value.lens.autoFocalRange, true); assert.equal(value.lens.minFocalRange, 0.38);
+  assert.equal(value.lens.focalMargin, 0.025); assert.equal(value.lens.bokehDistanceScale, 0.65);
 }
 const expectedLayout = {
   headphones: { x: -0.5380, z: -0.3517, rotationY: 0.0, y: 0.75 },
@@ -59,7 +62,8 @@ const settledFocus = async page => {
   await renderedPage(page); // Let the target observe an immediately preceding pose/intro edit.
   await page.waitForFunction(() => {
     const state = window.__cameraStore.focusState();
-    return !window.__camera().lens.autoFocus || state.distance === state.target;
+    const lens = window.__camera().lens;
+    return (!lens.autoFocus || state.distance === state.target) && (!lens.autoFocalRange || state.range === state.rangeTarget);
   });
 };
 function assertReflectionCards(lighting, environment) {
@@ -656,6 +660,9 @@ try {
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   checks.screenCacheRefresh = await screenCacheRefreshChecks(browser, observeErrors);
+  checks.depthOfField = await dofChecks(browser, url, observeErrors);
+  checks.perfPixelParity = await perfPixelChecks(browser, url, observeErrors);
+  checks.adaptiveQuality = await adaptiveQualityCheck(browser, url, observeErrors);
   checks.film = await filmChecks(browser, url, observeErrors);
   checks.wallMask = await wallChecks(browser, url, observeErrors);
   checks.highlightControl = await highlightChecks(browser, url, observeErrors, expectedPalettes);
@@ -1215,7 +1222,7 @@ try {
     assert.equal(initial.enabled, true); assert.equal(initial.count, 84); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
     assert.equal(initial.castShadow, false); assert.equal(initial.receiveShadow, false);
     assert.equal(initial.raycastDisabled, true, 'Decorative dust must never intercept pointer rays');
-    assert.equal(initial.depthWrite, false); assert.equal(initial.depthTest, true); assert.equal(initial.transparent, true); assert.equal(initial.additive, true);
+    assert.equal(initial.depthWrite, false); assert.equal(initial.depthTest, false); assert.equal(initial.transparent, true); assert.equal(initial.additive, true);
 
     // One draw call: renderer.info for the whole frame, dust on vs off.
     const calls = () => dustPage.evaluate(() => window.__kb.inspect().calls);
@@ -1383,9 +1390,9 @@ try {
   const originalCamera = await debugPage.evaluate(() => window.__camera());
   assertHeroCamera(originalCamera);
   const focusMeasurement = () => debugPage.evaluate(() => {
-    const camera = window.__camera(), bounds = window.__props().props['keyboard-case-body'];
-    const center = bounds.min.map((value, i) => (value + bounds.max[i]) / 2);
-    return { actual: camera.lens.focusDistance, expected: Math.hypot(...camera.position.map((value, i) => value - center[i])), position: camera.position, center, state: window.__cameraStore.focusState() };
+    const camera = window.__camera(), state = window.__cameraStore.focusState();
+    const center = state.center;
+    return { actual: camera.lens.focusDistance, expected: (state.depthMin + state.depthMax) / 2, position: camera.position, center, state };
   });
   const orbitForFocus = async () => {
     await debugPage.mouse.move(450, 850); await debugPage.mouse.down();
@@ -1395,7 +1402,7 @@ try {
   await orbitForFocus();
   const orbitFocus = await focusMeasurement();
   assert.notDeepEqual(orbitFocus.position, originalCamera.position, 'Use an actual orbit gesture, including its damping tail');
-  assert.ok(Math.abs(orbitFocus.actual - orbitFocus.expected) < 1e-6, 'Autofocus follows the world-space case center after orbit');
+  assert.ok(Math.abs(orbitFocus.actual - orbitFocus.expected) < 1e-6, 'Autofocus follows the view-space keyboard depth center after orbit');
   await debugPage.evaluate(() => window.__cameraStore.set({ autoFocus: false, focusDistance: 0.8 }));
   await orbitForFocus();
   const manualFocus = await focusMeasurement();
@@ -1493,6 +1500,8 @@ try {
   await debugPage.getByText('Enabled', { exact: true }).click();
   await debugPage.getByText('Auto focus', { exact: true }).click();
   await debugPage.waitForFunction(() => !window.__camera().lens.autoFocus);
+  await debugPage.getByText('Auto focal range', { exact: true }).click();
+  await debugPage.waitForFunction(() => !window.__camera().lens.autoFocalRange);
   await edit('Bokeh scale', 0.85); await edit('Focal range (m)', 0.12);
   await debugPage.getByRole('button', { name: 'Focus on keyboard', exact: true }).click();
   await debugPage.waitForFunction(() => {
@@ -1506,7 +1515,7 @@ try {
   await debugPage.getByRole('button', { name: 'Copy camera values', exact: true }).click();
   const lensCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(lensCopy.lens, editedLens);
-  assert.equal(Object.keys(lensCopy.lens).length, 10); assert.equal(lensCopy.lens.autoFocus, false);
+  assert.equal(Object.keys(lensCopy.lens).length, 14); assert.equal(lensCopy.lens.autoFocus, false);
   await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
   await debugPage.waitForFunction(() => window.__camera().lens.depthOfField && window.__camera().lens.autoFocus && Math.abs(window.__camera().lens.focalLengthMm - 80.343) < 1e-9);
   await settledFocus(debugPage);
