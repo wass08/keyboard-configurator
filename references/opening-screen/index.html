@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en" data-phase="loading">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configure your keyboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/configurator.jpg">
+<style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio.
+   Put this @layer first; product CSS outside the layer always wins. */
+@layer od-layout {
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+  /* containers */
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+  /* stacked information: each piece is its own line — never sibling inline spans */
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+
+  /* media keeps its intrinsic ratio by default; never a distorted or cropped
+     cover by accident. height:auto lets the ratio win over an <img height="…">
+     attribute. Cropping to a uniform box is an explicit opt-in: set --od-ratio
+     AND add .od-media-cover together (per the core rule, only where a crop is
+     deliberate — tile thumbs, decorative fills — never on full-frame content). */
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+
+  /* data text only — authored copy is rewritten to its budget instead */
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }   /* block-level reservation for a shared baseline */
+  .od-nowrap  { white-space: nowrap; }           /* 数字+单位 · 价格+起 · 日期+星期 */
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; } /* CJK labels break at spaces / <wbr> first */
+
+  /* screen skeleton (optional): bars take their own space, the middle scrolls — no padding guessed for chrome */
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+  /* horizontal rail: the next item peeks at the edge; trailing room survives overflow */
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+/* /OD-LAYOUT-PRIMITIVES v1 */
+
+/* ───────── Design tokens ───────── */
+:root {
+  color-scheme: dark;
+
+  --ground: #07070b;
+  --surface: rgba(18, 18, 26, 0.72);
+  --surface-line: rgba(255, 255, 255, 0.10);
+  --surface-line-strong: rgba(255, 255, 255, 0.22);
+  --ink: #eceaf2;
+  --ink-muted: #a4a1b4;
+  --ink-faint: #8a879b;
+  --violet: #5b4bd6;
+  --signal: #9fc2ff;
+
+  --cap-white: #eef1f6;
+  --cap-glacial: #c9d8ee;
+  --cap-navy: #24254a;
+  --cap-skirt-top: #f4f7fb;
+  --cap-skirt-bottom: #d6dfeb;
+  --cap-wall-top: #b9c5d7;
+  --cap-wall-bottom: #8592aa;
+  --cap-legend: #5d6684;
+
+  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+  --fs-44: 44px;
+  --fs-72: 72px;
+
+  --s-4: 4px;
+  --s-8: 8px;
+  --s-16: 16px;
+  --s-24: 24px;
+  --s-32: 32px;
+  --s-48: 48px;
+  --s-64: 64px;
+  --s-96: 96px;
+  --edge: clamp(24px, 4vw, 56px);
+
+  --r-panel: 16px;
+  --r-pill: 999px;
+  --r-cap: 18px;
+  --r-dish: 12px;
+  --cap-h: 120px;
+  --cap-wall: 12px;
+  --cap-travel: 8px;
+
+  --t-fast: 180ms;
+  --t-key-down: 90ms;
+  --t-key-up: 160ms;
+  --t-exit: 280ms;
+  --t-reveal: 1100ms;
+  --t-sweep: 900ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+}
+
+/* ───────── Base ───────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-16);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
+
+/* ───────── Scene (configurator behind the gate) ───────── */
+.studio { position: fixed; inset: 0; overflow: hidden; background: var(--ground); }
+.studio:focus { outline: none; }
+.scene-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;               /* deliberate full-bleed backdrop */
+  object-position: 50% 62%;
+}
+.scene-sharp { transform: scale(1.05); transition: transform 1400ms var(--ease-out); }
+.scene-dim {
+  filter: blur(18px) brightness(0.34) saturate(0.85);
+  transform: scale(1.12);
+  transition: opacity var(--t-reveal) var(--ease-out) 150ms;
+}
+.night {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 50% 58%, rgba(7, 7, 11, 0.35), rgba(7, 7, 11, 0.9) 100%),
+    linear-gradient(180deg, rgba(7, 7, 11, 0.55), rgba(7, 7, 11, 0.2) 40%, rgba(7, 7, 11, 0.7));
+  transition: opacity var(--t-reveal) var(--ease-out) 150ms;
+}
+.sweep {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  mix-blend-mode: screen;
+  background: linear-gradient(100deg,
+    transparent 30%,
+    rgba(201, 216, 238, 0.14) 45%,
+    rgba(255, 255, 255, 0.24) 50%,
+    rgba(159, 194, 255, 0.12) 55%,
+    transparent 70%);
+  transform: translateX(-110%);
+}
+
+html[data-phase="revealing"] .scene-sharp,
+html[data-phase="live"] .scene-sharp { transform: scale(1); }
+html[data-phase="revealing"] .scene-dim,
+html[data-phase="live"] .scene-dim,
+html[data-phase="revealing"] .night,
+html[data-phase="live"] .night { opacity: 0; }
+html[data-phase="revealing"] .sweep { animation: sweep var(--t-sweep) var(--ease-out) 120ms forwards; }
+
+@keyframes sweep {
+  0%   { opacity: 0; transform: translateX(-110%); }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(110%); }
+}
+
+/* ───────── Gate (opening screen) ───────── */
+.gate {
+  position: fixed; inset: 0; z-index: 2;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow-y: auto;
+}
+html[data-phase="revealing"] .gate,
+html[data-phase="live"] .gate { pointer-events: none; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s-16);
+  padding: var(--edge) var(--edge) 0;
+}
+.brand { display: flex; align-items: center; gap: var(--s-8); font-weight: 600; font-size: var(--fs-16); letter-spacing: -0.01em; }
+.brand svg { flex: none; }
+.topbar-hint { display: flex; align-items: center; gap: var(--s-8); font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-muted); }
+
+.gate-main {
+  display: grid; place-items: center;
+  padding: var(--s-48) var(--edge);
+}
+.gate-col {
+  width: min(100%, 640px);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+}
+.eyebrow {
+  margin: 0;
+  font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.headline {
+  margin: var(--s-16) 0 0;
+  font-family: var(--font-display); font-weight: 400;
+  font-size: clamp(var(--fs-44), 7.2vw, var(--fs-72));
+  line-height: 1.02; letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.headline em { font-style: italic; color: var(--cap-glacial); }
+.lede {
+  margin: var(--s-16) 0 0; max-width: 44ch;
+  font-size: var(--fs-16); line-height: 1.6; color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* Keycap CTA */
+.cap-stage {
+  position: relative;
+  width: min(100%, 400px);
+  margin-top: var(--s-48);
+  perspective: 900px;
+}
+.cap-glow {
+  position: absolute; left: 50%; top: 60%;
+  width: 150%; height: 150%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(159, 194, 255, 0.30), rgba(91, 75, 214, 0.14) 55%, transparent 100%);
+  pointer-events: none;
+  opacity: 0.6;
+  animation: breathe 3.2s ease-in-out infinite;
+}
+@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+
+.cap-tilt {
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 12deg)) rotateY(var(--ry, 0deg));
+  transition: transform 240ms var(--ease-out);
+}
+.cap {
+  position: relative; display: block;
+  width: 100%; height: calc(var(--cap-h) + var(--cap-wall));
+  padding: 0; border: 0; background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  color: var(--cap-navy);
+}
+.cap:focus-visible { outline: none; }
+.cap-shadow {
+  position: absolute; left: 8%; right: 8%; bottom: -20px; height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.85), transparent);
+  transition: opacity var(--t-key-up) var(--ease-out);
+}
+.cap-wall {
+  position: absolute; left: 0; right: 0; top: var(--cap-wall); bottom: 0;
+  border-radius: var(--r-cap);
+  background: linear-gradient(180deg, var(--cap-wall-top), var(--cap-wall-bottom));
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+}
+.cap-body {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--cap-h);
+  border-radius: var(--r-cap);
+  background: linear-gradient(180deg, var(--cap-skirt-top), var(--cap-skirt-bottom));
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(36, 37, 74, 0.08);
+  transition: transform var(--t-key-up) var(--ease-out);
+}
+.cap-dish {
+  position: absolute; top: 7px; left: 14px; right: 14px; bottom: 16px;
+  display: grid; place-items: center;
+  border-radius: var(--r-dish);
+  background: radial-gradient(120% 150% at 50% 0%, #ffffff 0%, var(--cap-white) 52%, #dfe6f0 100%);
+  box-shadow: inset 0 -1px 2px rgba(36, 37, 74, 0.10), inset 0 2px 1px rgba(255, 255, 255, 0.9);
+}
+.cap-legend {
+  position: absolute; top: 10px; left: 14px;
+  font-family: var(--font-mono); font-size: var(--fs-12); line-height: 1;
+  color: var(--cap-legend);
+}
+.cap-label {
+  font-size: clamp(17px, 4.6vw, var(--fs-20)); font-weight: 600;
+  letter-spacing: -0.01em; line-height: 1.2;
+  white-space: nowrap;
+}
+.cap-underlight {
+  position: absolute; left: 18px; right: 18px; bottom: 8px; height: 2px;
+  border-radius: var(--r-pill);
+  background: var(--cap-glacial);
+  opacity: 0.9;
+}
+
+.cap.is-down .cap-body { transform: translateY(var(--cap-travel)); transition-duration: var(--t-key-down); }
+.cap.is-down .cap-shadow { opacity: 0.55; transition-duration: var(--t-key-down); }
+html[data-phase="arming"] .cap .cap-body { transform: translateY(calc(var(--cap-travel) / 2)); }
+html[data-phase="arming"] .cap-glow { animation: none; opacity: 1; }
+.cap:focus-visible .cap-body { outline: 2px solid var(--signal); outline-offset: 6px; }
+
+@media (hover: hover) {
+  .cap:hover .cap-body { transform: translateY(2px); }
+  .cap.is-down:hover .cap-body { transform: translateY(var(--cap-travel)); }
+  .cap:hover ~ .cap-glow, .cap-stage:hover .cap-glow { opacity: 1; }
+}
+
+/* Status + hint */
+.status {
+  --od-gap: var(--s-16);
+  justify-content: center;
+  margin-top: var(--s-48);
+  font-family: var(--font-mono); font-size: var(--fs-12);
+  color: var(--ink-muted);
+}
+.load { --od-gap: var(--s-8); }
+.bar {
+  position: relative; display: block; flex: none;
+  width: 96px; height: 2px; overflow: hidden;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.14);
+}
+.bar-fill {
+  position: absolute; inset: 0;
+  background: var(--signal);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+.ready-dot { display: none; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); }
+html[data-phase="ready"] .ready-dot { display: block; }
+html[data-phase="ready"] .bar,
+html[data-phase="ready"] .pct { display: none; }
+.sep { color: var(--ink-faint); }
+kbd {
+  display: inline-block;
+  padding: 2px var(--s-8);
+  border: 1px solid var(--surface-line-strong); border-bottom-width: 2px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink);
+}
+
+.mute {
+  margin-top: var(--s-16);
+  min-height: 44px; padding: 0 var(--s-16);
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  font-size: var(--fs-14); color: var(--ink-muted);
+  text-decoration: underline; text-decoration-color: rgba(164, 161, 180, 0.45);
+  text-underline-offset: 4px;
+  cursor: pointer;
+  transition: text-decoration-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .mute:hover { color: var(--ink); text-decoration-color: var(--ink); }
+}
+
+.gate-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--s-8) var(--s-24);
+  padding: 0 var(--edge) var(--edge);
+  font-family: var(--font-mono); font-size: var(--fs-12);
+  color: var(--ink-faint);
+}
+.gate-foot .foot-item { display: flex; align-items: center; gap: var(--s-8); }
+
+/* Gate exit */
+.gate-main, .gate-foot, .topbar-hint {
+  transition: opacity var(--t-exit) var(--ease-in), transform var(--t-exit) var(--ease-in);
+}
+html[data-phase="revealing"] .gate-main,
+html[data-phase="live"] .gate-main,
+html[data-phase="revealing"] .gate-foot,
+html[data-phase="live"] .gate-foot,
+html[data-phase="revealing"] .topbar-hint,
+html[data-phase="live"] .topbar-hint { opacity: 0; transform: translateY(-12px); }
+
+/* ───────── Live HUD ───────── */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--surface-line);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+.hud {
+  position: fixed; right: var(--edge); bottom: var(--edge); z-index: 3;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
+}
+html[data-phase="live"] .hud { opacity: 1; transform: none; }
+.sound-toggle {
+  display: flex; align-items: center; gap: var(--s-8);
+  min-height: 44px; padding: 0 var(--s-16);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-14); font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+@media (hover: hover) { .sound-toggle:hover { border-color: var(--surface-line-strong); } }
+.sound-toggle .i-off { display: none; }
+.sound-toggle[aria-pressed="false"] .i-on { display: none; }
+.sound-toggle[aria-pressed="false"] .i-off { display: block; }
+.sound-toggle:disabled { cursor: not-allowed; color: var(--ink-muted); }
+
+.toast {
+  position: fixed; top: var(--edge); left: 50%; z-index: 3;
+  max-width: calc(100% - 2 * var(--edge));
+  padding: var(--s-8) var(--s-16);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-14); line-height: 1.5; text-align: center;
+  opacity: 0; transform: translate(-50%, -8px);
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
+  pointer-events: none;
+}
+.toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+.toast:empty { display: none; }
+
+/* ───────── Responsive ───────── */
+@media (max-width: 640px) {
+  .topbar-hint { display: none; }
+  .gate-main { padding-top: var(--s-32); padding-bottom: var(--s-32); }
+  .cap-stage { margin-top: var(--s-32); }
+  :root { --cap-h: 104px; }
+  .status { margin-top: var(--s-32); }
+  .gate-foot { justify-content: center; text-align: center; }
+  .toast { border-radius: var(--r-panel); }
+}
+@media (hover: none) {
+  .hint, .sep { display: none; }
+}
+@media (max-height: 640px) and (min-width: 641px) {
+  .gate-main { padding-top: var(--s-24); padding-bottom: var(--s-24); }
+  .cap-stage { margin-top: var(--s-32); }
+  .status { margin-top: var(--s-24); }
+}
+
+/* ───────── Reduced motion ───────── */
+@media (prefers-reduced-motion: reduce) {
+  .cap-glow { animation: none; opacity: 0.75; }
+  .cap-tilt { transition: none; }
+  .sweep { display: none; }
+  .scene-sharp { transform: none; transition: none; }
+  .scene-dim, .night { transition: opacity 200ms linear; }
+  .gate-main, .gate-foot, .topbar-hint { transition: opacity 200ms linear; }
+  html[data-phase="revealing"] .gate-main,
+  html[data-phase="live"] .gate-main,
+  html[data-phase="revealing"] .gate-foot,
+  html[data-phase="live"] .gate-foot,
+  html[data-phase="revealing"] .topbar-hint,
+  html[data-phase="live"] .topbar-hint { transform: none; }
+  .hud, .toast { transition: opacity 200ms linear; }
+}
+</style>
+</head>
+<body>
+
+<main class="studio" id="studio" tabindex="-1" aria-label="Keyboard configurator">
+  <img class="scene-img scene-sharp" id="sceneImg" src="assets/configurator.jpg" width="2400" height="1408"
+       alt="Keyboard configurator: a white 75% mechanical keyboard with Glacial Blue keycaps and a volume knob on a desk mat, lit by a violet monitor glow">
+  <img class="scene-img scene-dim" src="assets/configurator.jpg" width="2400" height="1408" alt="" aria-hidden="true">
+  <div class="night" aria-hidden="true"></div>
+  <div class="sweep" aria-hidden="true"></div>
+</main>
+
+<section class="gate" id="gate" aria-labelledby="gateTitle">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+        <rect x="1" y="1" width="9" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="12" y="1" width="9" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="1" y="12" width="9" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="12" y="12" width="9" height="9" rx="2.5" fill="#c9d8ee" stroke="#c9d8ee" stroke-width="1.5"/>
+      </svg>
+      <span>Brand name</span>
+    </div>
+    <div class="topbar-hint">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+      </svg>
+      <span>Sound starts on your first press</span>
+    </div>
+  </header>
+
+  <div class="gate-main">
+    <div class="gate-col">
+      <p class="eyebrow">Keyboard configurator</p>
+      <h1 class="headline" id="gateTitle">Hear it <em>before</em> you build it.</h1>
+      <p class="lede">This studio is built to be heard. Turn your sound up, then step inside.</p>
+
+      <div class="cap-stage">
+        <div class="cap-glow" aria-hidden="true"></div>
+        <div class="cap-tilt" id="capTilt">
+          <button class="cap" id="cap" type="button" aria-describedby="loadText capHint">
+            <span class="cap-shadow" aria-hidden="true"></span>
+            <span class="cap-wall" aria-hidden="true"></span>
+            <span class="cap-body">
+              <span class="cap-dish">
+                <span class="cap-legend" id="capLegend" aria-hidden="true">↵</span>
+                <span class="cap-label">Configure my keyboard</span>
+              </span>
+              <span class="cap-underlight" aria-hidden="true"></span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="status od-cluster">
+        <div class="load od-row">
+          <span class="bar" id="bar" role="progressbar" aria-label="Loading the 3D scene" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="bar-fill" id="barFill"></span></span>
+          <span class="ready-dot" aria-hidden="true"></span>
+          <span class="od-nowrap" id="loadText" aria-live="polite">Loading scene</span>
+          <span class="pct od-nowrap" id="pct" aria-hidden="true">0%</span>
+        </div>
+        <span class="sep" aria-hidden="true">·</span>
+        <span class="hint od-nowrap" id="capHint">or press <kbd>any key</kbd></span>
+      </div>
+
+      <button class="mute" id="mute" type="button">Continue without sound</button>
+    </div>
+  </div>
+
+  <footer class="gate-foot">
+    <div class="foot-item">Colorway 01 / 07 — Glacial Blue</div>
+    <div class="foot-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/>
+      </svg>
+      <span>Best with headphones</span>
+    </div>
+  </footer>
+</section>
+
+<div class="hud" id="hud" inert>
+  <button class="sound-toggle glass" id="soundToggle" type="button" aria-pressed="true">
+    <svg class="i-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+    </svg>
+    <svg class="i-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="m16 9 5 6"/><path d="m21 9-5 6"/>
+    </svg>
+    <span id="soundLabel">Sound on</span>
+  </button>
+</div>
+
+<div class="toast glass" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const root = document.documentElement;
+  const $ = (id) => document.getElementById(id);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const cap = $('cap'), capTilt = $('capTilt'), legend = $('capLegend');
+  const bar = $('bar'), barFill = $('barFill'), pct = $('pct'), loadText = $('loadText');
+  const gate = $('gate'), hud = $('hud'), studio = $('studio'), sceneImg = $('sceneImg');
+  const muteBtn = $('mute'), toggle = $('soundToggle'), soundLabel = $('soundLabel'), toast = $('toast');
+
+  const state = { started: false, loaded: false, sound: true };
+
+  /* ───────── Sound engine: synthesized switch + room tone (Web Audio) ───────── */
+  const Sfx = (() => {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const LEVEL = 0.85;
+    let ctx = null, out = null, noise = null, roomStarted = false;
+
+    function ensure() {
+      if (!AC) return null;
+      if (!ctx) {
+        ctx = new AC();
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -16; comp.ratio.value = 3;
+        comp.attack.value = 0.003; comp.release.value = 0.2;
+        out = ctx.createGain(); out.gain.value = LEVEL;
+        out.connect(comp); comp.connect(ctx.destination);
+        const len = Math.floor(ctx.sampleRate * 2);
+        noise = ctx.createBuffer(1, len, ctx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function env(param, t, peak, a, d) {
+      param.setValueAtTime(0.0001, t);
+      param.exponentialRampToValueAtTime(peak, t + a);
+      param.exponentialRampToValueAtTime(0.0001, t + a + d);
+    }
+    function burst(t, o) {
+      const a = o.a ?? 0.001;
+      const src = ctx.createBufferSource(); src.buffer = noise;
+      const f = ctx.createBiquadFilter(); f.type = o.type || 'bandpass';
+      f.frequency.value = o.freq; f.Q.value = o.q ?? 1;
+      const g = ctx.createGain(); env(g.gain, t, o.peak, a, o.d);
+      src.connect(f); f.connect(g); g.connect(out);
+      src.start(t, Math.random() * 1.5, a + o.d + 0.05);
+    }
+    function body(t, o) {
+      const a = o.a ?? 0.002;
+      const osc = ctx.createOscillator(); osc.type = o.wave || 'triangle';
+      osc.frequency.setValueAtTime(o.f0, t);
+      osc.frequency.exponentialRampToValueAtTime(o.f1, t + a + o.d);
+      const g = ctx.createGain(); env(g.gain, t, o.peak, a, o.d);
+      osc.connect(g); g.connect(out);
+      osc.start(t); osc.stop(t + a + o.d + 0.08);
+    }
+    const PROFILE = {
+      alpha: { click: 2300, body: [210, 110], weight: 0.34, len: 0.08 },
+      enter: { click: 1900, body: [170, 92],  weight: 0.42, len: 0.10 },
+      space: { click: 1300, body: [128, 72],  weight: 0.50, len: 0.15 },
+      hero:  { click: 1500, body: [140, 68],  weight: 0.60, len: 0.18 }
+    };
+    function down(kind = 'alpha') {
+      if (!ctx) return;
+      const p = PROFILE[kind] || PROFILE.alpha;
+      const v = 0.94 + Math.random() * 0.12;
+      const t = ctx.currentTime + 0.005;
+      burst(t, { freq: p.click * v, q: 0.9, peak: 0.22, d: 0.022 });
+      body(t + 0.003, { f0: p.body[0] * v, f1: p.body[1] * v, peak: p.weight, d: p.len });
+      burst(t + 0.004, { type: 'lowpass', freq: 700 * v, q: 0.6, peak: p.weight * 0.6, d: p.len * 0.6 });
+    }
+    function up(kind = 'alpha') {
+      if (!ctx) return;
+      const big = kind === 'space' || kind === 'hero';
+      const t = ctx.currentTime + 0.005;
+      burst(t, { freq: 3400, q: 1.6, peak: big ? 0.09 : 0.06, d: 0.018 });
+      body(t, { f0: big ? 240 : 320, f1: big ? 190 : 260, peak: 0.07, d: 0.035 });
+    }
+    function powerOn() {
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.05;
+      // Filtered air that rides the light sweep
+      const src = ctx.createBufferSource(); src.buffer = noise; src.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.8;
+      f.frequency.setValueAtTime(220, t);
+      f.frequency.exponentialRampToValueAtTime(2400, t + 0.55);
+      f.frequency.exponentialRampToValueAtTime(320, t + 1.2);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.09, t + 0.45);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
+      src.connect(f); f.connect(g); g.connect(out);
+      src.start(t); src.stop(t + 1.3);
+      // A soft chord as the lights land
+      [[329.63, 0.04], [659.25, 0.05], [987.77, 0.03]].forEach(([hz, peak]) => {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = hz;
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.0001, t + 0.7);
+        og.gain.exponentialRampToValueAtTime(peak, t + 0.78);
+        og.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+        o.connect(og); og.connect(out);
+        o.start(t + 0.7); o.stop(t + 2.7);
+      });
+    }
+    function startRoom() {
+      if (!ctx || roomStarted) return;
+      roomStarted = true;
+      const t = ctx.currentTime;
+      const bus = ctx.createGain();
+      bus.gain.setValueAtTime(0.0001, t);
+      bus.gain.exponentialRampToValueAtTime(1, t + 3);
+      bus.connect(out);
+      const src = ctx.createBufferSource(); src.buffer = noise; src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.3;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.06;
+      const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 90;
+      lfo.connect(lfoAmt); lfoAmt.connect(lp.frequency);
+      const ng = ctx.createGain(); ng.gain.value = 0.05;
+      src.connect(lp); lp.connect(ng); ng.connect(bus);
+      [[110, 0.014], [164.81, 0.009], [220.5, 0.005]].forEach(([hz, level]) => {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = hz;
+        const og = ctx.createGain(); og.gain.value = level;
+        o.connect(og); og.connect(bus); o.start(t);
+      });
+      src.start(t); lfo.start(t);
+    }
+    function setMuted(muted) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      out.gain.cancelScheduledValues(t);
+      out.gain.setTargetAtTime(muted ? 0 : LEVEL, t, 0.06);
+    }
+    return { ensure, down, up, powerOn, startRoom, setMuted, available: !!AC };
+  })();
+
+  /* ───────── Scene loading ───────── */
+  let resolveLoaded;
+  const loaded = new Promise((r) => (resolveLoaded = r));
+  const imgReady = new Promise((r) => {
+    if (sceneImg.complete && sceneImg.naturalWidth) return r();
+    sceneImg.addEventListener('load', r, { once: true });
+    sceneImg.addEventListener('error', r, { once: true });
+  });
+  function setProgress(p) {
+    barFill.style.transform = `scaleX(${p / 100})`;
+    bar.setAttribute('aria-valuenow', String(p));
+    pct.textContent = p + '%';
+  }
+  const t0 = performance.now();
+  const LOAD_MS = reduced ? 1200 : 2600;
+  (function tick(now) {
+    const k = Math.min(1, (now - t0) / LOAD_MS);
+    setProgress(Math.round((1 - Math.pow(1 - k, 3)) * 96));
+    if (k < 1) return requestAnimationFrame(tick);
+    imgReady.then(() => {
+      setProgress(100);
+      state.loaded = true;
+      if (!state.started) {
+        root.dataset.phase = 'ready';
+        loadText.textContent = 'Scene ready';
+      }
+      resolveLoaded();
+    });
+  })(t0);
+
+  /* ───────── Keycap press ───────── */
+  const LEGENDS = { ' ': '␣', Enter: '↵', Backspace: '⌫', Delete: 'Del', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Home: 'Home', End: 'End', PageUp: 'PgUp', PageDown: 'PgDn', Insert: 'Ins' };
+  const legendFor = (key) => LEGENDS[key] || (key.length === 1 ? key.toUpperCase() : key.slice(0, 4));
+  const kindFor = (key) => (key === ' ' ? 'space' : key === 'Enter' ? 'enter' : 'alpha');
+
+  function pressDown(legendText) {
+    if (legendText) legend.textContent = legendText;
+    cap.classList.add('is-down');
+    if (Sfx.ensure()) Sfx.down('hero');
+  }
+  function pressUp() {
+    cap.classList.remove('is-down');
+    Sfx.up('hero');
+  }
+
+  cap.addEventListener('pointerdown', (e) => {
+    if (state.started || e.button > 0) return;
+    pressDown();
+  });
+  cap.addEventListener('pointerup', () => { if (cap.classList.contains('is-down')) pressUp(); });
+  cap.addEventListener('pointerleave', () => { if (cap.classList.contains('is-down')) pressUp(); });
+  cap.addEventListener('pointercancel', () => cap.classList.remove('is-down'));
+  cap.addEventListener('click', () => begin(true));
+  muteBtn.addEventListener('click', () => begin(false));
+
+  // Any physical key starts the experience (Escape, Tab, modifiers and F-keys excluded)
+  const IGNORED = new Set(['Tab', 'Escape', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'ContextMenu', 'OS', 'Fn', 'NumLock', 'ScrollLock']);
+  let pressTimer;
+  document.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (!state.started) {
+      if (IGNORED.has(e.key) || /^F\d{1,2}$/.test(e.key) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target === muteBtn && (e.key === 'Enter' || e.key === ' ')) return;
+      e.preventDefault();
+      pressDown(legendFor(e.key));
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => { pressUp(); begin(true); }, 140);
+      return;
+    }
+    if (root.dataset.phase === 'live' && state.sound) Sfx.down(kindFor(e.key));
+  });
+  document.addEventListener('keyup', (e) => {
+    if (root.dataset.phase === 'live' && state.sound) Sfx.up(kindFor(e.key));
+  });
+
+  // Keycap follows the pointer a little (desktop, motion allowed)
+  if (!reduced && matchMedia('(hover: hover)').matches) {
+    let raf = 0, nx = 0, ny = 0;
+    window.addEventListener('pointermove', (e) => {
+      if (state.started) return;
+      nx = e.clientX / innerWidth - 0.5;
+      ny = e.clientY / innerHeight - 0.5;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        capTilt.style.setProperty('--ry', (nx * 16).toFixed(2) + 'deg');
+        capTilt.style.setProperty('--rx', (12 - ny * 10).toFixed(2) + 'deg');
+      });
+    });
+  }
+
+  /* ───────── Begin → reveal → live ───────── */
+  function begin(withSound) {
+    if (state.started) return;
+    state.started = true;
+    state.sound = withSound && !!Sfx.ensure();
+    if (!withSound) Sfx.setMuted(true);
+    syncToggle();
+    if (!state.loaded) {
+      root.dataset.phase = 'arming';
+      loadText.textContent = 'Warming up the studio';
+    }
+    loaded.then(reveal);
+  }
+
+  function reveal() {
+    root.dataset.phase = 'revealing';
+    gate.inert = true;
+    if (state.sound) { Sfx.powerOn(); Sfx.startRoom(); }
+    setTimeout(() => {
+      root.dataset.phase = 'live';
+      hud.inert = false;
+      studio.focus({ preventScroll: true });
+      showToast(state.sound
+        ? 'You’re in. Type on your keyboard to hear the switches.'
+        : 'Sound is off. Turn it on anytime, bottom right.');
+    }, reduced ? 260 : 1400);
+  }
+
+  function syncToggle() {
+    if (!Sfx.available) {
+      toggle.disabled = true;
+      toggle.setAttribute('aria-pressed', 'false');
+      soundLabel.textContent = 'Sound unavailable';
+      return;
+    }
+    toggle.setAttribute('aria-pressed', String(state.sound));
+    soundLabel.textContent = state.sound ? 'Sound on' : 'Sound off';
+  }
+
+  toggle.addEventListener('click', () => {
+    const next = !state.sound;
+    if (next) {
+      if (!Sfx.ensure()) return;
+      Sfx.setMuted(false);
+      Sfx.startRoom();
+      Sfx.down('alpha');
+    } else {
+      Sfx.setMuted(true);
+    }
+    state.sound = next;
+    syncToggle();
+    showToast(next ? 'Sound on. Type to hear the switches.' : 'Sound off.');
+  });
+
+  let toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    requestAnimationFrame(() => toast.classList.add('is-shown'));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('is-shown'), 4200);
+  }
+
+  cap.focus({ preventScroll: true });
+})();
+</script>
+</body>
+</html>

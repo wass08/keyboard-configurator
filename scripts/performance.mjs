@@ -20,7 +20,10 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${url}/?perf=1`);
-  await page.waitForFunction(() => window.__kb?.finished && window.__kb.introPhase === 'done');
+  // Enter through the opening screen (it holds the intro); its CTA is also the audio-unlocking gesture.
+  await page.waitForFunction(() => window.__opening?.().sceneReady);
+  await page.getByRole('button', { name: 'Configure my keyboard', exact: true }).click();
+  await page.waitForFunction(() => window.__kb?.finished && window.__kb.introPhase === 'done' && window.__opening().phase === 'live');
   // A real click on empty desk unlocks the audio engine, so typing is measured with sound.
   await page.mouse.click(8, 450);
   const result = await page.evaluate(async () => {
