@@ -333,11 +333,25 @@ delta means the cost is within measurement noise, not a negative rendering cost.
   Hit testing is one raycast per pointer move (keyboard bounding-box pre-check,
   then the cap meshes and knob). A capture-phase `pointerdown` on the Canvas
   wrapper stops presses on keys/knob reaching OrbitControls.
-- **Monitor text:** `src/screen/ScreenText.tsx` is a transparent CanvasTexture
-  overlay on the powered screen at the wallpaper's 0.62 radiance, outside the
+- **Monitor text:** `src/screen/ScreenText.tsx` is a CanvasTexture
+  overlay on the powered screen at 0.85 radiance, outside the
   environment portal, so keystrokes never recapture reflections. The page is
-  bottom-anchored (typewriter scrolling) because the hero camera sees only the
-  lowest ~40 mm of the panel. It redraws on edits and on the ~1 Hz caret blink only.
+  one bottom-anchored scrollback directly above the input, because the hero camera
+  sees only the lowest ~40 mm of the panel. `src/screen/session.ts` seeds 29 rows:
+  the welcome header and four past project exchanges, with quiet tool/diff lines.
+  Enter appends to that same history; older rows, including the welcome, scroll
+  off the top. The full raster is cached until a submission or a prompt-height
+  change. Edits, caret ticks and the volume OSD upload only the 1920×216 footer;
+  no React frame updates or per-keystroke environment captures are needed.
+  `screen-terminal.png` and `screen-terminal-typing.png` inspect the entire LCD
+  without DoF. Checks project real canvas glyph samples into the composited PNG,
+  verify the last submitted baseline is within one line-height of the box, and
+  exercise scrolling, wrapping, cache reuse and the typed-text practical light.
+  Cache validity also tracks canvas identity: Fast Refresh preserves refs and
+  content versions but recreates the memoized rasters. Without that check a
+  source edit could leave a blank display until a submission/height change.
+  The shots suite sends a real Vite HMR update without editing source, then
+  checks the replacement raster's displayed glyphs and preserved draft/history.
 - **Knob:** drag horizontally (14 px per 15° detent, 24 per turn) with a magnetic
   snap on release; each detent ticks and nudges the master volume by 4% with a
   brief macOS-style volume OSD in the monitor's bottom-right corner. A click without a drag dips it 0.5 mm.

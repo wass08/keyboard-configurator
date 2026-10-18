@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
-import { screenPolishChecks } from './screen-polish.mjs';
+import { screenPolishChecks, screenCacheRefreshChecks } from './screen-polish.mjs';
 import { filmChecks } from './film-checks.mjs';
 import { wallChecks } from './wall-checks.mjs';
 import { highlightChecks } from './highlight-checks.mjs';
@@ -655,6 +655,7 @@ try {
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
+  checks.screenCacheRefresh = await screenCacheRefreshChecks(browser, observeErrors);
   checks.film = await filmChecks(browser, url, observeErrors);
   checks.wallMask = await wallChecks(browser, url, observeErrors);
   checks.highlightControl = await highlightChecks(browser, url, observeErrors, expectedPalettes);

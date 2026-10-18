@@ -1,5 +1,44 @@
 import assert from 'node:assert/strict';
 import { PNG } from 'pngjs';
+import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
+
+// Probe real canvas glyph pixels through the camera into the composited image.
+// This catches a stale static cache or a later screen layer covering the text.
+async function renderedHistory(page, buffer) {
+  const png = PNG.sync.read(buffer);
+  const data = await page.evaluate(() => {
+    const screen = window.__screen(), ctx = window.__terminalCanvas.getContext('2d');
+    const rows = screen.history.rows.filter(row => row.text).map(row => {
+      const x0 = Math.ceil(screen.history.column), y0 = Math.floor(row.y - 20);
+      const pixels = ctx.getImageData(x0, y0, 650, 21).data, points = [];
+      for (let y = 0; y < 21; y += 2) for (let x = 0; x < 650; x += 2) {
+        const i = (y * 650 + x) * 4;
+        if (Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) > 100) points.push([x0 + x, y0 + y]);
+      }
+      return { text: row.text, points };
+    });
+    return { screen, rows, camera: window.__camera(), monitor: window.__lighting().monitor };
+  });
+  const camera = new PerspectiveCamera(data.camera.lens.verticalFovDeg, png.width / png.height, data.camera.lens.near, data.camera.lens.far);
+  camera.position.fromArray(data.camera.position); camera.lookAt(new Vector3(...data.camera.target)); camera.updateMatrixWorld();
+  const orientation = new Quaternion().fromArray(data.monitor.quaternion), origin = new Vector3(...data.monitor.position);
+  return data.rows.map(row => {
+    let visible = 0;
+    for (const [x, y] of row.points) {
+      const p = new Vector3((x / data.screen.canvas[0] - 0.5) * 0.598, (0.5 - y / data.screen.canvas[1]) * 0.336, 0.0003)
+        .applyQuaternion(orientation).add(origin).project(camera);
+      const sx = Math.round((p.x + 1) / 2 * png.width), sy = Math.round((1 - p.y) / 2 * png.height);
+      let peak = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const i = ((sy + dy) * png.width + sx + dx) * 4;
+        peak = Math.max(peak, png.data[i] ?? 0, png.data[i + 1] ?? 0, png.data[i + 2] ?? 0);
+      }
+      if (peak > 60) visible++;
+    }
+    assert.ok(row.points.length > 10 && visible > row.points.length * 0.6, `History row must reach the displayed framebuffer: ${row.text} (${visible}/${row.points.length})`);
+    return { text: row.text, glyphSamples: row.points.length, visibleSamples: visible };
+  });
+}
 
 export async function screenPolishChecks(browser, url, observeErrors) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
@@ -7,7 +46,10 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     const fillText = CanvasRenderingContext2D.prototype.fillText;
     window.__transcriptColumns = [];
     CanvasRenderingContext2D.prototype.fillText = function (text, x, y, ...args) {
-      if (this.canvas.width === 1920 && text.startsWith('> ')) window.__transcriptColumns.push({ text, x, y });
+      if (this.canvas.width === 1920) {
+        if (this.canvas.height > 250) window.__terminalCanvas = this.canvas;
+        if (text.startsWith('> ')) window.__transcriptColumns.push({ text, x, y });
+      }
       return fillText.call(this, text, x, y, ...args);
     };
   });
@@ -22,17 +64,44 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     const captures = await page.evaluate(() => window.__environment().captures);
     const empty = await read();
     assert.equal(empty.text, ''); assert.equal(empty.osd.visible, false); assert.equal(empty.practical.intensity, 0);
-    await shot('screen-terminal');
+    assert.equal(empty.history.rows[0].text, '✻ Welcome to Claude Code');
+    assert.equal(empty.history.rows.filter(row => row.text.startsWith('> ')).length, 4);
+    assert.equal(empty.history.rows.length, empty.history.capacity, 'Seeded scrollback fills the full available history area');
+    assert.ok(empty.history.rows[0].y - empty.history.top < empty.history.lineHeight, 'The welcome begins at the top of the history');
+    assert.ok(empty.history.promptTop - empty.history.lastBaseline < empty.history.lineHeight);
+    await page.evaluate(() => { document.querySelector('.variant-picker').style.visibility = 'hidden'; window.__screenControl.freezeCaret(true); window.__cameraStore.set({ depthOfField: false }); window.__kb.camera('screen-terminal'); });
+    const initialPixels = await renderedHistory(page, await shot('screen-terminal'));
+    const staticBeforeTyping = (await read()).staticRedraws;
+    await page.evaluate(() => window.__screenControl.freezeCaret(false));
     await page.keyboard.type('Make the assembly feel a little softer.');
+    await frames(); assert.equal((await read()).staticRedraws, staticBeforeTyping, 'Editing the single-line prompt must reuse the history cache');
     await page.keyboard.press('Enter');
     await page.keyboard.type('Now polish the corner highlights'); await frames(2);
     const typed = await read();
     assert.deepEqual(typed.transcript, ['Make the assembly feel a little softer.']);
     assert.equal(typed.text, 'Now polish the corner highlights'); assert.equal(typed.caretOn, true);
+    const submittedRow = typed.history.rows.at(-1);
+    assert.equal(submittedRow.text, '> Make the assembly feel a little softer.');
+    const submissionGap = typed.history.promptTop - submittedRow.y;
+    assert.ok(submissionGap > 0 && submissionGap <= typed.history.lineHeight, 'Enter appends directly above the prompt, within one line-height');
+    assert.equal(typed.history.scrolledRows, empty.history.scrolledRows + 1);
+    assert.notEqual(typed.history.rows[0].text, empty.history.rows[0].text, 'Oldest history scrolls off the top on submission');
+    assert.equal(typed.staticRedraws, staticBeforeTyping + 1, 'Only the Enter commit invalidates the history cache');
     // Inspect typography without the keyboard-focused optical blur. Production
     // hero/OSD evidence and every other check retain the saved DoF default.
     await page.evaluate(() => { window.__screenControl.freezeCaret(true); window.__cameraStore.set({ depthOfField: false }); window.__kb.camera('screen-terminal'); });
-    await shot('screen-terminal-typing');
+    const submittedPixels = await renderedHistory(page, await shot('screen-terminal-typing'));
+    // Exercise repeated scrolling and a wrapped, multi-line submitted prompt.
+    await page.evaluate(() => window.__screenControl.clear());
+    await page.keyboard.type('Keep the wood grain warm and the cap legends crisp.'); await page.keyboard.press('Enter');
+    await page.keyboard.type('A wrapped request about the keyboard: '.repeat(9)); await page.keyboard.press('Enter'); await frames();
+    const scrolled = await read();
+    assert.ok(scrolled.history.scrolledRows > typed.history.scrolledRows + 1);
+    assert.equal(scrolled.history.rows.length, scrolled.history.capacity);
+    assert.ok(scrolled.history.rows.at(-1).y < scrolled.history.promptTop && scrolled.history.promptTop - scrolled.history.rows.at(-1).y <= scrolled.history.lineHeight);
+    assert.equal(await page.evaluate(() => window.__environment().captures), captures, 'Submitting and scrolling history never recapture the environment');
+    await page.keyboard.type('Now polish the corner highlights');
+    await page.evaluate(() => { document.querySelector('.variant-picker').style.visibility = ''; window.__screenControl.freezeCaret(false); });
     await page.evaluate(() => window.__cameraStore.set({ depthOfField: true }));
     const transcriptColumns = await page.evaluate(() => {
       const rows = window.__transcriptColumns;
@@ -126,6 +195,50 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     assert.ok(normals.frame.maxTopNormalAngle < 0.0001, 'Every flat top-face vertex must have the same planar normal');
     assert.ok(Math.abs(normals.frame.max[0] - normals.frame.min[0] - 0.3426) < 1e-7);
     assert.ok(Math.abs(normals.frame.max[2] - normals.frame.min[2] - 0.1516) < 1e-7);
-    return { status: 'passed', terminal: { submitted: typed.transcript, input: typed.text, transcriptColumns, wrappedLines: wrapped.promptLines, scrolledRows: wrapped.scroll, idleRedraws, idleSeconds: 2.1 }, practical: { status: 'passed', steadyIntensity: steady.practical.intensity, luminanceDelta, samples: deltas, flareIntensity: flare, settledIntensity: settled, environmentCaptures: captures }, volumeOSD: { status: 'passed', volume: osd.osd.volume, animationSamples: samplesOSD, settling95PercentMs: 150, hiddenAfterTimeout: true, holdMs: 1200, fadeMs: 300 }, corners: { status: 'passed', normals } };
+    return { status: 'passed', terminal: { submitted: typed.transcript, input: typed.text, transcriptColumns, history: { initial: empty.history, submitted: typed.history, afterWrappedSubmission: scrolled.history, submissionGap, initialPixels, submittedPixels, historyRedrawsPerSubmit: 1 }, wrappedLines: wrapped.promptLines, scrolledRows: wrapped.scroll, idleRedraws, idleSeconds: 2.1 }, practical: { status: 'passed', steadyIntensity: steady.practical.intensity, luminanceDelta, samples: deltas, flareIntensity: flare, settledIntensity: settled, environmentCaptures: captures }, volumeOSD: { status: 'passed', volume: osd.osd.volume, animationSamples: samplesOSD, settling95PercentMs: 150, hiddenAfterTimeout: true, holdMs: 1200, fadeMs: 300 }, corners: { status: 'passed', normals } };
   } finally { await context.close(); }
+}
+
+// Exercise the real Fast Refresh path without modifying a source file. Vite
+// serves the same module at a new HMR timestamp, preserving React refs while
+// replacing useMemo's canvases/textures: the original cache bug's exact trigger.
+export async function screenCacheRefreshChecks(browser, observeErrors) {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', clearScreen: false });
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
+  try {
+    await server.listen();
+    await context.addInitScript(() => {
+      const fillText = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (...args) {
+        if (this.canvas.width === 1920 && this.canvas.height > 250) window.__terminalCanvas = this.canvas;
+        return fillText.apply(this, args);
+      };
+    });
+    const page = await context.newPage(); observeErrors(page);
+    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/?capture=1`);
+    await page.waitForFunction(() => window.__kb?.ready && window.__screen);
+    await page.evaluate(() => { window.__kb.finish(); window.__screenControl.freezeCaret(true); window.__cameraStore.set({ depthOfField: false }); window.__kb.camera('screen-terminal'); document.querySelector('.variant-picker').style.visibility = 'hidden'; });
+    await page.keyboard.type('Soften the landing.'); await page.keyboard.press('Enter');
+    await page.keyboard.type('Keep this draft');
+    await page.waitForFunction(() => window.__screen().history.rows.at(-1).text === '> Soften the landing.' && window.__screen().text === 'Keep this draft');
+    const before = await page.evaluate(() => { window.__beforeRefreshCanvas = window.__terminalCanvas; return { screen: window.__screen(), captures: window.__environment().captures }; });
+    const timestamp = Date.now(), path = '/src/screen/ScreenText.tsx';
+    const graph = server.environments.client.moduleGraph;
+    const module = await graph.getModuleByUrl(path);
+    assert.ok(module, 'ScreenText must be loaded through the actual Vite React refresh plugin');
+    graph.invalidateModule(module, new Set(), timestamp, true);
+    server.ws.send({ type: 'update', updates: [{ type: 'js-update', path, acceptedPath: path, timestamp }] });
+    await page.waitForFunction(n => window.__terminalCanvas !== window.__beforeRefreshCanvas && window.__screen().staticRedraws === n + 1, before.screen.staticRedraws);
+    await page.waitForFunction(() => { const f = window.__cameraStore.focusState(); return f.distance === f.target; });
+    const buffer = await page.screenshot({ path: 'screenshots/screen-cache-refresh.png' }); console.log('screenshots/screen-cache-refresh.png');
+    const pixels = await renderedHistory(page, buffer);
+    const after = await page.evaluate(() => ({ screen: window.__screen(), captures: window.__environment().captures }));
+    assert.equal(after.screen.text, before.screen.text);
+    assert.deepEqual(after.screen.transcript, before.screen.transcript);
+    assert.deepEqual(after.screen.history, before.screen.history);
+    assert.equal(after.screen.staticRedraws, before.screen.staticRedraws + 1, 'New raster repaints once despite unchanged content counters and a frozen caret');
+    assert.equal(after.captures, before.captures, 'Replacing only the screen raster must not recapture the environment');
+    return { status: 'passed', trigger: 'Vite React Fast Refresh; memoized canvases replaced, refs and content versions preserved', before: before.screen.staticRedraws, after: after.screen.staticRedraws, text: after.screen.text, transcript: after.screen.transcript, environmentCaptures: after.captures, pixels };
+  } finally { await context.close(); await server.close(); }
 }

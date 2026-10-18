@@ -8,8 +8,11 @@ import type { LightingSettings } from '../scene/lightingControls';
 import { typing } from './typing';
 import { dampedScalar } from '../animation/dampedScalar';
 import { PROMPT_BOTTOM_M, PROMPT_FONT_M, PROMPT_MARGIN_M, TERMINAL_ACCENT, TERMINAL_FONT, TERMINAL_INK, terminalBackground } from './terminalTheme';
+import { PAST_SESSION } from './session';
+import type { SessionRow } from './session';
 
 const BLINK_MS = 530, SOLID_AFTER_EDIT_MS = 600, OSD_HOLD_MS = 1200, OSD_FADE_MS = 300;
+const HISTORY_TOP_M = 0.012, HISTORY_LINE_M = 0.0098, HISTORY_FONT_M = 0.0062, HISTORY_GAP_M = 0.0035;
 export const PLACEHOLDER_TEXT = 'Ask Claude to build something…';
 interface Line { start: number; end: number }
 function wrap(measure: (s: string) => number, text: string, maxWidth: number): Line[] {
@@ -30,7 +33,7 @@ function wrap(measure: (s: string) => number, text: string, maxWidth: number): L
 const lineOf = (lines: Line[], caret: number) => { let index = 0; for (let i = 0; i < lines.length; i++) if (lines[i].start <= caret) index = i; return index; };
 function rounded(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius: number) { ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); }
 
-/** Cached session and a narrow live footer, plus an emitter for the prompt. Typing,
+/** Bottom-anchored scrollback and a narrow live footer, plus a prompt emitter. Typing,
  * light animation and volume feedback never update React or the environment. */
 export function ScreenText({ width, height, radiance, settings, lightEnabled }: { width: number; height: number; radiance: number; settings: LightingSettings; lightEnabled: boolean }) {
   const resources = useMemo(() => {
@@ -49,7 +52,8 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
   }, [width, height, radiance]);
   useOwnedDisposal('Monitor.Typing', [resources.texture, resources.material, resources.geometry, resources.footerTexture, resources.footerMaterial, resources.footerGeometry]);
   const light = useRef<RectAreaLight>(null);
-  const drawn = useRef({ version: -1, historyVersion: -1, historyHeight: -1, caretOn: false, caretFrozen: false, redraws: 0, staticRedraws: 0, lines: [] as string[], promptLines: 1, coverage: 0, osdAlpha: 0, osdAt: -Infinity, osdVolume: useSound.getState().master, osdVelocity: 0, osdPaintedVolume: useSound.getState().master, lastDraw: 0, promptHeight: 0.026, scroll: 0 });
+  const drawn = useRef({ canvas: null as HTMLCanvasElement | null, version: -1, historyVersion: -1, historyHeight: -1, caretOn: false, caretFrozen: false, redraws: 0, staticRedraws: 0, lines: [] as string[], promptLines: 1, coverage: 0, osdAlpha: 0, osdAt: -Infinity, osdVolume: useSound.getState().master, osdVelocity: 0, osdPaintedVolume: useSound.getState().master, lastDraw: 0, promptHeight: 0.026, scroll: 0,
+    history: { rows: [] as { text: string; y: number }[], totalRows: 0, capacity: 0, scrolledRows: 0, lineHeight: 0, top: 0, promptTop: 0, lastBaseline: 0, column: 0 } });
   useEffect(() => {
     const { context: ctx, canvas } = resources, px = canvas.width / width;
     const measure = (s: string) => { ctx.font = `400 ${Math.round(PROMPT_FONT_M * px)}px ${TERMINAL_FONT}`; return ctx.measureText(s).width; };
@@ -63,7 +67,7 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
       for (let i = line.start; i <= last; i++) { const d = Math.abs(measure(text.slice(line.start, i)) - x); if (d < distance) { distance = d; best = i; } }
       return best;
     });
-    window.__screen = () => ({ redraws: drawn.current.redraws, staticRedraws: drawn.current.staticRedraws, dynamicCanvas: [resources.footer.width, resources.footer.height], text: typing.text, transcript: [...typing.transcript], caret: typing.caret, lines: drawn.current.lines.slice(), canvas: [canvas.width, canvas.height], fontPx: Math.round(PROMPT_FONT_M * px), promptLines: drawn.current.promptLines, scroll: drawn.current.scroll, caretOn: drawn.current.caretOn, osd: { visible: drawn.current.osdAlpha > 0, alpha: drawn.current.osdAlpha, volume: useSound.getState().master, displayedVolume: drawn.current.osdPaintedVolume, animating: drawn.current.osdVelocity !== 0 }, practical: { intensity: light.current?.intensity ?? 0, coverage: drawn.current.coverage } });
+    window.__screen = () => ({ redraws: drawn.current.redraws, staticRedraws: drawn.current.staticRedraws, dynamicCanvas: [resources.footer.width, resources.footer.height], text: typing.text, transcript: [...typing.transcript], caret: typing.caret, lines: drawn.current.lines.slice(), canvas: [canvas.width, canvas.height], fontPx: Math.round(PROMPT_FONT_M * px), promptLines: drawn.current.promptLines, scroll: drawn.current.scroll, history: drawn.current.history, caretOn: drawn.current.caretOn, osd: { visible: drawn.current.osdAlpha > 0, alpha: drawn.current.osdAlpha, volume: useSound.getState().master, displayedVolume: drawn.current.osdPaintedVolume, animating: drawn.current.osdVelocity !== 0 }, practical: { intensity: light.current?.intensity ?? 0, coverage: drawn.current.coverage } });
     window.__screenControl = { freezeCaret: freeze => { drawn.current.caretFrozen = freeze; }, clear: () => typing.clear() };
     const unsubscribe = useSound.subscribe((state, previous) => { if (state.master !== previous.master) drawn.current.osdAt = performance.now(); });
     return () => { unsubscribe(); typing.setVerticalResolver(null); delete window.__screen; delete window.__screenControl; };
@@ -79,13 +83,18 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
       const next = dampedScalar(state.osdVolume, state.osdVelocity, targetVolume, Math.min(delta, 0.1), 32);
       state.osdVolume = next.value; state.osdVelocity = next.velocity;
     }
-    const changed = state.version !== typing.version || state.caretOn !== caretOn;
+    // Fast Refresh preserves refs/version counters but recreates memoized GPU
+    // resources. A fresh canvas needs both rasters painted, even with a frozen
+    // caret and identical transcript/input versions.
+    const canvasChanged = state.canvas !== resources.canvas;
+    const changed = canvasChanged || state.version !== typing.version || state.caretOn !== caretOn;
     const osdChanged = osdAlpha !== state.osdAlpha && (osdAlpha === 0 || osdAlpha === 1 || now - state.lastDraw > 1000 / 30);
     const levelChanged = osdAlpha > 0 && state.osdPaintedVolume !== state.osdVolume;
     if (changed || osdChanged || levelChanged) {
       state.version = typing.version; state.caretOn = caretOn; state.osdAlpha = osdAlpha; state.lastDraw = now; state.redraws++;
       state.osdPaintedVolume = state.osdVolume;
       const { canvas, texture } = resources, px = canvas.width / width;
+      state.canvas = canvas;
       let ctx = resources.context;
       const text = typing.text, caret = typing.caret, margin = PROMPT_MARGIN_M * px, font = Math.round(PROMPT_FONT_M * px), lineHeight = 0.012 * px;
       const fontStyle = `400 ${font}px ${TERMINAL_FONT}`;
@@ -96,31 +105,24 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
       const boxH = state.promptHeight * px, boxY = canvas.height - PROMPT_BOTTOM_M * px - boxH;
       const first = Math.max(0, Math.min(lines.length - state.promptLines, caretLine - state.promptLines + 1)); state.scroll = first;
       const visibleLines = lines.slice(first, first + state.promptLines); state.lines = visibleLines.map(line => text.slice(line.start, line.end));
-      if (state.historyVersion !== typing.transcriptVersion || state.historyHeight !== state.promptHeight) {
+      if (canvasChanged || state.historyVersion !== typing.transcriptVersion || state.historyHeight !== state.promptHeight) {
         terminalBackground(ctx, canvas.width, canvas.height); ctx.textBaseline = 'alphabetic';
         ctx.textAlign = 'left';
-        ctx.strokeStyle = '#764b3d'; ctx.lineWidth = 1.5;
-        rounded(ctx, margin, 0.016 * px, 0.33 * px, 0.047 * px, 0.003 * px); ctx.stroke();
-        ctx.font = `500 ${Math.round(0.0085 * px)}px ${TERMINAL_FONT}`; ctx.fillStyle = TERMINAL_ACCENT;
-        ctx.fillText('✻ Welcome to Claude Code', margin + 0.01 * px, 0.034 * px);
-        ctx.font = `400 ${Math.round(0.0055 * px)}px ${TERMINAL_FONT}`; ctx.fillStyle = '#89888f';
-        ctx.fillText('~/keyboard-configurator', margin + 0.01 * px, 0.051 * px);
-        ctx.fillText('Opus  ·  local session', margin, 0.076 * px);
-        ctx.font = fontStyle;
-        const transcript: { text: string; color: string }[] = [
-          { text: '> make the keycaps assemble with a stagger', color: TERMINAL_INK },
-          { text: '⏺ I’ll stagger the caps by row, then seat the knob.', color: TERMINAL_INK },
-          { text: '  Update(src/keyboard/assembly.ts)', color: '#a6a4ad' },
-          { text: '  + row * 0.062 + key.x * 0.026', color: '#8ca992' },
-          { text: '  − all keycaps arrive at once', color: '#b47c7c' },
-          { text: '⏺ Done. The assembly now rolls across the board.', color: '#bcbac3' },
-        ];
-        ctx.font = `400 ${Math.round(0.0062 * px)}px ${TERMINAL_FONT}`;
+        const historyStyle = `400 ${Math.round(HISTORY_FONT_M * px)}px ${TERMINAL_FONT}`;
+        ctx.font = historyStyle;
+        const transcript: SessionRow[] = [...PAST_SESSION];
         for (const message of typing.transcript) for (const line of wrap(s => ctx.measureText(s).width, '> ' + message, canvas.width - 2 * margin)) transcript.push({ text: ('> ' + message).slice(line.start, line.end), color: TERMINAL_INK });
-        const historyLineH = 0.011 * px, maxRows = Math.floor((boxY - 0.094 * px) / historyLineH), history = transcript.slice(-Math.max(0, maxRows));
-        // Authored and submitted rows share exactly one physical left column.
-        const transcriptX = margin;
-        history.forEach((line, i) => { ctx.fillStyle = line.color; ctx.fillText(line.text, transcriptX, 0.105 * px + i * historyLineH); });
+        const historyLineH = HISTORY_LINE_M * px, lastBaseline = boxY - HISTORY_GAP_M * px;
+        const maxRows = Math.max(0, Math.floor((lastBaseline - (HISTORY_TOP_M + PROMPT_FONT_M) * px) / historyLineH) + 1);
+        const history = maxRows ? transcript.slice(-maxRows) : [];
+        const firstBaseline = lastBaseline - (history.length - 1) * historyLineH;
+        state.history = { rows: history.map((row, i) => ({ text: row.text, y: firstBaseline + i * historyLineH })), totalRows: transcript.length, capacity: maxRows, scrolledRows: transcript.length - history.length, lineHeight: historyLineH, top: HISTORY_TOP_M * px, promptTop: boxY, lastBaseline, column: margin };
+        ctx.save(); ctx.beginPath(); ctx.rect(margin, HISTORY_TOP_M * px, canvas.width - 2 * margin, boxY - HISTORY_TOP_M * px); ctx.clip();
+        history.forEach((line, i) => {
+          ctx.font = line.heading ? `500 ${Math.round(PROMPT_FONT_M * px)}px ${TERMINAL_FONT}` : historyStyle;
+          ctx.fillStyle = line.color; ctx.fillText(line.text, margin, firstBaseline + i * historyLineH);
+        });
+        ctx.restore();
         state.historyVersion = typing.transcriptVersion; state.historyHeight = state.promptHeight; state.staticRedraws++;
         texture.needsUpdate = true;
       }

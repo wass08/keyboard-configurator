@@ -1,0 +1,35 @@
+// Authored demo history, not a live assistant. These rows join real submitted
+// prompts in one bottom-anchored scrollback; the welcome scrolls away with it.
+export interface SessionRow { text: string; color: string; heading?: boolean }
+const ink = '#e7e9ef', muted = '#bcbac3', tool = '#a6a4ad', green = '#8ca992', red = '#b47c7c';
+export const PAST_SESSION: readonly SessionRow[] = [
+  { text: '✻ Welcome to Claude Code', color: '#d97757', heading: true },
+  { text: '~/keyboard-configurator  ·  Opus  ·  local session', color: tool },
+  { text: '', color: ink },
+  { text: '> make the keycaps assemble with a stagger', color: ink },
+  { text: '⏺ I’ll stagger each row, then seat the knob.', color: ink },
+  { text: '  Update(src/keyboard/assembly.ts)', color: tool },
+  { text: '  + row * 0.062 + key.x * 0.026', color: green },
+  { text: '  − all keycaps arrive at once', color: red },
+  { text: '⏺ Done. The caps roll across the board.', color: muted },
+  { text: '', color: ink },
+  { text: '> add a desk mat that unrolls before the keyboard lands', color: ink },
+  { text: '⏺ I’ll unroll the felt, then bring the frame down.', color: ink },
+  { text: '  Update(src/scene/intro/sequence.ts)', color: tool },
+  { text: '  + mat.unroll → frame.land → caps.seat', color: green },
+  { text: '⏺ The mat now leads the intro.', color: muted },
+  { text: '', color: ink },
+  { text: '> make the knob tick like a real encoder', color: ink },
+  { text: '⏺ I’ll give each detent a quiet tick and a soft snap.', color: ink },
+  { text: '  Update(src/keyboard/KeyInteraction.tsx)', color: tool },
+  { text: '  + stable spring · one volume step per detent', color: green },
+  { text: '⏺ The encoder feels settled, even on a quick turn.', color: muted },
+  { text: '', color: ink },
+  { text: '> keep the colors faithful and soften the screen glow', color: ink },
+  { text: '⏺ I’ll keep the cap palette and tune the screen response.', color: ink },
+  { text: '  Bash(npm run build)', color: tool },
+  { text: '  ✓ built in 140ms', color: green },
+  { text: '  Bash(npm run shots)', color: tool },
+  { text: '  ✓ color, assembly and screen checks passed', color: green },
+  { text: '⏺ Ready. What would you like to build next?', color: muted },
+];
