@@ -19,6 +19,7 @@ import { DESK_FRONT_Z, DESK_TOP, KEYBOARD_Y } from '../scene/dimensions';
 import { useOwnedDisposal } from '../resources/ownership';
 import { capHeight } from './geometry/keycap';
 import { createIntro, INTRO_DURATIONS } from '../scene/intro/sequence';
+import { setSceneReady, useIntroGate, whenIntroGateOpen } from '../state/introGate';
 
 export function Keyboard() {
   const caps = useRef<Group[]>([]);
@@ -126,13 +127,13 @@ export function Keyboard() {
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const capture = new URLSearchParams(location.search).has('capture');
-    let cancelled = false, firstFrame = 0, afterCompile = 0;
+    let cancelled = false, firstFrame = 0, afterCompile = 0, cancelGate = () => {};
     replay.current = () => {
       handle.current?.timeline.kill();
       const id = useConfigurator.getState().selectedId;
       lastSelected.current = id;
       handle.current = createIntro(root.current!, keys.current!, scene.getObjectByName('desk-mat')!, caps.current, knob.current!, materials, id, reduced, durationValues.current);
-      if (!preparation.current.ready || capture) handle.current.timeline.pause(0);
+      if (!preparation.current.ready || capture || !useIntroGate.getState().open) handle.current.timeline.pause(0);
       started.current = true;
       generation.current++;
       if (window.__kb) window.__kb.generation = generation.current;
@@ -177,12 +178,14 @@ export function Keyboard() {
         afterCompile = requestAnimationFrame(() => {
           if (cancelled) return;
           preparation.current.firstFrameRendered = true; preparation.current.ready = true;
-          if (!capture) handle.current?.timeline.play(0);
+          setSceneReady(true);
+          // The opening screen holds the intro until the visitor enters.
+          if (!capture) cancelGate = whenIntroGateOpen(() => { if (!cancelled) handle.current?.timeline.play(0); });
         });
       });
     };
     firstFrame = requestAnimationFrame(prepare);
-    return () => { cancelled = true; cancelAnimationFrame(firstFrame); cancelAnimationFrame(afterCompile); preparation.current.ready = false; handle.current?.timeline.kill(); replay.current = () => {}; };
+    return () => { cancelled = true; cancelGate(); setSceneReady(false); cancelAnimationFrame(firstFrame); cancelAnimationFrame(afterCompile); preparation.current.ready = false; handle.current?.timeline.kill(); replay.current = () => {}; };
   }, [materials, scene, gl, camera, precompileTarget]);
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import { screenPolishChecks } from './screen-polish.mjs';
 import { filmChecks } from './film-checks.mjs';
 import { wallChecks } from './wall-checks.mjs';
 import { highlightChecks } from './highlight-checks.mjs';
+import { openingChecks } from './opening-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
 
@@ -654,6 +655,7 @@ try {
   }
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
+  checks.openingScreen = await openingChecks(browser, url, observeErrors);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   checks.film = await filmChecks(browser, url, observeErrors);
   checks.wallMask = await wallChecks(browser, url, observeErrors);
@@ -1321,7 +1323,7 @@ try {
     // prefers-reduced-motion: the motes stay, at a fifth of the speed.
     const reducedContext = await browser.newContext({ viewport: { width: 800, height: 500 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
     const reducedPage = await reducedContext.newPage(); observeErrors(reducedPage);
-    await reducedPage.goto(url);
+    await reducedPage.goto(`${url}/?skipIntroScreen`);
     await reducedPage.waitForFunction(() => window.__kb?.finished && window.__dust);
     const reduced = await reducedPage.evaluate(async () => {
       const start = window.__dust().time, began = performance.now();
@@ -1341,6 +1343,21 @@ try {
   const mobilePage = await mobile.newPage();
   mobilePage.on('pageerror', error => errors.push(error.message));
   await mobilePage.goto(url);
+  // The opening screen is the first view; the intro waits behind it.
+  await mobilePage.waitForFunction(() => window.__opening?.().phase === 'ready');
+  await mobilePage.evaluate(() => document.fonts.ready);
+  const mobileOpening = await mobilePage.evaluate(() => ({ introHeld: window.__kb.introPhase !== 'done' && !window.__kb.finished, gateOpen: window.__opening().gateOpen, sceneTransform: getComputedStyle(document.querySelector('.scene-layer')).transform, scrollWidth: document.documentElement.scrollWidth, width: innerWidth }));
+  assert.deepEqual(mobileOpening, { introHeld: true, gateOpen: false, sceneTransform: 'none', scrollWidth: 390, width: 390 }, 'Reduced motion: no scene zoom; no horizontal overflow');
+  const mobileCta = mobilePage.getByRole('button', { name: 'Configure my keyboard', exact: true });
+  const ctaBox = await mobileCta.boundingBox();
+  assert.ok(ctaBox.x >= 0 && ctaBox.x + ctaBox.width <= 390 && ctaBox.y + ctaBox.height <= 844 && ctaBox.height >= 44, 'The keycap CTA fits a portrait phone');
+  await mobilePage.screenshot({ path: 'screenshots/opening-screen-mobile.png' });
+  console.log('screenshots/opening-screen-mobile.png');
+  await mobileCta.tap();
+  const tappedAt = Date.now();
+  await mobilePage.waitForFunction(() => window.__opening().phase === 'live' && !document.querySelector('.opening'), null, { timeout: 5000 });
+  checks.openingScreen.mobile = { status: 'passed', ...mobileOpening, reducedRevealMs: Date.now() - tappedAt, unlocked: await mobilePage.evaluate(() => window.__sfx().unlocked) };
+  assert.equal(checks.openingScreen.mobile.unlocked, true, 'A tap on the CTA unlocks audio');
   await mobilePage.waitForFunction(() => window.__kb?.finished);
   assert.ok(await mobilePage.evaluate(() => window.__kb.duration < 0.7));
   const reducedIntro = await mobilePage.evaluate(() => ({ timings: window.__kb.introTimings, info: window.__kb.inspect().intro }));

@@ -4,6 +4,7 @@ import { useSound } from '../audio/soundStore';
 import type { SfxCategory } from '../audio/soundStore';
 import { sfx } from '../audio/sfx';
 import type { Character, SfxName } from '../audio/sfx';
+import { useUi } from './uiStore';
 
 const CATEGORY_LABELS: [SfxCategory, string][] = [['hover', 'Hover'], ['typing', 'Typing'], ['replacement', 'Replacement'], ['knob', 'Knob'], ['intro', 'Intro']];
 const PREVIEWS: [string, SfxName][] = [
@@ -62,20 +63,23 @@ function useSoundControls() {
 }
 
 function Speaker({ on }: { on: boolean }) {
-  return <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-    <path d="M3.5 7.6h2.6L10 4.4v11.2l-3.9-3.2H3.5z" fill="currentColor" />
-    {on
-      ? <><path d="M12.6 7.4a3.6 3.6 0 0 1 0 5.2" /><path d="M14.7 5.3a6.6 6.6 0 0 1 0 9.4" /></>
-      : <path d="M13 7.6l4.4 4.8M17.4 7.6L13 12.4" />}
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M11 5 6 9H3v6h3l5 4V5z" />
+    {on ? <><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.5 5.5a9 9 0 0 1 0 13" /></> : <><path d="m16 9 5 6" /><path d="m21 9-5 6" /></>}
   </svg>;
 }
 
+/** The design's glass "Sound on / off" pill. Its accessible name stays "Sound"; aria-pressed carries the state. */
 export function SoundToggle() {
   useSoundControls();
   const enabled = useSound(state => state.enabled);
-  return <div className="sound-control">
-    <button type="button" className="sound-toggle" aria-pressed={enabled} aria-label="Sound" title={enabled ? 'Sound on' : 'Sound off'} onClick={() => useSound.getState().setEnabled(!enabled)}>
-      <Speaker on={enabled} />
-    </button>
-  </div>;
+  const toggle = () => {
+    const next = !enabled;
+    useSound.getState().setEnabled(next);
+    useUi.getState().showToast(next ? 'Sound on. Type to hear the switches.' : 'Sound off.');
+  };
+  return <button type="button" className="sound-toggle glass" aria-pressed={enabled} onClick={toggle}>
+    <Speaker on={enabled} />
+    <span>Sound<span className="sound-state" aria-hidden="true"> {enabled ? 'on' : 'off'}</span></span>
+  </button>;
 }

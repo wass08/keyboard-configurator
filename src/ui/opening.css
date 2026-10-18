@@ -1,0 +1,165 @@
+/* Opening screen — implemented from references/opening-screen/index.html ("Configure your keyboard").
+   The design's static backdrop image is replaced by the live canvas: the same dim/blur, night
+   gradient and light sweep are layered over it, and the scene layer eases from 1.05 to 1. */
+:root {
+  --cap-white: #eef1f6;
+  --cap-navy: #24254a;
+  --cap-skirt-top: #f4f7fb;
+  --cap-skirt-bottom: #d6dfeb;
+  --cap-wall-top: #b9c5d7;
+  --cap-wall-bottom: #8592aa;
+  --cap-legend: #5d6684;
+  --r-cap: 18px;
+  --r-dish: 12px;
+  --cap-h: 120px;
+  --cap-wall: 12px;
+  --cap-travel: 8px;
+  --t-key-down: 90ms;
+  --t-key-up: 160ms;
+  --t-exit: 280ms;
+  --t-reveal: 1100ms;
+  --t-sweep: 900ms;
+}
+
+/* Scene behind the gate */
+html[data-opening] .scene-layer { transform: scale(1.05); transition: transform 1400ms var(--ease-out); }
+html[data-opening='revealing'] .scene-layer { transform: scale(1); }
+.opening-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.opening-dim {
+  -webkit-backdrop-filter: blur(18px) brightness(0.34) saturate(0.85);
+  backdrop-filter: blur(18px) brightness(0.34) saturate(0.85);
+  transition: opacity var(--t-reveal) var(--ease-out) 150ms;
+}
+.opening-night {
+  background:
+    radial-gradient(60% 55% at 50% 58%, rgba(7, 7, 11, 0.35), rgba(7, 7, 11, 0.9) 100%),
+    linear-gradient(180deg, rgba(7, 7, 11, 0.55), rgba(7, 7, 11, 0.2) 40%, rgba(7, 7, 11, 0.7));
+  transition: opacity var(--t-reveal) var(--ease-out) 150ms;
+}
+.opening-sweep {
+  opacity: 0; mix-blend-mode: screen;
+  background: linear-gradient(100deg, transparent 30%, rgba(201, 216, 238, 0.14) 45%, rgba(255, 255, 255, 0.24) 50%, rgba(159, 194, 255, 0.12) 55%, transparent 70%);
+  transform: translateX(-110%);
+}
+html[data-opening='revealing'] .opening-dim,
+html[data-opening='revealing'] .opening-night { opacity: 0; }
+html[data-opening='revealing'] .opening-sweep { animation: opening-sweep var(--t-sweep) var(--ease-out) 120ms forwards; }
+@keyframes opening-sweep {
+  0% { opacity: 0; transform: translateX(-110%); }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(110%); }
+}
+
+/* Gate */
+.opening {
+  position: absolute; inset: 0; z-index: 20;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow-y: auto;
+  font-size: 16px; line-height: 1.6;
+}
+html[data-opening='revealing'] .opening { pointer-events: none; }
+.opening :focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
+.opening .nowrap { white-space: nowrap; }
+
+.opening-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: var(--edge) var(--edge) 0; }
+/* Holds the persistent .brand mark's place (it is drawn above the gate). */
+.opening-brand-space { display: block; flex: none; width: 75px; height: 36px; }
+.opening-hint { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); }
+
+.opening-main { display: grid; place-items: center; padding: 48px var(--edge); }
+.opening-col { width: min(100%, 640px); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.opening-eyebrow { margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); }
+.opening-headline { margin: 16px 0 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(44px, 7.2vw, 72px); line-height: 1.02; letter-spacing: -0.015em; text-wrap: balance; }
+.opening-headline em { font-style: italic; color: var(--cap-glacial); }
+.opening-lede { margin: 16px 0 0; max-width: 44ch; font-size: 16px; line-height: 1.6; color: var(--ink-muted); text-wrap: pretty; }
+
+/* Keycap CTA */
+.cap-stage { position: relative; width: min(100%, 400px); margin-top: 48px; perspective: 900px; }
+.cap-glow {
+  position: absolute; left: 50%; top: 60%; width: 150%; height: 150%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(159, 194, 255, 0.30), rgba(91, 75, 214, 0.14) 55%, transparent 100%);
+  pointer-events: none; opacity: 0.6;
+  animation: opening-breathe 3.2s ease-in-out infinite;
+}
+@keyframes opening-breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+.cap-tilt { position: relative; transform-style: preserve-3d; transform: rotateX(var(--rx, 12deg)) rotateY(var(--ry, 0deg)); transition: transform 240ms var(--ease-out); }
+.cap {
+  position: relative; display: block; width: 100%; height: calc(var(--cap-h) + var(--cap-wall));
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; color: var(--cap-navy);
+}
+.opening .cap:focus-visible { outline: none; }
+.cap-shadow { position: absolute; left: 8%; right: 8%; bottom: -20px; height: 36px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, 0.85), transparent); transition: opacity var(--t-key-up) var(--ease-out); }
+.cap-wall { position: absolute; left: 0; right: 0; top: var(--cap-wall); bottom: 0; border-radius: var(--r-cap); background: linear-gradient(180deg, var(--cap-wall-top), var(--cap-wall-bottom)); box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.25); }
+.cap-body { position: absolute; left: 0; right: 0; top: 0; height: var(--cap-h); border-radius: var(--r-cap); background: linear-gradient(180deg, var(--cap-skirt-top), var(--cap-skirt-bottom)); box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(36, 37, 74, 0.08); transition: transform var(--t-key-up) var(--ease-out); }
+.cap-dish { position: absolute; top: 7px; left: 14px; right: 14px; bottom: 16px; display: grid; place-items: center; border-radius: var(--r-dish); background: radial-gradient(120% 150% at 50% 0%, #ffffff 0%, var(--cap-white) 52%, #dfe6f0 100%); box-shadow: inset 0 -1px 2px rgba(36, 37, 74, 0.10), inset 0 2px 1px rgba(255, 255, 255, 0.9); }
+.cap-legend { position: absolute; top: 10px; left: 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1; color: var(--cap-legend); }
+.cap-label { font-size: clamp(17px, 4.6vw, 20px); font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; white-space: nowrap; }
+.cap-underlight { position: absolute; left: 18px; right: 18px; bottom: 8px; height: 2px; border-radius: var(--r-pill); background: var(--cap-glacial); opacity: 0.9; }
+.cap.is-down .cap-body { transform: translateY(var(--cap-travel)); transition-duration: var(--t-key-down); }
+.cap.is-down .cap-shadow { opacity: 0.55; transition-duration: var(--t-key-down); }
+html[data-opening='arming'] .cap .cap-body { transform: translateY(calc(var(--cap-travel) / 2)); }
+html[data-opening='arming'] .cap-glow { animation: none; opacity: 1; }
+.cap:focus-visible .cap-body { outline: 2px solid var(--signal); outline-offset: 6px; }
+@media (hover: hover) {
+  .cap:hover .cap-body { transform: translateY(2px); }
+  .cap.is-down:hover .cap-body { transform: translateY(var(--cap-travel)); }
+  .cap-stage:hover .cap-glow { opacity: 1; }
+}
+
+/* Status + hint */
+.opening-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; margin-top: 48px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); }
+.opening-load { display: flex; align-items: center; gap: 8px; }
+.opening .bar { position: relative; display: block; flex: none; width: 96px; height: 2px; overflow: hidden; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.14); }
+.opening .bar-fill { position: absolute; inset: 0; background: var(--signal); transform-origin: left center; transform: scaleX(0); transition: transform 320ms var(--ease-out); }
+.opening .ready-dot { display: block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); }
+.opening .sep { color: var(--ink-faint); }
+.opening .pct { min-width: 4ch; text-align: left; }
+.opening kbd { display: inline-block; padding: 2px 8px; border: 1px solid var(--surface-line-strong); border-bottom-width: 2px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; color: var(--ink); }
+
+.opening-mute {
+  margin-top: 16px; min-height: 44px; padding: 0 16px;
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  font-size: 14px; color: var(--ink-muted); cursor: pointer;
+  text-decoration: underline; text-decoration-color: rgba(164, 161, 180, 0.45); text-underline-offset: 4px;
+  transition: text-decoration-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+@media (hover: hover) { .opening-mute:hover { color: var(--ink); text-decoration-color: var(--ink); } }
+
+.opening-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 0 var(--edge) var(--edge); font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint); }
+.opening-foot .foot-item { display: flex; align-items: center; gap: 8px; }
+
+/* Gate exit */
+.opening-main, .opening-foot, .opening-hint { transition: opacity var(--t-exit) var(--ease-in), transform var(--t-exit) var(--ease-in); }
+html[data-opening='revealing'] .opening-main,
+html[data-opening='revealing'] .opening-foot,
+html[data-opening='revealing'] .opening-hint { opacity: 0; transform: translateY(-12px); }
+
+@media (max-width: 640px) {
+  .opening-hint { display: none; }
+  .opening-main { padding-top: 32px; padding-bottom: 32px; }
+  .cap-stage { margin-top: 32px; }
+  :root { --cap-h: 104px; }
+  .opening-status { margin-top: 32px; }
+  .opening-foot { justify-content: center; text-align: center; }
+  .opening-brand-space { width: 66px; height: 32px; }
+}
+@media (hover: none) { .opening .hint, .opening .sep { display: none; } }
+@media (max-height: 640px) and (min-width: 641px) {
+  .opening-main { padding-top: 24px; padding-bottom: 24px; }
+  .cap-stage { margin-top: 32px; }
+  .opening-status { margin-top: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cap-glow { animation: none; opacity: 0.75; }
+  .opening-sweep { display: none; }
+  html[data-opening] .scene-layer { transform: none; }
+  .opening-dim, .opening-night { transition: opacity 200ms linear !important; }
+  .opening-main, .opening-foot, .opening-hint { transition: opacity 200ms linear !important; }
+  html[data-opening='revealing'] .opening-main,
+  html[data-opening='revealing'] .opening-foot,
+  html[data-opening='revealing'] .opening-hint { transform: none; }
+}
