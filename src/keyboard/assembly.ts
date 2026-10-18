@@ -6,13 +6,14 @@ import { applyKeyboardPalette } from './materials';
 import { KEY_LAYOUT } from './layout';
 import { getVariant } from './variants';
 import { useConfigurator } from '../state/store';
+import type { IntroState } from '../scene/intro/sequence';
 
 // Use elapsed time even when WebGL compilation or a background tab delays a frame.
 // GSAP's default lag smoothing can otherwise stretch a short assembly indefinitely
 // under a software renderer; transforms still resolve to the same final values.
 gsap.ticker.lagSmoothing(0);
 
-export interface AssemblyHandle { timeline: gsap.core.Timeline; kind: 'initial' | 'change' }
+export interface AssemblyHandle { timeline: gsap.core.Timeline; kind: 'initial' | 'change'; intro?: IntroState }
 export function createAssembly(caps: Group[], knob: Group, materials: KeyboardMaterials, id: string, initial: boolean, reduced: boolean): AssemblyHandle {
   const variant = getVariant(id);
   const timeline = gsap.timeline();
@@ -64,7 +65,9 @@ export function createAssembly(caps: Group[], knob: Group, materials: KeyboardMa
     // Explicit final values make interrupted timelines and reduced motion equally reliable.
     caps.forEach(cap => { cap.position.y = 0; cap.rotation.set(0, 0, 0); });
     knob.position.y = 0; knob.rotation.y = 0;
-    useConfigurator.setState({ displayedId: id, phase: 'assembled' });
+    const finalId = initial ? useConfigurator.getState().selectedId : id;
+    if (initial) applyKeyboardPalette(materials, getVariant(finalId));
+    useConfigurator.setState({ displayedId: finalId, phase: 'assembled' });
   });
   return { timeline, kind: initial ? 'initial' : 'change' };
 }

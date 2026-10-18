@@ -23,16 +23,34 @@ try {
     const gl = document.querySelector('canvas').getContext('webgl2');
     const debug = gl.getExtension('WEBGL_debug_renderer_info');
     const renderer = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    const summarize = intervals => {
+      const sample = [...intervals].sort((a, b) => a - b);
+      return { frames: sample.length, medianFrameMs: sample[Math.floor(sample.length / 2)], p95FrameMs: sample[Math.floor(sample.length * 0.95)], averageFps: 1000 / (sample.reduce((a, b) => a + b, 0) / sample.length) };
+    };
     async function measure(frames, discard) {
       const intervals = []; let last = performance.now();
       await new Promise(resolve => {
         const frame = time => { intervals.push(time - last); last = time; if (intervals.length < frames) requestAnimationFrame(frame); else resolve(); };
         requestAnimationFrame(frame);
       });
-      const sample = intervals.slice(discard).sort((a, b) => a - b);
-      return { frames: sample.length, medianFrameMs: sample[Math.floor(sample.length / 2)], p95FrameMs: sample[Math.floor(sample.length * 0.95)], averageFps: 1000 / (sample.reduce((a, b) => a + b, 0) / sample.length) };
+      return summarize(intervals.slice(discard));
     }
     const assembled = await measure(180, 30);
+    window.__kb.replayIntro();
+    const beats = { mat: [], frame: [], keys: [] };
+    let last = performance.now(), previousPhase = window.__kb.introPhase;
+    await new Promise((resolve, reject) => {
+      const frame = time => {
+        beats[previousPhase].push(time - last); last = time;
+        previousPhase = window.__kb.introPhase;
+        if (previousPhase === 'done') resolve();
+        else if (Object.values(beats).flat().length > 1200) reject(new Error('Intro timing timed out'));
+        else requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+    const intro = { ...summarize(Object.values(beats).flat()), beats: Object.fromEntries(Object.entries(beats).map(([beat, intervals]) => [beat, summarize(intervals)])) };
+    if (!window.__kb.finished || window.__kb.introPhase !== 'done') throw new Error('Intro did not finish during timing sample');
     window.__kb.setVariant('cool-black');
     const variantChange = await measure(210, 0);
     const render = window.__kb.inspect();
@@ -42,7 +60,7 @@ try {
     const depthOfFieldRender = window.__kb.inspect();
     const lens = window.__camera().lens;
     window.__cameraStore.set({ depthOfField: false });
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, intro, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');

@@ -168,9 +168,104 @@ try {
   assert.ok(Object.values(hiddenGizmos.handles).every(points => points.length === 0), 'No gizmo objects outside debug, even when toggled in the store');
   await page.evaluate(() => window.__layoutStore.show(false));
   checks.gizmosDebugOnly = { status: 'passed' };
-  await page.evaluate(() => window.__kb.seek(0.95));
+  // Intro evidence uses the public timeline, actual deformed vertices, and
+  // world-space case/feet bounds. Keep this independent of dust evidence.
+  const introTimings = await page.evaluate(() => window.__kb.introTimings);
+  const seekIntro = async time => { await page.evaluate(time => window.__kb.seek(time), time); await rendered(); };
+  const staticProps = (await page.evaluate(() => window.__props())).props;
+  const phases = [];
+  for (const time of [0, introTimings.frameAt + 0.05, introTimings.keysAt + 0.2, introTimings.end]) {
+    await seekIntro(time);
+    phases.push(await page.evaluate(() => window.__kb.introPhase));
+    assert.equal(await page.evaluate(() => window.__lighting().shadowAutoUpdate), time < introTimings.end);
+    const props = (await page.evaluate(() => window.__props())).props;
+    for (const name of ['prop-streamdeck', 'prop-headphones', 'monitor-screen']) assert.deepEqual(props[name], staticProps[name], `${name} stays static across every intro beat`);
+  }
+  assert.deepEqual(phases, ['mat', 'frame', 'keys', 'done']);
+  await seekIntro(introTimings.matEnd * (1 - Math.cbrt(0.5)));
+  const rolled = await page.evaluate(() => window.__kb.inspect().intro.mat);
+  assert.ok(Math.abs(rolled.progress - 0.5) < 1e-5);
+  assert.ok(rolled.maxY > 0.045, 'Half-unrolled felt has a real thick, layered roll');
+  assert.ok(rolled.minY >= -1e-7 && rolled.normalError < 1e-6);
+  await shot('intro-mat-mid');
+  // A fixed 24fps sample, including every final small bend and the exact flat
+  // endpoint. The wider view includes the roll's complete path across the mat.
+  await mkdir('screenshots/intro-unroll', { recursive: true });
+  await page.evaluate(() => window.__kb.camera('props-wide'));
+  const unrollFrames = [];
+  for (let frame = 0; frame <= 48; frame++) {
+    const time = introTimings.matEnd * frame / 48;
+    await seekIntro(time);
+    const mat = await page.evaluate(() => window.__kb.inspect().intro.mat);
+    assert.ok(mat.minY >= -1e-7 && mat.normalError < 1e-6);
+    await page.screenshot({ path: `screenshots/intro-unroll/frame-${String(frame).padStart(3, '0')}.png` });
+    unrollFrames.push({ time, ...mat });
+  }
+  await page.evaluate(() => window.__kb.camera('default'));
+  await seekIntro(introTimings.frameAt + (introTimings.frameEnd - introTimings.frameAt) * 0.55);
+  const landingMid = await page.evaluate(() => window.__kb.inspect().intro);
+  assert.ok(landingMid.frameOffset > 0.02 && landingMid.frameVisible && !landingMid.keysVisible);
+  await shot('intro-frame-mid');
+  const landingSamples = [];
+  for (let sample = 0; sample <= 40; sample++) {
+    const time = introTimings.frameAt + (introTimings.frameEnd - introTimings.frameAt) * sample / 40;
+    await seekIntro(time);
+    const contact = await page.evaluate(() => {
+      const p = window.__props();
+      return { bodyBottom: p.bodyBottom, feetBottom: p.feetBottom, matTop: p.matTop, shadowAutoUpdate: window.__lighting().shadowAutoUpdate };
+    });
+    assert.ok(contact.bodyBottom >= contact.matTop - 1e-7);
+    assert.ok(contact.feetBottom.every(y => y >= contact.matTop - 1e-7), 'No rubber foot penetrates the mat at any sampled landing time');
+    assert.equal(contact.shadowAutoUpdate, true);
+    landingSamples.push({ time, ...contact });
+  }
+  await seekIntro(introTimings.end);
+  const flat = await page.evaluate(() => window.__kb.inspect().intro.mat);
+  assert.equal(flat.maxRestError, 0, 'Every mat vertex returns exactly to its original flat position');
+  assert.equal(flat.minY, 0); assert.ok(Math.abs(flat.maxY - 0.004) < 1e-8);
+  assert.equal(await page.evaluate(() => window.__lighting().shadowAutoUpdate), false);
+  checks.intro = { status: 'passed', duration: introTimings.end, timings: introTimings, phases, halfUnrolled: rolled, flat, landingSamples, unrollFrames };
+
+  // Retarget twice in each beat; the live sequence must retain its time/phase.
+  checks.introSelection = { status: 'passed', beats: [] };
+  for (const [beat, time] of [['mat', 0.35], ['frame', introTimings.frameAt + 0.2], ['keys', introTimings.keysAt + 0.8]]) {
+    await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
+    await seekIntro(time);
+    await change('pink'); await change('cool-black');
+    assert.equal(await page.evaluate(() => window.__kb.introPhase), beat);
+    await finish();
+    const result = await page.evaluate(() => ({ phase: window.__kb.introPhase, selected: window.__kb.selectedId, displayed: window.__kb.displayedId, info: window.__kb.inspect() }));
+    assert.equal(result.phase, 'done'); assert.equal(result.selected, 'cool-black'); assert.equal(result.displayed, 'cool-black');
+    assertPalette(result.info, 'cool-black');
+    checks.introSelection.beats.push({ beat, selected: result.selected, displayed: result.displayed, palette: result.info.palette });
+    await change('glacial-blue'); await finish();
+  }
+  // Replay interrupts every intro beat as well as an ordinary variant change.
+  for (const time of [0.3, introTimings.frameAt + 0.1, introTimings.keysAt + 0.9, introTimings.end]) {
+    await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
+    await seekIntro(time);
+    await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); window.__kb.finish(); });
+    await finish();
+    assert.equal(await page.evaluate(() => window.__kb.introPhase), 'done');
+  }
+  await change('pink'); await page.evaluate(() => window.__kb.seek(0.5));
+  await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); window.__kb.play(); });
+  await page.waitForFunction(() => window.__kb.finished && window.__kb.introPhase === 'done', null, { timeout: 20000 });
+  assertPalette(await finish(), 'pink');
+  checks.replayIntro = { status: 'passed', interruptedStates: ['mat', 'frame', 'keys', 'done', 'variant-change'], realtimePlayback: true };
+  await change('glacial-blue'); await finish();
+  await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); window.__kb.setVariant('pink'); window.__kb.setVariant('glacial-blue'); });
+  await rendered();
+  assert.equal(await page.evaluate(() => window.__kb.introPhase), 'mat');
+  await page.evaluate(() => window.__kb.play());
+  await page.waitForFunction(() => window.__kb.finished, null, { timeout: 20000 });
+  assertPalette(await finish(), 'glacial-blue');
+  checks.introBatchedReturn = { status: 'passed' };
+  await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
+  await seekIntro(introTimings.keysAt + 0.95);
   const mid = await page.evaluate(() => window.__kb.inspect());
   assert.ok(mid.capOffsets.some(y => y > 0.01) && mid.capOffsets.some(y => y < 0.001), 'Initial shot must show a partially seated wave');
+  await shot('intro-keys-mid');
   await shot('assembly-mid');
   const assemblyProps = await page.evaluate(() => window.__props());
   checks['glacial-blue'] = await finish();
@@ -528,6 +623,10 @@ try {
   await mobilePage.goto(url);
   await mobilePage.waitForFunction(() => window.__kb?.finished);
   assert.ok(await mobilePage.evaluate(() => window.__kb.duration < 0.7));
+  const reducedIntro = await mobilePage.evaluate(() => ({ timings: window.__kb.introTimings, info: window.__kb.inspect().intro }));
+  assert.equal(reducedIntro.timings.frameAt, 0); assert.equal(reducedIntro.timings.keysAt, 0);
+  assert.equal(reducedIntro.info.mat.maxRestError, 0); assert.equal(reducedIntro.info.frameOffset, 0);
+  checks.reducedIntro = { status: 'passed', ...reducedIntro };
   await mobilePage.getByRole('radio', { name: 'White & Brown', exact: true }).click();
   await mobilePage.waitForFunction(() => window.__kb.finished && window.__kb.displayedId === 'white-brown');
   const mobileInfo = await mobilePage.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, info: window.__kb.inspect() }));
@@ -854,6 +953,22 @@ try {
   const restoredLayout = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(restoredLayout, expectedLayout);
   checks.layoutClipboard.restored = restoredLayout;
+  await debugPage.getByText('Intro', { exact: true }).click();
+  for (const [key, value] of [['mat', 1.8], ['frame', 0.9], ['keys', 2.35]]) {
+    const input = debugPage.locator(`[id="Intro.${key}"]`);
+    await input.fill(String(value)); await input.press('Enter');
+    await renderedPage(debugPage);
+  }
+  await debugPage.getByRole('button', { name: 'Replay intro', exact: true }).click();
+  await debugPage.evaluate(() => window.__kb.seek(0));
+  const editedIntro = await debugPage.evaluate(() => window.__kb.introTimings);
+  assert.equal(editedIntro.matEnd, 1.8);
+  assert.ok(Math.abs(editedIntro.frameEnd - editedIntro.frameAt - 0.9) < 1e-7);
+  assert.ok(Math.abs(editedIntro.end - editedIntro.keysAt - 2.35) < 1e-7);
+  assert.equal(await debugPage.evaluate(() => window.__kb.introPhase), 'mat');
+  await debugPage.evaluate(() => window.__kb.finish());
+  await debugPage.waitForFunction(() => window.__kb.finished && window.__kb.introPhase === 'done');
+  checks.introDebugControls = { status: 'passed', editedTimings: editedIntro };
   await debugContext.close();
   assert.deepEqual(errors, [], 'Browser must have no runtime or console errors');
   checks.browserErrors = errors;
