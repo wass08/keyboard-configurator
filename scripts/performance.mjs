@@ -3,12 +3,12 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-const url = 'http://127.0.0.1:4176';
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4176', '--strictPort'], { stdio: 'ignore' });
+const url = `http://127.0.0.1:${process.env.PERF_PORT ?? 4176}`;
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(process.env.PERF_PORT ?? 4176), '--strictPort'], { stdio: 'ignore' });
 let browser;
 try {
   for (let attempt = 0; attempt < 100; attempt++) {
-    if (server.exitCode !== null) throw new Error('Performance preview could not start on port 4176');
+    if (server.exitCode !== null) throw new Error(`Performance preview could not start on port ${process.env.PERF_PORT ?? 4176}`);
     try { if ((await fetch(url)).ok) break; } catch { /* starting */ }
     if (attempt === 99) throw new Error('Preview startup timed out');
     await new Promise(resolve => setTimeout(resolve, 100));

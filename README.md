@@ -28,9 +28,16 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
 
 `?debug` → **Camera → Lens** edits the live perspective camera: linked focal
 length (12–200 mm) and vertical FOV, film gauge, and near/far clipping. Sensor
-edits retain focal length; resizing retains vertical FOV and recalculates its
-equivalent focal length. Defaults are 32° vertical, 35 mm film gauge, 0.008–25 m
-clipping (38.1436 mm at 16:10). Existing orbit limits remain 0.317–0.719 m.
+edits retain focal length. Desktop defaults use **80.343 mm**, 35 mm film gauge
+and 0.008–25 m clipping. Three derives vertical FOV from aspect: **15.5046° at
+16:10**; the copied **19.022°** corresponds to approximately 1.30:1. Untouched
+lens defaults retain 80.343 mm across desktop resizing; edited lenses retain the
+chosen vertical FOV. The hero position is `(0.153890, 1.375464, 1.229136)`, target
+`(0, 0.825, 0.005)`, with orbit limits **0.317–1.351 m**. Copied coordinates place
+it 0.000000257 m over the maximum; a one-micrometer boundary tolerance preserves
+that exact pose without changing the displayed/stored bounds. Reset restores it.
+Portrait retains its previous **32° FOV and 0.317–0.719 m bounds**, composition,
+and existing right-side keyboard crop; it has not been reframed.
 **Copy camera values** includes all nine lens parameters; **Reset camera** restores
 the lens, pose and orbit bounds. The optional depth-of-field controls default off,
 with focus distance 0.719 m, bokeh scale 1 and a 0.1 m sharp focal range.
@@ -197,16 +204,17 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   debug mode. `minDistance` / `maxDistance` sliders cover 0.10–6.00 m and apply
   live. **Set min = current**, **Set max = current**, **Copy camera values**, and
   **Reset camera** support exploration. Copy writes clipboard JSON with
-  `{ minDistance, maxDistance, distance, polarDeg, azimuthDeg, position, target }`.
-  Reset restores the hero view and original bounds. The user's chosen defaults are **0.317 m /
-  0.719 m** and remain enforced on every viewport and capture preset.
+  `{ minDistance, maxDistance, distance, polarDeg, azimuthDeg, position, target, lens }`.
+  Reset restores the copied desktop hero and **0.317 / 1.351 m** bounds, with a
+  one-micrometer tolerance for rounded coordinates. Portrait keeps **0.317 /
+  0.719 m** and the previous lens/framing. Capture presets obey the active bounds.
   `dimensions.ts` places the keyboard center 19 cm behind the front edge.
 - `src/ui/VariantPicker.tsx`: accessible radio-group picker with roving focus.
 - `src/debug.ts`: typed capture/inspection interface for deterministic evidence.
 - `scripts/screenshots.mjs`: production screenshots and meaningful assertions for
   partial assembly, every final transform, palette, repeated interruption, real-time
   animation, keyboard selection, reduced motion, mobile overflow and browser errors.
-  Also checks the projected hero width (55–65% at 16:10), visible desk front edge,
+  Also checks the projected hero width (about 61% at 16:10), exact copied pose/reset, visible desk front edge,
   and records portrait crop honestly under the user's 0.719 m maximum. Mobile
   tests still enforce reduced motion, seated assembly, no DOM overflow, and the
   exact camera bounds. Studio checks assert entire softbox/fill bounds outside
@@ -303,7 +311,7 @@ window.__lightingStore.set({ // same live Leva store used by the debug panel
   rather than manufacturing CAD or color-calibrated scans. Switch interiors,
   cap undersides and stabilizers are simplified. No RGB underglow is included.
 - This is deliberately a black product studio. The desktop hero keeps the
-  keyboard at about 56% of frame width. When enabled, the rear monitor glow is
+  keyboard at about 61% of frame width. When enabled, the rear monitor glow is
   an area-light approximation. The environment is sampled once at the keyboard;
   reflection parallax is approximate away from that point, as with any cubemap. Area lights do not cast shadows; the co-located spot supplies
   soft contact shadows. The broad dim right fill preserves contrast.

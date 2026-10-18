@@ -9,6 +9,9 @@ import { useOwnedDisposal } from '../resources/ownership';
 import { LayoutControls } from './PropLayout';
 import { FloorContact } from './FloorContact';
 import { DeskProps } from './props/DeskProps';
+import { HERO_POSITION, PORTRAIT_FOV } from './cameraDefaults';
+import { DEFAULT_FOCAL_LENGTH_MM, DEFAULT_PROJECTION } from './lens';
+import type { PerspectiveCamera } from 'three';
 
 function StudioFloor() {
   const roughness = useMemo(() => {
@@ -26,7 +29,11 @@ function StudioFloor() {
   </mesh>;
 }
 export function Stage() {
-  return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [-0.073, 1.125, 0.570], fov: 32, near: 0.008, far: 25 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl }) => { gl.toneMappingExposure = 1; }}>
+  return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: HERO_POSITION, fov: PORTRAIT_FOV, near: DEFAULT_PROJECTION.near, far: DEFAULT_PROJECTION.far }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl, camera, size }) => {
+    gl.toneMappingExposure = 1;
+    const lens = camera as PerspectiveCamera; lens.filmGauge = DEFAULT_PROJECTION.filmGaugeMm;
+    if (size.width / size.height >= 0.75) lens.setFocalLength(DEFAULT_FOCAL_LENGTH_MM);
+  }}>
     <color attach="background" args={['#000000']} />
     <Suspense fallback={null}>
       <LayoutControls />

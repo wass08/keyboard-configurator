@@ -1,27 +1,28 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { CameraValues, CameraView } from '../debug';
 import { Box3, PerspectiveCamera, Vector3 } from 'three';
-import { DEFAULT_DOF, DEFAULT_PROJECTION, useDepthOfField } from './lens';
+import { DEFAULT_DOF, DEFAULT_FOCAL_LENGTH_MM, DEFAULT_PROJECTION, useDepthOfField } from './lens';
 import type { LensValues } from './lens';
 import { supportHeight, useLayoutStore } from '../state/layout';
 
-const HERO_TARGET: [number, number, number] = [0, 0.825, 0.005];
-// Preserved until the user chooses new limits with the Camera panel.
-const DEFAULT_MIN = 0.317, DEFAULT_MAX = 0.719;
+import { HERO_POSITION, HERO_TARGET, DEFAULT_MIN_DISTANCE as DEFAULT_MIN, DEFAULT_MAX_DISTANCE as DEFAULT_MAX, PORTRAIT_MAX_DISTANCE, PORTRAIT_FOV, ORBIT_DISTANCE_EPSILON } from './cameraDefaults';
 export function CameraRig() {
   const controls = useRef<OrbitControlsImpl>(null);
   const reset = useRef<() => void>(() => {});
   const lastReadout = useRef(-1);
-  const projection = useRef({ ...DEFAULT_PROJECTION });
+  const projection = useRef({ ...DEFAULT_PROJECTION, verticalFovDeg: PORTRAIT_FOV });
+  const projectionEdited = useRef(false);
   const apply = useRef<(patch: Partial<LensValues>) => void>(() => {});
   const focus = useRef<() => void>(() => {});
   const { camera: activeCamera, scene, size } = useThree();
   // Stage owns the default perspective camera throughout its lifetime.
   const camera = activeCamera as PerspectiveCamera;
+  const portrait = size.width / size.height < 0.75;
+  const defaultMax = portrait ? PORTRAIT_MAX_DISTANCE : DEFAULT_MAX;
   const debug = new URLSearchParams(location.search).has('debug');
   const lensSnapshot = (): LensValues => ({
     focalLengthMm: camera.getFocalLength(), verticalFovDeg: camera.fov,
@@ -35,9 +36,9 @@ export function CameraRig() {
       azimuthDeg: orbit.getAzimuthalAngle() * 180 / Math.PI,
       position: camera.position.toArray(), target: orbit.target.toArray(), lens: lensSnapshot() };
   };
-  const opticalInput = (value: number | boolean, key: keyof LensValues, context: { fromPanel: boolean }) => {
+  const opticalInput = (value: number | boolean, key: keyof LensValues, context: { fromPanel: boolean; initial: boolean }) => {
     // Programmatic synchronization must not feed back into the linked control.
-    if (context.fromPanel) apply.current({ [key]: value });
+    if (context.fromPanel && !context.initial) apply.current({ [key]: value });
   };
   const [values, set] = useControls(() => ({
     Camera: folder({
@@ -45,10 +46,10 @@ export function CameraRig() {
       polarDeg: { value: '0.000°', editable: false, label: 'Polar' },
       azimuthDeg: { value: '0.000°', editable: false, label: 'Azimuth' },
       minDistance: { value: DEFAULT_MIN, min: 0.10, max: 6, step: 0.001 },
-      maxDistance: { value: DEFAULT_MAX, min: 0.10, max: 6, step: 0.001 },
+      maxDistance: { value: defaultMax, min: 0.10, max: 6, step: 0.001 },
       Lens: folder({
         focalLengthMm: { value: camera.getFocalLength(), min: 12, max: 200, step: 0.1, label: 'Focal length (mm)', transient: false, onChange: (v, _, c) => opticalInput(v, 'focalLengthMm', c) },
-        verticalFovDeg: { value: 32, min: 1, max: 120, step: 0.1, label: 'Vertical FOV (deg)', transient: false, onChange: (v, _, c) => opticalInput(v, 'verticalFovDeg', c) },
+        verticalFovDeg: { value: camera.fov, min: 1, max: 120, step: 0.1, label: 'Vertical FOV (deg)', transient: false, onChange: (v, _, c) => opticalInput(v, 'verticalFovDeg', c) },
         filmGaugeMm: { value: 35, min: 1, max: 100, step: 0.1, label: 'Film gauge (mm)', transient: false, onChange: (v, _, c) => opticalInput(v, 'filmGaugeMm', c) },
         near: { value: 0.008, min: 0.001, max: 1, step: 0.001, pad: 3, label: 'Near (m)', transient: false, onChange: (v, _, c) => opticalInput(v, 'near', c) },
         far: { value: 25, min: 1, max: 100, step: 0.1, label: 'Far (m)', transient: false, onChange: (v, _, c) => opticalInput(v, 'far', c) },
@@ -82,6 +83,7 @@ export function CameraRig() {
     camera.updateProjectionMatrix();
     if (['verticalFovDeg', 'focalLengthMm', 'filmGaugeMm', 'near', 'far'].some(key => key in patch)) {
       projection.current = { verticalFovDeg: camera.fov, filmGaugeMm: camera.filmGauge, near: camera.near, far: camera.far };
+      projectionEdited.current = true;
     }
     const dof = useDepthOfField.getState();
     useDepthOfField.setState({
@@ -97,6 +99,26 @@ export function CameraRig() {
     const center = body ? new Box3().setFromObject(body).getCenter(new Vector3()) : new Vector3(...HERO_TARGET);
     apply.current({ focusDistance: camera.position.distanceTo(center) });
   };
+  useLayoutEffect(() => {
+    const orbit = controls.current!;
+    const update = orbit.update;
+    const previousPosition = new Vector3(), previousTarget = new Vector3();
+    // Three's controls clamp strictly on every frame, even at rest. Permit
+    // sub-micrometer copied-coordinate rounding while exposing the exact bound.
+    orbit.update = () => {
+      previousPosition.copy(camera.position); previousTarget.copy(orbit.target);
+      const max = orbit.maxDistance, distance = camera.position.distanceTo(orbit.target);
+      if (distance > max && distance <= max + ORBIT_DISTANCE_EPSILON) orbit.maxDistance = distance + 1e-12;
+      try {
+        const result = update();
+        if (camera.position.distanceToSquared(previousPosition) < 1e-24 && orbit.target.equals(previousTarget)) {
+          camera.position.copy(previousPosition); camera.lookAt(orbit.target);
+        }
+        return result;
+      } finally { orbit.maxDistance = max; }
+    };
+    return () => { orbit.update = update; };
+  }, [camera]);
   useEffect(() => {
     if (values.minDistance > values.maxDistance) set({ maxDistance: values.minDistance });
   }, [values.minDistance, values.maxDistance, set]);
@@ -117,13 +139,21 @@ export function CameraRig() {
         orbit.enableDamping = false; orbit.update(); orbit.enableDamping = damping;
       }
       const aspect = size.width / size.height;
+      const portraitView = aspect < 0.75;
+      if (view === 'default' && !projectionEdited.current) {
+        camera.filmGauge = DEFAULT_PROJECTION.filmGaugeMm;
+        camera.near = DEFAULT_PROJECTION.near; camera.far = DEFAULT_PROJECTION.far;
+        if (portraitView) camera.fov = PORTRAIT_FOV;
+        else camera.setFocalLength(DEFAULT_FOCAL_LENGTH_MM);
+        projection.current = { ...DEFAULT_PROJECTION, verticalFovDeg: camera.fov };
+      }
       // Sensor focal length follows the new aspect, retaining the user's chosen
       // vertical FOV. Portrait distance also uses that live FOV, within bounds.
-      const fovScale = aspect < 0.75 ? Math.tan(32 * Math.PI / 360) / Math.tan(projection.current.verticalFovDeg * Math.PI / 360) : 1;
+      const fovScale = portraitView ? Math.tan(PORTRAIT_FOV * Math.PI / 360) / Math.tan(projection.current.verticalFovDeg * Math.PI / 360) : 1;
       const mobileScale = Math.max(1, (aspect < 0.75 ? 1.62 : 1.12) / aspect) * fovScale;
       // Evidence presets use explicit lens choices without changing orbit bounds.
       if (camera instanceof PerspectiveCamera) {
-        camera.fov = view === 'wall-paint' ? 70 : view === 'props-wide' ? 64 : view === 'props-airpods' ? 35 : view === 'props-streamdeck' ? 23 : view === 'deskmat-closeup' ? 22 : view === 'desk-sheen' ? 48 : view === 'desk-sheen-closeup' ? 26 : projection.current.verticalFovDeg;
+        camera.fov = view === 'wall-paint' ? 70 : view === 'props-wide' ? 64 : view === 'props-airpods' ? 35 : view === 'props-streamdeck' ? 23 : view === 'deskmat-closeup' ? 22 : view === 'desk-sheen' ? 48 : view === 'desk-sheen-closeup' ? 26 : view === 'default' ? projection.current.verticalFovDeg : 32;
         camera.updateProjectionMatrix();
         syncLens();
       }
@@ -148,19 +178,21 @@ export function CameraRig() {
       else if (view === 'desk-frame') { camera.position.set(-1.15, 0.70, 1.75); controls.current?.target.set(0, 0.25, -0.185); }
       else if (view === 'closeup') { camera.position.set(-0.045, 1.002, 0.295); controls.current?.target.set(0.027, 0.795, -0.008); }
       else if (view === 'profile') { camera.position.set(-0.20, 0.89, 0.40); controls.current?.target.set(0, 0.790, 0); }
-      else {
-        const targetX = aspect < 0.75 ? -0.065 : 0;
+      else if (portraitView) {
+        const targetX = -0.065;
         camera.position.set(targetX - 0.065 * mobileScale, HERO_TARGET[1] + 0.26 * mobileScale, HERO_TARGET[2] + 0.68 * mobileScale);
         controls.current?.target.set(targetX, HERO_TARGET[1], HERO_TARGET[2]);
       }
+      else { camera.position.set(...HERO_POSITION); controls.current?.target.set(...HERO_TARGET); }
       controls.current?.update();
     };
     // Restoring the original bounds makes reset return to the precise default
     // view even after a user has constrained it to another distance.
     reset.current = () => {
-      set({ minDistance: DEFAULT_MIN, maxDistance: DEFAULT_MAX });
-      apply.current({ ...DEFAULT_PROJECTION, ...DEFAULT_DOF });
-      if (controls.current) { controls.current.minDistance = DEFAULT_MIN; controls.current.maxDistance = DEFAULT_MAX; }
+      const max = portrait ? PORTRAIT_MAX_DISTANCE : DEFAULT_MAX;
+      set({ minDistance: DEFAULT_MIN, maxDistance: max });
+      useDepthOfField.setState(DEFAULT_DOF); projectionEdited.current = false;
+      if (controls.current) { controls.current.minDistance = DEFAULT_MIN; controls.current.maxDistance = max; }
       setView('default');
     };
     setView('default');

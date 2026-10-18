@@ -192,3 +192,41 @@ Attached: Stream Deck reference, saved as `references/props-stream-deck-lit.png`
 >   "streamdeck": { "x": 0.28099999999999997, "z": -0.3350000000000001, "rotationY": -24.60000000000082, "y": 0.75 }
 > }
 > ```
+
+---
+
+## 18 — Start dev server (2026-10-18)
+
+> please start dev server
+
+---
+
+## 19 — Camera values (2026-10-18)
+
+> please update the camera values with
+> ```json
+> {
+>   "minDistance": 0.317, "maxDistance": 1.351, "distance": 1.351,
+>   "polarDeg": 65.95529107614027, "azimuthDeg": 7.165257484078852,
+>   "position": [0.15389022544180767, 1.3754641057201722, 1.2291356406980058],
+>   "target": [0, 0.825, 0.005],
+>   "lens": { "focalLengthMm": 80.34323425059686, "verticalFovDeg": 19.022072308000606, "filmGaugeMm": 35, "near": 0.008, "far": 25,
+>             "depthOfField": false, "focusDistance": 0.719, "bokehScale": 1, "focalRange": 0.1 }
+> }
+> ```
+
+---
+
+## 20 — Parallel Opus + Codex: dust motes, intro animation (2026-10-18)
+
+> Then I'd like opus and codex agents to hand in parallel:
+> - few dust motes drifting through the key light (very lightweight to give life to the static shot)
+> - make the starting animation being -> the desk mat unroll, then the keyboard frame, then the keys
+
+---
+
+## 21 — Key interaction, typing to the screen, SFX (2026-10-18)
+
+> - hover the keys should slightly push the keys. clicking the knob should allow to rotate it.
+> - when typing we could make it really press the keys, and write it on the desk screen
+> - use very pleasant sfx for keyboard (hover / typing / animating key replacement) nice knob tick/click when rotating it

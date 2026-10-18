@@ -6,7 +6,7 @@ import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 
-const port = 4175;
+const port = Number(process.env.SHOTS_PORT ?? 4175);
 const url = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
 let serverOutput = '';
@@ -17,6 +17,25 @@ const variants = ['glacial-blue', 'cool-black', 'emerald', 'pink', 'overnight', 
 const errors = [];
 const checks = {};
 const expectedEnvironment = { lightformerIntensity: 1.28, hdriIntensity: 0.095, rotation: -1.29 };
+const expectedHero = {
+  position: [0.153890, 1.375464, 1.229136], target: [0, 0.825, 0.005],
+  minDistance: 0.317, maxDistance: 1.351, focalLengthMm: 80.343,
+};
+const orbitEpsilon = 1e-6;
+function assertHeroCamera(value, aspect = 1.6) {
+  assert.deepEqual(value.position, expectedHero.position, 'Copied desktop pose must remain exact, including after idle frames');
+  assert.deepEqual(value.target, expectedHero.target);
+  assert.equal(value.minDistance, expectedHero.minDistance); assert.equal(value.maxDistance, expectedHero.maxDistance);
+  assert.ok(value.distance <= expectedHero.maxDistance + orbitEpsilon, 'Rounded pose may exceed max only within one micrometer');
+  assert.ok(Math.abs(value.distance - expectedHero.maxDistance) < orbitEpsilon);
+  assert.ok(Math.abs(value.polarDeg - 65.955) < 0.001 && Math.abs(value.azimuthDeg - 7.165) < 0.001);
+  const expectedFov = 2 * Math.atan((35 / Math.max(1, aspect)) / (2 * expectedHero.focalLengthMm)) * 180 / Math.PI;
+  assert.ok(Math.abs(value.lens.focalLengthMm - expectedHero.focalLengthMm) < 1e-9);
+  assert.ok(Math.abs(value.lens.verticalFovDeg - expectedFov) < 1e-9, 'FOV must derive from 80.343 mm and the current aspect');
+  assert.equal(value.lens.filmGaugeMm, 35); assert.equal(value.lens.near, 0.008); assert.equal(value.lens.far, 25);
+  assert.equal(value.lens.depthOfField, false); assert.equal(value.lens.focusDistance, 0.719);
+  assert.equal(value.lens.bokehScale, 1); assert.equal(value.lens.focalRange, 0.1);
+}
 const expectedLayout = {
   headphones: { x: -0.5380, z: -0.3517, rotationY: 0.0, y: 0.75 },
   monitor: { x: 0.0000, z: -0.3840, rotationY: 0.0, y: 0.75 },
@@ -120,6 +139,7 @@ try {
   const colorShot = async (name, id) => {
     const buffer = await shot(name);
     const points = await page.evaluate(() => window.__kb.inspect().colorSamples);
+    assert.ok(points.every(p => p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1), 'Projected cap-top hue patches must remain inside the new hero');
     checks.colorFidelity ??= {};
     checks.colorFidelity[id] = measureCapColors(buffer, points, expectedPalettes[id]);
     // Keep actionable pixel deltas even if a later assertion fails.
@@ -158,8 +178,14 @@ try {
   const backslash = checks['glacial-blue'].keys.backslash.labels[1];
   assert.equal(backslash, String.fromCharCode(92)); assert.equal(backslash.length, 1);
   checks.backslashLegend = { status: 'passed', codePoint: backslash.codePointAt(0), length: backslash.length };
-  assert.ok(checks['glacial-blue'].framing.keyboardWidthRatio >= 0.55 && checks['glacial-blue'].framing.keyboardWidthRatio <= 0.65, 'Hero keyboard must occupy 55–65% of the 16:10 frame');
-  assert.ok(checks['glacial-blue'].framing.deskFrontEdgeNdcY > -0.90 && checks['glacial-blue'].framing.deskFrontEdgeNdcY < 0, 'Desktop front edge must be in the lower frame');
+  const heroCamera = await page.evaluate(() => window.__camera());
+  assertHeroCamera(heroCamera);
+  await idleFrames(page);
+  assertHeroCamera(await page.evaluate(() => window.__camera()));
+  checks.heroCameraDefaults = { status: 'passed', ...heroCamera, orbitEpsilon, clampingSlackMeters: heroCamera.distance - heroCamera.maxDistance };
+  assert.ok(checks['glacial-blue'].framing.keyboardWidthRatio >= 0.59 && checks['glacial-blue'].framing.keyboardWidthRatio <= 0.63, 'Tuned hero keyboard must occupy about 61% of the 16:10 frame');
+  assert.ok(checks['glacial-blue'].framing.deskFrontEdgeNdcY > -0.95 && checks['glacial-blue'].framing.deskFrontEdgeNdcY < -0.70, 'Desktop front edge must be in the lower frame');
+  checks.heroFraming = { status: 'passed', ...checks['glacial-blue'].framing };
   const seated = await page.evaluate(() => window.__props());
   assert.equal(seated.feetBottom.length, 4);
   assert.ok(seated.contactErrorMm <= 0.5, 'Every actual rubber foot must sit on the actual mat surface within 0.5mm');
@@ -395,7 +421,7 @@ try {
   await rendered();
   const focusedLens = await page.evaluate(() => window.__camera());
   assert.equal(focusedLens.lens.depthOfField, true);
-  assert.ok(focusedLens.lens.focusDistance > 0.7 && focusedLens.lens.focusDistance < 0.8);
+  assert.ok(focusedLens.lens.focusDistance > 1.3 && focusedLens.lens.focusDistance < 1.5);
   const dofBuffer = await page.screenshot({ path: 'screenshots/lens-dof.png' });
   console.log('screenshots/lens-dof.png');
   // Bloom remains active, evaluated before lens blur on linear HDR pixels.
@@ -534,6 +560,7 @@ try {
   await debugPage.waitForFunction(() => window.__kb?.ready && window.__camera);
   await debugPage.evaluate(() => window.__kb.finish());
   const originalCamera = await debugPage.evaluate(() => window.__camera());
+  assertHeroCamera(originalCamera);
   const edit = async (name, value) => {
     // Linked numeric fields update together. Let Leva render the previous
     // conversion before focusing another field and committing its text buffer.
@@ -575,9 +602,11 @@ try {
   assert.deepEqual(Object.keys(copied).sort(), ['minDistance', 'maxDistance', 'distance', 'polarDeg', 'azimuthDeg', 'position', 'target', 'lens'].sort());
   assert.ok(Math.abs(copied.distance - setMax.distance) < 0.0001);
   await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
-  await debugPage.waitForFunction(() => window.__camera().minDistance === 0.317 && window.__camera().maxDistance === 0.719);
+  await debugPage.waitForFunction(() => window.__camera().minDistance === 0.317 && window.__camera().maxDistance === 1.351);
   const resetCamera = await debugPage.evaluate(() => window.__camera());
-  assert.ok(Math.abs(resetCamera.distance - originalCamera.distance) < 0.0001);
+  assertHeroCamera(resetCamera);
+  await idleFrames(debugPage);
+  assertHeroCamera(await debugPage.evaluate(() => window.__camera()));
   checks.cameraControls = { status: 'passed', defaults: originalCamera, draggedLimits, sliderLimits, setMin, setMax, copied, reset: resetCamera };
   await renderedPage(debugPage);
   await debugPage.screenshot({ path: 'screenshots/debug-camera.png' });
@@ -607,20 +636,32 @@ try {
   await debugPage.getByRole('button', { name: 'Focus on keyboard', exact: true }).click();
   await debugPage.waitForFunction(() => {
     const lens = window.__camera().lens;
-    return lens.near === 0.015 && lens.far === 32 && lens.depthOfField && lens.bokehScale === 0.85 && lens.focalRange === 0.12 && lens.focusDistance > 0.7;
+    return lens.near === 0.015 && lens.far === 32 && lens.depthOfField && lens.bokehScale === 0.85 && lens.focalRange === 0.12 && lens.focusDistance > 1.3;
   });
   const editedLens = await debugPage.evaluate(() => window.__camera().lens);
   assert.equal(editedLens.near, 0.015); assert.equal(editedLens.far, 32);
   assert.equal(editedLens.depthOfField, true); assert.equal(editedLens.bokehScale, 0.85); assert.equal(editedLens.focalRange, 0.12);
-  assert.ok(editedLens.focusDistance > 0.7 && editedLens.focusDistance < 0.8);
+  assert.ok(editedLens.focusDistance > 1.3 && editedLens.focusDistance < 1.5);
   await debugPage.getByRole('button', { name: 'Copy camera values', exact: true }).click();
   const lensCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(lensCopy.lens, editedLens);
   assert.equal(Object.keys(lensCopy.lens).length, 9);
   await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
-  await debugPage.waitForFunction(() => !window.__camera().lens.depthOfField && window.__camera().lens.verticalFovDeg === 32);
+  await debugPage.waitForFunction(() => !window.__camera().lens.depthOfField && Math.abs(window.__camera().lens.focalLengthMm - 80.343) < 1e-9);
   const lensReset = await debugPage.evaluate(() => window.__camera());
   assert.deepEqual(lensReset.lens, originalCamera.lens);
+  assertHeroCamera(lensReset);
+  // Defaults also retain 80.343 mm at the user's approximate copied aspect.
+  await debugPage.setViewportSize({ width: 1300, height: 1000 });
+  await renderedPage(debugPage);
+  await debugPage.waitForFunction(() => Math.abs(window.__camera().lens.focalLengthMm - 80.343) < 1e-9);
+  const copiedAspectCamera = await debugPage.evaluate(() => window.__camera());
+  assertHeroCamera(copiedAspectCamera, 1.3);
+  assert.ok(Math.abs(copiedAspectCamera.lens.verticalFovDeg - 19.022) < 0.002);
+  await debugPage.setViewportSize({ width: 1600, height: 1000 });
+  await renderedPage(debugPage);
+  assertHeroCamera(await debugPage.evaluate(() => window.__camera()));
+  checks.cameraAspectConversion = { status: 'passed', copiedAspect: copiedAspectCamera, desktopAspect: lensReset };
   await debugPage.evaluate(lens => window.__cameraStore.set(lens), lensCopy.lens);
   const roundTripped = await debugPage.evaluate(() => window.__camera().lens);
   for (const [key, value] of Object.entries(editedLens)) {
