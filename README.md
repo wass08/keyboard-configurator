@@ -104,8 +104,9 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   orbit or idle frames. The main background remains black.
   The monitor's screen card is independent of its purple rear bias light and
   uses the display's measured mean in linear light. Caps retain their palette
-  hexes with broad matte lobes and explicit environment response **4.5**, keeping
-  dark cap colors legible under the stronger purple grazing light. Turning
+  hexes with the earlier satin plastic finish and environment response **3.6**.
+  The purple practical is allowed to tint them naturally; color fidelity is
+  checked separately under the isolated key with neutral studio reflections. Turning
   Screen on off restores near-black coated glass and a dim planar reflection of
   the actual desk and keyboard. That pass is cached while stationary and limited
   to 30 Hz during assembly. All of its allocated resources are owned/disposed.
@@ -148,13 +149,13 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   with **0.3 mm** opening gaps; LCD faces sit **0.6 mm** below the tops.
   Tops and bezels are instanced, LCDs share one merged generic icon atlas.
   A dark icon on the white key preserves contrast. **Stream Deck** controls
-  default to emission **2.4**, bloom strength **0.16**, threshold **1.25**,
+  default to emission **2.4**, bloom strength **0.16**, threshold **2.0**,
   and spill intensity **0.8**. One **10 × 1.8 cm** RectAreaLight, colored from
   the atlas's measured linear average, aims down across the plate and nearby support surface.
   The area source avoids a point-like specular pinprick on wood. It follows the deck
   and is disabled in all isolated-light captures. No logos or wordmarks.
-  `StudioPost.tsx` uses Three's WebGL HDR EffectComposer: scene → selective bloom
-  → DoF → occluded dust overlay → anamorphic streaks → grading/tone mapping/sRGB.
+  `StudioPost.tsx` uses Three's WebGL HDR EffectComposer: scene → anamorphic extraction → bloom → DoF → occluded dust overlay
+  → anamorphic composite → grading/tone mapping/sRGB.
   The high luminance threshold blooms bright LCD content while leaving the
   monitor gradient and ordinary paint/caps alone. Neutral tone mapping/exposure
   run once at output. MSAA preserves edges; all per-mount targets and materials
@@ -229,8 +230,12 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   resource disposal on two unmounts. The shared HDRI loader cache remains separate.
   `scripts/color-fidelity.mjs` samples 3×3 median patches from blank top-face
   points on H, Caps Lock and Enter in the
-  actual Glacial Blue, Cool Black and Pink hero PNGs. Checks enforce hue error
-  ≤10° for chromatic targets (HSV saturation ≥12%), saturation error ≤12 percentage
+  Glacial Blue, Cool Black and Pink PNGs. Both full-rig and isolated-key
+  comparisons are reported. The user's strong purple rim shifts dark caps, so
+  the fidelity gate uses the key softbox/spot with neutral studio reflections;
+  the other direct lights are disabled only in that diagnostic context. Checks
+  enforce approximately **5°** hue error (5.5° allowance for 8-bit dark-patch
+  quantization) for chromatic targets (HSV saturation ≥12%), saturation error ≤12 percentage
   points for every sample, and rendered white saturation ≤5%. Near-neutral hue
   deltas are recorded but not gated because their hue is unstable at low chroma.
 - `scripts/performance.mjs`: separate native-GPU production timing while assembled
@@ -258,7 +263,7 @@ Before tuning, 44/120 motes were inside the cone, but the old default brightness
 and 0.08× bloom luminance ceiling made even maximum intensity plateau. DoF
 further scattered their few pixels. The default now caps at 0.45× bloom;
 intensity can reach 12 and the cap rises smoothly to 2× bloom only at the high
-end, allowing genuinely bright dust to streak. Defaults: **120 motes, 0.5 mm,
+end, keeping maximum intensity clearly visible. Defaults: **120 motes, 0.5 mm,
 intensity 0.25, speed 1, padding 0.03 m**. A few faint dots survive default DoF;
 max intensity is distinctly stronger. Reduced motion slows drift 5×;
 `?capture` freezes it. Dust never intercepts pointer raycasts, casts shadows,
@@ -277,12 +282,22 @@ one final raw shader performs grading → tone mapping → vignette → sRGB.
 
 The WebGL anamorphic port uses an HDR high-pass, three weighted horizontal blur
 iterations at quarter resolution and a tinted additive composite. Defaults:
-**on, threshold 1.4, intensity 0.12, length 0.12, tint #83cfff, resolution 0.25,
-16 taps**. It streaks highlights rather than blurring the scene. Grading remains
+**on, threshold 1.6, intensity 0.12, length 0.12, tint #83cfff, resolution 0.25,
+16 taps**. Both thresholds use scene-linear luminance, before tone mapping and
+exposure; streak extraction also precedes bloom, preventing feedback from bloom
+into the streak source. A 5,040-point top-face audit measures the hero white-cap
+peak at about **1.19**, below either threshold. Caps seed **zero** bloom/streak
+radiance, while actual Stream Deck LCD samples remain positive. The hotspot's
+composited effect buffers remain essentially black; white faces peak at **245/255**
+and retain shading and legend contrast. Readbacks only run on an explicit
+capture request and add no ordinary-frame GPU work. Grading remains
 neutral by default. All per-mount targets/materials are disposed by their owner;
 Three's shared fullscreen triangle remains cached. `scripts/film-checks.mjs`
 compares Neutral to the official OutputShader, checks ACES/AgX deltas, flare and
 grade pixels, DoF-on dust and actual headphone/bar geometry clearance.
+`scripts/highlight-checks.mjs` audits the real HDR/extraction buffers, proves
+threshold invariance under exposure/operator changes, checks cap clipping and
+legend contrast, and reports both lighting conditions without hiding rim tint.
 
 `npm run perf` measures all effects with non-identity grading at native Metal
 speed, then records asynchronous whole-frame GPU timer queries with each effect

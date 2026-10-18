@@ -3,7 +3,7 @@ import { useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { Group, Mesh, MeshStandardMaterial } from 'three';
 import { Box3, HalfFloatType, Vector3, WebGLRenderTarget } from 'three';
-import { KEY_LAYOUT, TILT } from './layout';
+import { KEY_LAYOUT, PITCH, TILT } from './layout';
 import { colorGroupFor, getVariant } from './variants';
 import { applyKeyboardPalette, createKeyboardMaterials } from './materials';
 import { Case } from './Case';
@@ -59,6 +59,14 @@ export function Keyboard() {
 
   useEffect(() => {
     const hook: KeyboardHook = {
+      capFaceSamples: () => KEY_LAYOUT.flatMap((key, i) => {
+        const halfWidth = (key.w * PITCH - 0.0045) / 2 - 0.0007;
+        return Array.from({ length: 63 }, (_, n) => {
+          const x = (n % 7 / 6 * 2 - 1) * halfWidth, z = (Math.floor(n / 7) / 8 * 2 - 1) * 0.0064;
+          const point = caps.current[i].children[0].localToWorld(new Vector3(x, capHeight(key.row, z), z)).project(camera);
+          return { key: key.id, x: (point.x + 1) / 2, y: (1 - point.y) / 2 };
+        });
+      }),
       get ready() { return preparation.current.ready; },
       generation: 0,
       setVariant: useConfigurator.getState().setVariant,

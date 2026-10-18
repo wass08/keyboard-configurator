@@ -7,10 +7,11 @@ const vertex = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(pos
 /** WebGL port of the example's threshold → weighted horizontal taps → tint.
  * Three short convolutions at quarter resolution replace its 80 wide taps. */
 export class AnamorphicPass extends Pass {
+  audit?: (stage: string, renderer: WebGLRenderer, target: WebGLRenderTarget) => void;
   private a = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false });
   private b = this.a.clone();
   private high = new ShaderMaterial({ toneMapped: false, depthTest: false, depthWrite: false, vertexShader: vertex,
-    uniforms: { tInput: { value: null }, threshold: { value: 1.4 }, texel: { value: new Vector2() } },
+    uniforms: { tInput: { value: null }, threshold: { value: 1.6 }, texel: { value: new Vector2() } },
     fragmentShader: `varying vec2 vUv; uniform sampler2D tInput; uniform float threshold; uniform vec2 texel;
       void main() {
         vec3 c = texture2D(tInput, vUv).rgb;
@@ -58,16 +59,21 @@ export class AnamorphicPass extends Pass {
     const w = Math.max(1, Math.round(width * this.resolution)), h = Math.max(1, Math.round(height * this.resolution));
     this.a.setSize(w, h); this.b.setSize(w, h); this.high.uniforms.texel.value.set(1 / width, 1 / height);
   }
-  render(renderer: WebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget) {
+  /** Extract from the original scene-linear HDR, never bloom's brighter copy. */
+  extract(renderer: WebGLRenderer, readBuffer: WebGLRenderTarget) {
     this.high.uniforms.tInput.value = readBuffer.texture;
     this.quad.material = this.high; renderer.setRenderTarget(this.a); this.quad.render(renderer);
+    this.audit?.('anamorphicSeed', renderer, this.a);
     this.quad.material = this.blur;
     let source = this.a, destination = this.b;
     for (const spread of [0.12, 0.3, 0.58]) {
       this.blur.uniforms.tInput.value = source.texture; this.blur.uniforms.radius.value = this.length * 0.5 * spread;
       renderer.setRenderTarget(destination); this.quad.render(renderer); [source, destination] = [destination, source];
     }
-    this.composite.uniforms.tInput.value = readBuffer.texture; this.composite.uniforms.tFlare.value = source.texture;
+    this.audit?.('anamorphicStreaks', renderer, source);
+  }
+  render(renderer: WebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget) {
+    this.composite.uniforms.tInput.value = readBuffer.texture; this.composite.uniforms.tFlare.value = this.b.texture;
     this.quad.material = this.composite; renderer.setRenderTarget(writeBuffer); this.quad.render(renderer);
   }
 }

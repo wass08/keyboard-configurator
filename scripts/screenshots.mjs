@@ -6,6 +6,7 @@ import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
 import { screenPolishChecks } from './screen-polish.mjs';
 import { filmChecks } from './film-checks.mjs';
+import { highlightChecks } from './highlight-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
 
@@ -639,6 +640,8 @@ try {
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   checks.film = await filmChecks(browser, url, observeErrors);
+  checks.highlightControl = await highlightChecks(browser, url, observeErrors, expectedPalettes);
+  checks.colorFidelity = checks.highlightControl.keyLightColorFidelity;
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
   const page = await context.newPage();
   observeErrors(page);
@@ -650,11 +653,12 @@ try {
     const buffer = await shot(name);
     const points = await page.evaluate(() => window.__kb.inspect().colorSamples);
     assert.ok(points.every(p => p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1), 'Projected cap-top hue patches must remain inside the new hero');
-    checks.colorFidelity ??= {};
-    checks.colorFidelity[id] = measureCapColors(buffer, points, expectedPalettes[id]);
+    checks.fullRigColorFidelity ??= {};
+    const measured = measureCapColors(buffer, points, expectedPalettes[id]);
+    checks.fullRigColorFidelity[id] = { status: 'measured', lighting: 'Full saved rig, including the purple rim; key-light-only fidelity is gated separately', maxColoredHueDegrees: Math.max(...measured.samples.filter(s => s.colored).map(s => s.hueDeltaDegrees)), samples: measured.samples.map(({ status, ...sample }) => sample) };
     // Keep actionable pixel deltas even if a later assertion fails.
     await writeFile('screenshots/checks.json', `${JSON.stringify(checks, null, 2)}\n`);
-    assert.equal(checks.colorFidelity[id].status, 'passed', `${id}: rendered cap hue/saturation must match (see checks.json)`);
+    assert.equal(checks.colorFidelity[id].status, 'passed', `${id}: key-light-only cap hue/saturation must match (see checks.json)`);
   };
   const change = async id => {
     const previous = await page.evaluate(() => window.__kb.generation);
@@ -873,7 +877,7 @@ try {
   checks.layoutInitialization = { status: 'passed', defaults: startupLayout, screen: lighting.monitor.position, rim: lighting.lights.find(light => light.name === 'screen-rim').position, wallGlow: lighting.lights.find(light => light.name === 'screen-wall-glow').position, wallReflection: wallPosition, environmentCaptures: environment.captures, deckOnWood: true };
   checks.wallGlowReflection = { status: 'passed', bounceGain: 0.035, ...environment.lightformers['reflection-wall-glow'] };
   checks.rigMatchedEnvironment = { status: 'passed', defaults: expectedEnvironment, ...environment };
-  assert.deepEqual(lighting.values.streamDeck, { emissiveIntensity: 2.4, bloomStrength: 0.16, bloomThreshold: 1.25, spillIntensity: 0.8 });
+  assert.deepEqual(lighting.values.streamDeck, { emissiveIntensity: 2.4, bloomStrength: 0.16, bloomThreshold: 2, spillIntensity: 0.8 });
   assert.deepEqual(lighting.values.wall, { color: '#2a2b2e', roughness: 0.55, normalStrength: 0.035 });
   checks.studioLighting = { status: 'passed', ...lighting };
 

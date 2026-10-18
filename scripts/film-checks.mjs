@@ -34,6 +34,7 @@ export async function filmChecks(browser, url, observeErrors) {
     assert.deepEqual(Object.keys(graph.outputDefines).sort(), ['NEUTRAL_TONE_MAPPING', 'SRGB_TRANSFER']);
     assert.ok(graph.passes.findIndex(p => p.name === 'dustAfterDoF') > graph.passes.findIndex(p => p.name === 'depthOfField'));
     assert.ok(graph.passes.findIndex(p => p.name === 'anamorphic') > graph.passes.findIndex(p => p.name === 'dustAfterDoF'));
+    assert.ok(graph.passes.findIndex(p => p.name === 'anamorphicExtract') < graph.passes.findIndex(p => p.name === 'bloom'), 'Streak sources must be extracted before bloom can amplify them');
     await page.evaluate(() => { document.querySelector('.variant-picker').style.visibility = 'hidden'; });
     const neutral = await shot('tonemap-neutral');
     await page.evaluate(() => window.__filmControl.referenceOutput(true));

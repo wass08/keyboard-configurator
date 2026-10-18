@@ -27,6 +27,7 @@ export interface KeyboardHook {
   readonly duration: number;
   readonly introPhase: IntroPhase;
   readonly introTimings: IntroState['timings'] | null;
+  capFaceSamples: () => { key: string; x: number; y: number }[];
   inspect: () => { intro: { phase: IntroPhase; preparation: { ready: boolean; compiled: boolean; firstFrameRendered: boolean; textures: number }; mat: { progress: number; vertices: number; maxRestError: number; minY: number; maxY: number; normalError: number; thickness: number }; frameOffset: number; frameVisible: boolean; keysVisible: boolean }; capOffsets: number[]; knobOffset: number; meshes: number; geometries: number; calls: number; triangles: number; palette: Record<string, string>; keys: Record<string, { group: ColorGroup; cap: string; legend: string | null; labels: string[] }>; lightSamples: { key: string; x: number; y: number }[]; colorSamples: { key: string; group: ColorGroup; x: number; y: number }[]; framing: { keyboardWidthRatio: number; deskFrontEdgeNdcY: number; keyboardCenterFromEdge: number } };
 }
 declare global { interface Window {

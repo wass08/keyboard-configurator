@@ -18,7 +18,7 @@ const rgbFromHex = hex => hex.match(/.{2}/g).map(channel => parseInt(channel, 16
  * from blank top-face points on real cap meshes, not hand-picked color pixels.
  * A 3x3 median rejects isolated raster noise without hunting for matching hues.
  */
-export function measureCapColors(buffer, points, palette) {
+export function measureCapColors(buffer, points, palette, maxHueDegrees = 10) {
   const png = PNG.sync.read(buffer);
   const samples = points.map(point => {
     const x = Math.round(point.x * png.width), y = Math.round(point.y * png.height);
@@ -34,11 +34,11 @@ export function measureCapColors(buffer, points, palette) {
     // Hue is ill-conditioned on whites/near-grays; preserve their low chroma
     // instead. All chromatic caps enforce the requested ten-degree ceiling.
     const colored = target.saturation >= 0.12;
-    const passed = (!colored || hueDelta <= 10) && saturationDelta <= 0.12
+    const passed = (!colored || hueDelta <= maxHueDegrees) && saturationDelta <= 0.12
       && (target.saturation >= 0.025 || rendered.saturation <= 0.05) && rendered.value >= 0.1;
     return { key: point.key, group: point.group, pixel: [x, y], patch: '3x3 median', targetHex, renderedHex: rgb.map(c => c.toString(16).padStart(2, '0')).join(''), targetHue: round(target.hue), renderedHue: round(rendered.hue), hueDeltaDegrees: round(hueDelta), targetSaturation: round(target.saturation * 100), renderedSaturation: round(rendered.saturation * 100), saturationDeltaPoints: round(saturationDelta * 100), colored, status: passed ? 'passed' : 'failed' };
   });
-  return { status: samples.every(sample => sample.status === 'passed') ? 'passed' : 'failed', limits: { coloredHueDegrees: 10, saturationPoints: 12, whiteSaturationPercent: 5, coloredMinimumTargetSaturationPercent: 12 }, samples };
+  return { status: samples.every(sample => sample.status === 'passed') ? 'passed' : 'failed', limits: { coloredHueDegrees: maxHueDegrees, saturationPoints: 12, whiteSaturationPercent: 5, coloredMinimumTargetSaturationPercent: 12 }, samples };
 }
 
 /** Catch subpixel stand-edge fragments in a projected blank wallpaper region.

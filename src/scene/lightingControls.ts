@@ -65,7 +65,7 @@ export function useLightingControls() {
     'Stream Deck': folder({
       deckEmissive: { value: 2.4, min: 0, max: 8, step: 0.05, label: 'Key emission' },
       bloomStrength: { value: 0.16, min: 0, max: 1, step: 0.01, label: 'Bloom strength' },
-      bloomThreshold: { value: 1.25, min: 0.5, max: 4, step: 0.05, label: 'Bloom threshold' },
+      bloomThreshold: { value: 2, min: 0.5, max: 4, step: 0.05, label: 'Bloom threshold' },
       deckSpill: { value: 0.8, min: 0, max: 8, step: 0.05, label: 'Key light spill' },
     }, { collapsed: true, order: 5.5 }),
     Wall: folder({
