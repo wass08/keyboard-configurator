@@ -51,6 +51,14 @@ try {
     });
     const intro = { ...summarize(Object.values(beats).flat()), beats: Object.fromEntries(Object.entries(beats).map(([beat, intervals]) => [beat, summarize(intervals)])) };
     if (!window.__kb.finished || window.__kb.introPhase !== 'done') throw new Error('Intro did not finish during timing sample');
+    // --- dust motes (spec 07a) ---
+    window.__lightingStore.set({ 'Dust.dustEnabled': false });
+    const dustOff = await measure(180, 30);
+    const dustOffCalls = window.__kb.inspect().calls;
+    window.__lightingStore.set({ 'Dust.dustEnabled': true });
+    const dustOn = await measure(180, 30);
+    const dust = { on: dustOn, off: dustOff, calls: { on: window.__kb.inspect().calls, off: dustOffCalls }, count: window.__dust?.().count };
+    // --- end dust motes (spec 07a) ---
     window.__kb.setVariant('cool-black');
     const variantChange = await measure(210, 0);
     const render = window.__kb.inspect();
@@ -60,7 +68,7 @@ try {
     const depthOfFieldRender = window.__kb.inspect();
     const lens = window.__camera().lens;
     window.__cameraStore.set({ depthOfField: false });
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, intro, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, intro, dust, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');

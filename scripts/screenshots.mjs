@@ -617,6 +617,151 @@ try {
     await soloContext.close();
   }
 
+  // --- dust motes (spec 07a) ---
+  {
+    const expectedDust = { enabled: true, count: 240, size: 0.9, intensity: 0.5, speed: 1, padding: 0.03 };
+    const dustContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
+    const dustPage = await dustContext.newPage(); observeErrors(dustPage);
+    await dustPage.goto(`${url}/?capture=1`);
+    await dustPage.waitForFunction(() => window.__kb?.ready && window.__kb.generation > 0 && window.__dust);
+    await dustPage.evaluate(() => window.__kb.finish());
+    await dustPage.waitForFunction(() => window.__kb.finished);
+    await dustPage.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
+    await renderedPage(dustPage); await idleFrames(dustPage, 4);
+    const settle = async () => { await renderedPage(dustPage); await idleFrames(dustPage, 4); };
+    const setDust = async values => {
+      await dustPage.evaluate(values => window.__lightingStore.set(values), values);
+      await dustPage.waitForFunction(values => Object.entries(values).every(([key, value]) => window.__lighting().values.dust[key.replace('Dust.dust', '').toLowerCase()] === value), values);
+      await settle();
+    };
+    const dustState = () => dustPage.evaluate(() => { const { evaluate, ...state } = window.__dust(); return state; });
+    const initial = await dustState();
+    assert.deepEqual(await dustPage.evaluate(() => window.__lighting().values.dust), expectedDust, 'Dust defaults are part of the copied lighting values');
+    assert.equal(initial.enabled, true); assert.equal(initial.count, 240); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
+    assert.equal(initial.castShadow, false); assert.equal(initial.receiveShadow, false);
+    assert.equal(initial.depthWrite, false); assert.equal(initial.depthTest, true); assert.equal(initial.transparent, true); assert.equal(initial.additive, true);
+
+    // One draw call: renderer.info for the whole frame, dust on vs off.
+    const calls = () => dustPage.evaluate(() => window.__kb.inspect().calls);
+    const shadowsBefore = initial.shadowUpdates, capturesBefore = (await dustPage.evaluate(() => window.__environment())).captures;
+    const onCalls = await calls();
+    assert.equal(await calls(), onCalls, 'Assembled frame draw calls must be stable');
+    await setDust({ 'Dust.dustEnabled': false });
+    const offCalls = await calls();
+    await setDust({ 'Dust.dustEnabled': true });
+    assert.equal(onCalls - offCalls, 1, 'Dust must be exactly one draw call');
+    assert.equal(await calls(), onCalls);
+    checks.dustDrawCalls = { status: 'passed', on: onCalls, off: offCalls, dust: onCalls - offCalls };
+
+    // Pixel evidence: dust-on minus dust-off. Every changed pixel must belong to a
+    // mote that the shader-equivalent CPU model places inside the live cone.
+    const coneEvidence = async (name, requireOutsideInFrame) => {
+      await settle();
+      const onBuffer = await dustPage.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`);
+      const motes = await dustPage.evaluate(() => window.__dust().evaluate());
+      const state = await dustState();
+      await setDust({ 'Dust.dustEnabled': false });
+      const offBuffer = await dustPage.screenshot();
+      await setDust({ 'Dust.dustEnabled': true });
+      const on = PNG.sync.read(onBuffer), off = PNG.sync.read(offBuffer);
+      const project = m => [(m.ndc[0] + 1) / 2 * on.width, (1 - m.ndc[1]) / 2 * on.height];
+      const visible = m => Math.abs(m.ndc[0]) < 1 && Math.abs(m.ndc[1]) < 1 && m.ndc[2] < 1 && m.depth > 0;
+      const lit = motes.filter(m => m.luminance > 0 && visible(m)).map(m => ({ ...m, px: project(m) }));
+      const outside = motes.filter(m => !m.insideCone);
+      const outsideInFrame = outside.filter(visible);
+      assert.ok(outside.every(m => m.luminance === 0 && m.spot === 0), 'Motes outside the cone must evaluate to zero brightness');
+      assert.ok(outside.length > 0 && (!requireOutsideInFrame || outsideInFrame.length > 0), 'The test needs out-of-cone motes in frame');
+      assert.ok(lit.length >= 3, 'Some motes must be lit inside the beam');
+      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.5 + 1e-9, 'Every mote stays well below the bloom threshold');
+      let changed = 0, stray = 0, maxDelta = 0;
+      for (let y = 0; y < on.height; y++) for (let x = 0; x < on.width; x++) {
+        const i = (y * on.width + x) * 4;
+        const delta = Math.max(Math.abs(on.data[i] - off.data[i]), Math.abs(on.data[i + 1] - off.data[i + 1]), Math.abs(on.data[i + 2] - off.data[i + 2]));
+        if (delta <= 2) continue;
+        changed++; maxDelta = Math.max(maxDelta, delta);
+        if (!lit.some(m => Math.hypot(m.px[0] - x, m.px[1] - y) <= m.pointSize / 2 + 2)) stray++;
+      }
+      assert.ok(changed > 20, `${name}: dust must be visible`);
+      assert.equal(stray, 0, `${name}: no dust pixels may appear away from lit, in-cone motes`);
+      return { status: 'passed', motes: motes.length, insideCone: motes.length - outside.length, outsideCone: outside.length, outsideInFrame: outsideInFrame.length, litInFrame: lit.length,
+        changedPixels: changed, strayPixels: stray, maxChannelDelta: maxDelta, maxLuminance: Math.max(...motes.map(m => m.luminance)), bloomThreshold: state.bloomThreshold };
+    };
+    checks.dustHero = await coneEvidence('dust-hero', true);
+    await dustPage.evaluate(() => window.__kb.camera('profile'));
+    checks.dustCloseup = await coneEvidence('dust-closeup', false);
+    await dustPage.evaluate(() => window.__kb.camera('default'));
+
+    // Editing dust never updates shadow maps or the environment probe.
+    await setDust({ 'Dust.dustCount': 400, 'Dust.dustSize': 1.2, 'Dust.dustIntensity': 0.8, 'Dust.dustSpeed': 2, 'Dust.dustPadding': 0.06 });
+    await setDust({ 'Dust.dustCount': 240, 'Dust.dustSize': 0.9, 'Dust.dustIntensity': 0.5, 'Dust.dustSpeed': 1, 'Dust.dustPadding': 0.03 });
+    const after = await dustState();
+    const lighting = await dustPage.evaluate(() => window.__lighting());
+    assert.equal(after.shadowUpdates, shadowsBefore, 'Dust must add no shadow-map updates when assembled');
+    assert.equal(lighting.shadowAutoUpdate, false);
+    assert.equal((await dustPage.evaluate(() => window.__environment())).captures, capturesBefore, 'Dust must not invalidate the environment probe');
+    assert.deepEqual(lighting.values.dust, expectedDust);
+    checks.dustShadowsAndProbe = { status: 'passed', shadowUpdates: { before: shadowsBefore, after: after.shadowUpdates }, environmentCaptures: capturesBefore, shadowAutoUpdate: lighting.shadowAutoUpdate };
+
+    // Motion is a function of shader time: slow, and visibly different frames.
+    const positionsAt = time => dustPage.evaluate(time => { window.__dustControl.setTime(time); return window.__dust().evaluate().map(m => m.world); }, time);
+    const t0 = await positionsAt(0), t10 = await positionsAt(10);
+    const moved = t0.map((p, i) => Math.hypot(...p.map((v, c) => v - t10[i][c]))).filter(d => d < 0.1); // exclude wraps
+    const meanMove = moved.reduce((a, b) => a + b, 0) / moved.length;
+    assert.ok(meanMove > 0.005 && meanMove < 0.06, `Dust drifts slowly: mean ${meanMove} m in 10 s`);
+    await settle();
+    const later = PNG.sync.read(await dustPage.screenshot());
+    await dustPage.evaluate(() => window.__dustControl.setTime(0)); await settle();
+    const start = PNG.sync.read(await dustPage.screenshot());
+    let motionPixels = 0;
+    for (let i = 0; i < later.data.length; i += 4) if (Math.abs(later.data[i] - start.data[i]) > 2) motionPixels++;
+    assert.ok(motionPixels > 20, 'GPU positions follow shader time');
+    checks.dustMotion = { status: 'passed', meanDisplacement10s: meanMove, changedPixels: motionPixels };
+
+    // The key light drives the lit region live.
+    await dustPage.evaluate(() => window.__lightingStore.set({ 'Key · softbox.keyAim': { x: 0.2, y: 0.79, z: -0.02 } }));
+    await dustPage.waitForFunction(() => window.__lighting().values.lights.spot.aim[0] === 0.2);
+    await settle();
+    const movedLight = await dustState(), spotLight = (await dustPage.evaluate(() => window.__lighting())).lights.find(light => light.name === 'studio-key');
+    nearArray(movedLight.uniforms.lightPos, spotLight.position, 'Dust uses the live spot position');
+    const aimDir = [0.2 - spotLight.position[0], 0.79 - spotLight.position[1], -0.02 - spotLight.position[2]], aimLength = Math.hypot(...aimDir);
+    assert.ok(movedLight.uniforms.lightDir.every((v, i) => Math.abs(v - aimDir[i] / aimLength) < 1e-6), 'Dust cone follows the live aim');
+    assert.ok(Math.abs(movedLight.uniforms.coneCos - Math.cos(0.21)) < 1e-6 && Math.abs(movedLight.uniforms.penumbraCos - Math.cos(0.21 * (1 - 0.78))) < 1e-6);
+    await dustPage.evaluate(() => window.__lightingStore.set({ 'Key · softbox.keyAim': { x: 0, y: 0.79, z: -0.02 } }));
+    await dustPage.waitForFunction(() => window.__lighting().values.lights.spot.aim[0] === 0);
+    checks.dustFollowsKeyLight = { status: 'passed', lightPos: movedLight.uniforms.lightPos, lightDir: movedLight.uniforms.lightDir, coneCos: movedLight.uniforms.coneCos, penumbraCos: movedLight.uniforms.penumbraCos };
+
+    // Its geometry and material are released on every unmount.
+    const dustLifecycles = [];
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await dustPage.evaluate(() => window.__app.setMounted(false));
+      await dustPage.waitForFunction(() => !window.__dust && window.__app.resources().DustMotes?.active === 0);
+      const owner = await dustPage.evaluate(() => window.__app.resources().DustMotes);
+      assert.ok(owner.registered >= 2 * (cycle + 1)); assert.equal(owner.registered, owner.disposed, 'DustMotes must release every owned resource');
+      dustLifecycles.push(owner);
+      if (cycle === 0) { await dustPage.evaluate(() => window.__app.setMounted(true)); await dustPage.waitForFunction(() => window.__kb?.ready && window.__dust); }
+    }
+    checks.dustDisposal = { status: 'passed', unmounts: 2, owner: dustLifecycles.at(-1) };
+    await dustContext.close();
+
+    // prefers-reduced-motion: the motes stay, at a fifth of the speed.
+    const reducedContext = await browser.newContext({ viewport: { width: 800, height: 500 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
+    const reducedPage = await reducedContext.newPage(); observeErrors(reducedPage);
+    await reducedPage.goto(url);
+    await reducedPage.waitForFunction(() => window.__kb?.finished && window.__dust);
+    const reduced = await reducedPage.evaluate(async () => {
+      const start = window.__dust().time, began = performance.now();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const state = window.__dust();
+      return { enabled: state.enabled, motionScale: state.motionScale, frozen: state.frozen, advanced: state.time - start, elapsed: (performance.now() - began) / 1000 };
+    });
+    assert.equal(reduced.enabled, true); assert.equal(reduced.frozen, false); assert.equal(reduced.motionScale, 0.2);
+    assert.ok(reduced.advanced > 0 && reduced.advanced <= reduced.elapsed * 0.2 + 0.02, 'Reduced motion still drifts, about 5x slower');
+    checks.dustReducedMotion = { status: 'passed', ...reduced };
+    await reducedContext.close();
+    await writeFile('screenshots/checks.json', `${JSON.stringify(checks, null, 2)}\n`);
+  }
+  // --- end dust motes (spec 07a) ---
+
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce', isMobile: true, hasTouch: true });
   const mobilePage = await mobile.newPage();
   mobilePage.on('pageerror', error => errors.push(error.message));

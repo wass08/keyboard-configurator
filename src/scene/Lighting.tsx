@@ -14,6 +14,7 @@ import { monitorSettings, screenOrientation as monitorOrientation } from './layo
 import { useLayoutStore } from '../state/layout';
 import { StudioWall } from './StudioWall';
 import { StudioPost } from './StudioPost';
+import { DustMotes } from './DustMotes';
 import { Monitor, RIM_BAND_HEIGHT, RIM_BAND_Y, SCREEN_WIDTH } from './PracticalFixtures';
 
 RectAreaLightUniformsLib.init();
@@ -94,5 +95,6 @@ export function Lighting({ children }: { children: ReactNode }) {
     {children}
     <StudioWall settings={settings} />
     <StudioPost settings={settings} />
+    <DustMotes settings={settings} />
   </DeskSettings.Provider>;
 }

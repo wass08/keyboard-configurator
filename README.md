@@ -191,9 +191,9 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   numeric/debug-store edits refresh once, with no idle captures. Prop moves also
   invalidate the spot's cached shadows.
   Below Layout, Leva groups **Key · softbox**, **Key · spot (shadows)**,
-  **Fill · area**, **Monitor · rim**, **Desk**, **Environment**, **Stream Deck**, **Wall**, and **Rendering**.
+  **Fill · area**, **Monitor · rim**, **Desk**, **Environment**, **Stream Deck**, **Wall**, **Dust**, and **Rendering**.
   Copy lighting values exports
-  `{ lights: { softbox, spot, fill, monitor }, desk, environment, streamDeck, wall, rendering }`.
+  `{ lights: { softbox, spot, fill, monitor }, desk, environment, streamDeck, wall, rendering, dust }`.
   The spot follows the softbox by default and can be unlinked.
   `?solo=key|softbox|spot|fill|rim|env` isolates each role. Key includes both key
   emitters; rim now shows only the saved red wall glow (screen rim is zero).
@@ -233,6 +233,32 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   deltas are recorded but not gated because their hue is unstable at low chroma.
 - `scripts/performance.mjs`: separate native-GPU production timing while assembled
   and during a colorway change; records the renderer and measured frame times.
+
+## Dust motes
+
+`scene/DustMotes.tsx` and `scene/dustShader.ts` draw a few dust motes in the key
+beam with one `Points` draw call. The motes are seeded once, with no per-frame
+CPU loop. The vertex shader computes slow drift, slight upward convection and a
+Brownian-like wander from time and a per-mote seed. Each mote wraps inside an
+oriented box around the cone, from mid-beam to the aim point. The box faces fade
+out, so wrapping never pops. Brightness uses the **live** `studio-key` spot:
+three's cone/penumbra smoothstep (squared, so dust gathers in the core) and
+distance falloff, with a mild forward-scatter phase and a per-mote twinkle. Motes
+outside the cone are exactly zero and emit no fragments. Sprites are soft radial
+falloffs tinted by the key color, with additive blending, `depthWrite: false` and
+depth testing on. Size follows distance, with a gentle defocus away from the
+product. It is clamped to 1.25–9 CSS px, so close motes stay faint and never
+become blobs, and motes fade out near the camera's near plane. Peak luminance is
+capped at half the bloom threshold. The motes cast and receive no shadows,
+draw nothing in depth-override passes, and are not part of the environment portal.
+Reduced motion keeps the dust and slows it 5×. `?capture` freezes dust time.
+`?debug` → **Dust** has: Show dust (on), Count **240**, Size **0.9 mm**,
+Intensity **0.5**, Speed **1** and Volume padding **0.03 m**. These export as
+`dust` in Copy lighting values. The `dust-*` checks in `npm run shots` cover:
+exactly one extra draw call, on/off pixel diffs that land only on lit in-cone
+motes, no shadow-map or probe updates, shader-time motion, the live key light,
+reduced motion, and disposal over two unmounts. `npm run perf` reports fps with
+dust on and off.
 
 ## Assets
 
