@@ -10,12 +10,13 @@ import type { DustUniformValues } from './dustShader';
 type DustSample = ReturnType<typeof evaluateMote> & { index: number; ndc: number[] };
 declare global { interface Window {
   __dust?: () => { enabled: boolean; visible: boolean; count: number; drawCount: number; maxCount: number; time: number; frozen: boolean; motionScale: number; speed: number;
-    castShadow: boolean; receiveShadow: boolean; frustumCulled: boolean; depthWrite: boolean; depthTest: boolean; transparent: boolean; additive: boolean; shadowUpdates: number;
+    castShadow: boolean; receiveShadow: boolean; frustumCulled: boolean; raycastDisabled: boolean; depthWrite: boolean; depthTest: boolean; transparent: boolean; additive: boolean; shadowUpdates: number;
     bloomThreshold: number; uniforms: DustUniformValues; evaluate: () => DustSample[] };
   __dustControl?: { setTime: (seconds: number) => void };
 } }
 
 const UP = new Vector3(0, 1, 0);
+const ignoreRaycast: Points['raycast'] = () => {};
 const capture = new URLSearchParams(location.search).has('capture');
 
 /** One Points draw call. Visible only inside the live key spotlight's cone. */
@@ -43,6 +44,7 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
     });
     const points = new Points(geometry, material);
     points.name = 'dust-motes';
+    points.raycast = ignoreRaycast;
     // Positions live in the shader; the CPU bounds would be meaningless.
     points.frustumCulled = false; points.castShadow = false; points.receiveShadow = false;
     points.renderOrder = 2;
@@ -141,7 +143,7 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
       return {
         enabled: points.visible, visible: points.visible && Boolean(points.parent), count: geometry.drawRange.count, drawCount: points.visible ? geometry.drawRange.count : 0, maxCount: DUST_MAX_COUNT,
         time: motion.current.time, frozen: motion.current.frozen, motionScale: motion.current.scale, speed: s.dustSpeed,
-        castShadow: points.castShadow, receiveShadow: points.receiveShadow, frustumCulled: points.frustumCulled, depthWrite: material.depthWrite, depthTest: material.depthTest, transparent: material.transparent,
+        castShadow: points.castShadow, receiveShadow: points.receiveShadow, frustumCulled: points.frustumCulled, raycastDisabled: points.raycast === ignoreRaycast, depthWrite: material.depthWrite, depthTest: material.depthTest, transparent: material.transparent,
         additive: material.blending === CustomBlending && material.blendSrc === OneFactor && material.blendDst === OneFactor, shadowUpdates: motion.current.shadowUpdates,
         bloomThreshold: s.bloomThreshold, uniforms: values,
         evaluate: () => {

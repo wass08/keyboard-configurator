@@ -5,6 +5,7 @@ import { Box3, Matrix4, Raycaster, Vector2, Vector3 } from 'three';
 import type { Group, InstancedMesh, Object3D } from 'three';
 import { KEY_LAYOUT } from './layout';
 import { capHeight } from './geometry/keycap';
+import type { AssemblyHandle } from './assembly';
 import { CODE_TO_KEY, KEY_INDEX, STABILIZED, characterFor } from './keymap';
 import { useConfigurator } from '../state/store';
 import { sfx } from '../audio/sfx';
@@ -40,7 +41,7 @@ function step(y: number, v: number, target: number, dt: number, pressRelease: bo
   return [y, v];
 }
 
-export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>; knob: RefObject<Group | null>; root: RefObject<Group | null> }) {
+export function KeyInteraction({ caps, knob, root, assembly }: { caps: RefObject<Group[]>; knob: RefObject<Group | null>; root: RefObject<Group | null>; assembly: RefObject<AssemblyHandle | null> }) {
   const gl = useThree(state => state.gl);
   const camera = useThree(state => state.camera);
   const frame = useRef<(dt: number) => void>(() => {});
@@ -64,7 +65,9 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
     const knobState = { detents: 0, angle: 0, angleVelocity: 0, dip: 0, dipVelocity: 0, pressed: false, ticks: 0, clicks: 0, residual: 0,
       drag: null as null | { x: number; id: number; moved: boolean; step: number } };
 
-    const assembled = () => useConfigurator.getState().phase === 'assembled';
+    const introActive = () => Boolean(assembly.current?.intro && assembly.current.intro.phase !== 'done');
+    const assembled = () => !introActive() && useConfigurator.getState().phase === 'assembled';
+    let wasReady = false;
     const spin = () => knob.current?.getObjectByName('knob-spin') ?? null;
     const stems = () => ['switch-stem-a', 'switch-stem-b'].map(name => root.current?.getObjectByName(name) as InstancedMesh | undefined).filter(Boolean) as InstancedMesh[];
     const pan = (i: number) => (KEY_LAYOUT[i].x + KEY_LAYOUT[i].w / 2 - 8.125) / 8.125 * 0.35;
@@ -162,6 +165,7 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
       pointerDirty = true;
     }
     function onPointerMove(event: PointerEvent) {
+      if (!assembled() && knobState.drag) cancelInteractions();
       if (knobState.drag && event.pointerId === knobState.drag.id) { dragKnob(event); return; }
       pointerType = event.pointerType;
       const inside = event.target === canvas;
@@ -170,6 +174,7 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
       pointerInside = inside;
     }
     function onPointerUp(event: PointerEvent) {
+      if (!assembled()) { cancelInteractions(); return; }
       if (pointerKey >= 0 && event.pointerId === pointerKeyId) {
         const i = pointerKey; pointerKey = -1;
         pointerDown[i] = 0; activate(i);
@@ -181,7 +186,7 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
 
     // --- physical keyboard --------------------------------------------------
     function onKeyDown(event: KeyboardEvent) {
-      if (isEditable(event.target)) return;
+      if (!assembled() || isEditable(event.target)) return;
       const id = CODE_TO_KEY[event.code], i = id === undefined ? undefined : KEY_INDEX.get(id);
       if (i !== undefined && !event.repeat && !physicalCodes.has(event.code)) {
         physicalCodes.set(event.code, i);
@@ -196,7 +201,7 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
       const i = physicalCodes.get(code);
       if (i === undefined) return;
       physicalCodes.delete(code);
-      if (--physical[i] === 0) { activate(i); if (!pointerDown[i]) releaseSound(i); }
+      if (--physical[i] === 0) { activate(i); if (assembled() && !pointerDown[i]) releaseSound(i); }
     }
     function onKeyUp(event: KeyboardEvent) {
       releasePhysical(event.code);
@@ -207,6 +212,21 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
       for (const code of [...physicalCodes.keys()]) releasePhysical(code);
       if (pointerKey >= 0) { pointerDown[pointerKey] = 0; activate(pointerKey); pointerKey = -1; }
     };
+    // Replaying the intro (or changing variant) cancels a held key/knob without
+    // writing over the assembly's parent transforms or making a release sound.
+    function cancelInteractions() {
+      physicalCodes.clear(); physical.fill(0); pointerDown.fill(0); hover.fill(0);
+      for (let i = 0; i < n; i++) {
+        if (depth[i] !== 0 || velocity[i] !== 0) { depth[i] = 0; velocity[i] = 0; apply(i); }
+        fromPress[i] = 0;
+      }
+      active.clear(); pointerKey = -1; pointerKeyId = -1;
+      hovered = -1; overKnob = false; shiftLatch = false; capsLatch = false;
+      knobState.drag = null; knobState.pressed = false; knobState.residual = 0;
+      knobState.dip = 0; knobState.dipVelocity = 0;
+      const group = spin(); if (group) group.position.y = 0;
+      boundsReady = false; setCursor('');
+    }
     const onVisibility = () => { if (document.hidden) releaseAll(); };
 
     container.addEventListener('pointerdown', onPointerDown, { capture: true });
@@ -222,9 +242,17 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
     frame.current = rawDt => {
       const dt = Math.min(rawDt, 0.05);
       const phase = useConfigurator.getState().phase;
-      if (phase !== lastPhase) { if (phase === 'assembled') { pointerDirty = true; seenAssembled = true; wave = null; } lastPhase = phase; }
+      const ready = assembled();
+      if (ready !== wasReady) {
+        if (!ready) cancelInteractions();
+        else { seenAssembled = true; wave = null; }
+        // Recompute the world-space pre-check after the frame lands, never from
+        // the floating frame or the mat roll. A stationary pointer works too.
+        boundsReady = false; pointerDirty = true; wasReady = ready;
+      }
+      if (phase !== lastPhase) { boundsReady = false; lastPhase = phase; }
       // Hover: one hit test per pointer move (none while the pointer is still).
-      if (phase !== 'assembled' && hovered >= 0) { hover[hovered] = 0; activate(hovered); hovered = -1; overKnob = false; setCursor(''); }
+      if (!ready && hovered >= 0) { hover[hovered] = 0; activate(hovered); hovered = -1; overKnob = false; setCursor(''); }
       if (pointerDirty) {
         pointerDirty = false;
         const hit = pointerInside && pointerType !== 'touch' && !knobState.drag ? hitTest() : null;
@@ -268,7 +296,8 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
       // Replacement wave: soft clicks as caps lift off and snap back in,
       // observed from the assembly's own transforms and thinned to <= 20.
       const groups = caps.current;
-      const observe = seenAssembled && (phase === 'disassembling' || phase === 'assembling');
+      const observe = seenAssembled && !introActive() && (phase === 'disassembling' || phase === 'assembling');
+      if (introActive()) wave = null; // Intro owns its own thinned seating cues.
       if (observe) wave ??= { lifts: 0, seats: 0, liftPending: 0, seatPending: 0, lastLift: -1, lastSeat: -1, knobY: knob.current?.position.y ?? 0 };
       for (let i = 0; i < groups.length; i++) {
         const y = groups[i].position.y;
@@ -335,7 +364,7 @@ export function KeyInteraction({ caps, knob, root }: { caps: RefObject<Group[]>;
       frame.current = () => {};
       delete window.__interaction;
     };
-  }, [gl, camera, caps, knob, root]);
+  }, [gl, camera, caps, knob, root, assembly]);
 
   useFrame((_, dt) => frame.current(dt));
   return null;

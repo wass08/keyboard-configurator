@@ -144,6 +144,6 @@ export function Keyboard() {
       {KEY_LAYOUT.map((definition, i) => <Keycap key={definition.id} definition={definition} group={colorGroupFor(definition, variant)} materials={materials} ref={element => { if (element) caps.current[i] = element; }} />)}
       <Knob ref={knob} materials={materials} />
     </group>
-    <KeyInteraction caps={caps} knob={knob} root={root} />
+    <KeyInteraction caps={caps} knob={knob} root={root} assembly={handle} />
   </group>;
 }

@@ -152,15 +152,19 @@ async function interactionChecks(browser) {
   const sound = () => page.evaluate(() => ({ ...window.__sfx(), probe: window.__audioProbe() }));
   const at = async id => { const p = await page.evaluate(id => window.__interaction.keyPoint(id), id); assert.ok(p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1, `${id} must be in frame`); return [p.x * W, p.y * H]; };
   const settle = async () => { await page.waitForFunction(() => window.__interaction.state().active === 0, null, { timeout: 5000 }); await frames(2); };
-  const finishPage = async () => { await page.evaluate(() => window.__kb.finish()); await page.waitForFunction(() => window.__kb.finished); await frames(3); };
+  const finishPage = async () => { await page.evaluate(() => window.__kb.finish()); await page.waitForFunction(() => window.__kb.finished && window.__kb.introPhase === 'done'); await frames(3); };
   try {
     await page.goto(`${url}/?capture=1`);
     await page.waitForFunction(() => window.__kb?.ready && window.__kb.generation > 0 && window.__interaction);
     // 1. Hover is ignored mid-assembly, and nothing makes a sound before a gesture.
-    await page.evaluate(() => window.__kb.camera('closeup'));
-    await page.evaluate(() => window.__kb.seek(0.95));
+    // Use the seated key's screen position: during the mat/frame beats the
+    // keyboard is deliberately hidden, and raised caps can project offscreen.
+    await finishPage();
+    await page.evaluate(() => window.__kb.camera('closeup')); await frames();
+    const restG = await at('G');
+    await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(window.__kb.introTimings.keysAt + 0.95); });
     await frames();
-    await page.mouse.move(...await at('G'));
+    await page.mouse.move(...restG);
     await frames();
     const midHover = await state();
     assert.equal(midHover.hovered, null, 'Hover must be ignored while the keys animate');
@@ -369,6 +373,68 @@ async function interactionChecks(browser) {
     await page.evaluate(() => window.__kb.setVariant('glacial-blue')); await page.waitForFunction(() => window.__kb.selectedId === 'glacial-blue');
     await finishPage();
 
+    // Merged intro + interaction: every beat rejects pointer/physical presses,
+    // then the landed board's bounding pre-check must admit the same rays.
+    await page.evaluate(() => window.__kb.camera('profile')); await frames();
+    const landedG = await at('G');
+    const landedKnob = await page.evaluate(() => window.__interaction.knobPoint());
+    const introBeats = [];
+    const timings = await page.evaluate(() => window.__kb.introTimings);
+    // A variant timeline has no intro timings; start a fresh replay first.
+    await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
+    const introTimes = timings ?? await page.evaluate(() => window.__kb.introTimings);
+    for (const [beat, time] of [['mat', 0.95], ['frame', introTimes.frameAt + 0.35], ['keys', introTimes.keysAt + 0.95]]) {
+      await page.evaluate(time => window.__kb.seek(time), time); await frames();
+      const before = await page.evaluate(() => ({ text: window.__screen().text, sounds: window.__sfx().scheduled }));
+      await page.mouse.move(...landedG); await page.mouse.down(); await frames(3);
+      await page.keyboard.down('KeyG'); await frames(3);
+      const ignored = await state();
+      assert.equal(await page.evaluate(() => window.__kb.introPhase), beat);
+      assert.equal(ignored.hovered, null); assert.deepEqual(ignored.pressed, []);
+      assert.deepEqual(ignored.offsets, {}); assert.deepEqual(ignored.stemOffsets, {});
+      await page.mouse.up(); await page.keyboard.up('KeyG');
+      await page.mouse.click(landedKnob.x * W, landedKnob.y * H); await frames(3);
+      const knobIgnored = await state();
+      assert.equal(knobIgnored.knob.dragging, false); assert.equal(knobIgnored.knob.dip, 0);
+      assert.equal(knobIgnored.knob.clicks, knob.knob.clicks + 1);
+      assert.equal(await page.evaluate(() => window.__screen().text), before.text, `${beat}: typing is disabled`);
+      assert.equal((await sound()).scheduled, before.sounds, `${beat}: no input/replacement sounds while paused`);
+      introBeats.push({ beat, pressed: ignored.pressed, hovered: ignored.hovered, offsets: ignored.offsets, typingIgnored: true });
+    }
+    // Keep the pointer still through completion, so readiness must invalidate
+    // both hover and the cached world-space bounds after the frame/mat motion.
+    await page.mouse.move(...landedG); await finishPage(); await settle();
+    assert.equal((await state()).hovered, 'G', 'Hover works as soon as the intro is done, without another pointer move');
+    await page.mouse.down(); await settle();
+    assert.deepEqual((await state()).pressed, ['G']);
+    assert.ok((await state()).offsets.G >= 0.0035, 'Pointer raycast passes the landed frame bounds');
+    await page.mouse.up(); await settle();
+    await page.keyboard.down('KeyG'); await settle();
+    await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0.95); }); await frames();
+    const cancelled = await state();
+    assert.deepEqual(cancelled.pressed, []); assert.deepEqual(cancelled.offsets, {}); assert.deepEqual(cancelled.stemOffsets, {});
+    await finishPage(); await page.keyboard.up('KeyG'); await settle();
+    result.introInput = { status: 'passed', beats: introBeats, stationaryHoverAfterLanding: true, pointerPressAfterLanding: true, heldPressCancelledOnReplay: true };
+
+    // Replay uses the already-unlocked singleton. Contact cues follow the
+    // parent timeline; initial-load silence was checked before the first click.
+    await page.mouse.move(5, H / 2); await settle();
+    const replayBefore = await sound();
+    const replayAt = await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); const at = performance.now(); window.__kb.play(); return at; });
+    await page.waitForFunction(() => window.__kb.finished && window.__kb.introPhase === 'done', null, { timeout: 20000 });
+    const replaySound = await sound();
+    const replayEvents = replaySound.events.slice(-(replaySound.scheduled - replayBefore.scheduled));
+    const thuds = replayEvents.filter(e => e.name === 'thud');
+    const seats = replayEvents.filter(e => e.name === 'capSeat');
+    assert.equal(thuds.length, 1, 'One thud at the frame\'s first contact');
+    assert.ok(Math.abs((thuds[0].wall - replayAt) / 1000 - introTimes.keysAt) < 0.25, 'Thud follows the actual landing time');
+    assert.ok(seats.length >= 6 && seats.length <= 12, 'Intro cap seating is thinned to at most twelve events');
+    assert.ok(seats.every(e => e.category === 'intro' && e.gain < 0.4 && (e.wall - replayAt) / 1000 >= introTimes.keysAt));
+    assert.ok(seats.slice(1).every((e, i) => e.at - seats[i].at >= 0.065), 'Seating cues are spread through the stagger');
+    assert.ok(replayEvents.every(e => e.category === 'intro'), 'Replay must not trigger replacement-wave sounds');
+    assert.equal(replaySound.probe.contexts, 1); assert.deepEqual(replaySound.errors, []);
+    result.introSound = { status: 'passed', thuds: thuds.length, capSeats: seats.length, contexts: replaySound.probe.contexts, landingSeconds: (thuds[0].wall - replayAt) / 1000, events: replayEvents };
+
     // 10. Sound toggle: accessible, mutes scheduling, persists across reloads.
     const toggle = page.getByRole('button', { name: 'Sound', exact: true });
     assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
@@ -391,9 +457,9 @@ async function interactionChecks(browser) {
     await page.waitForFunction(() => window.__kb.finished);
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
-    const owners = await page.evaluate(() => ({ typing: window.__app.resources()['Monitor.Typing'], interaction: Boolean(window.__interaction), screen: Boolean(window.__screen) }));
+    const owners = await page.evaluate(() => ({ typing: window.__app.resources()['Monitor.Typing'], interaction: Boolean(window.__interaction), screen: Boolean(window.__screen), screenControl: Boolean(window.__screenControl) }));
     assert.ok(owners.typing.registered > 0 && owners.typing.registered === owners.typing.disposed, 'Typing texture/material/geometry disposed');
-    assert.equal(owners.interaction, false); assert.equal(owners.screen, false);
+    assert.equal(owners.interaction, false); assert.equal(owners.screen, false); assert.equal(owners.screenControl, false);
     const audioErrors = await page.evaluate(() => window.__sfx().errors);
     assert.deepEqual(audioErrors, [], 'The audio engine records no errors');
     result.disposal = { status: 'passed', ...owners, audioErrors };
@@ -871,7 +937,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF']) {
+    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'DustMotes']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -925,6 +991,9 @@ try {
     await dustPage.waitForFunction(() => window.__kb?.ready && window.__kb.generation > 0 && window.__dust);
     await dustPage.evaluate(() => window.__kb.finish());
     await dustPage.waitForFunction(() => window.__kb.finished);
+    // The merged typing layer blinks independently of the frozen dust clock.
+    // Hold its current caret phase so on/off pixels differ only by dust.
+    await dustPage.evaluate(() => window.__screenControl.freezeCaret(true));
     await dustPage.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
     await renderedPage(dustPage); await idleFrames(dustPage, 4);
     const settle = async () => { await renderedPage(dustPage); await idleFrames(dustPage, 4); };
@@ -938,6 +1007,7 @@ try {
     assert.deepEqual(await dustPage.evaluate(() => window.__lighting().values.dust), expectedDust, 'Dust defaults are part of the copied lighting values');
     assert.equal(initial.enabled, true); assert.equal(initial.count, 240); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
     assert.equal(initial.castShadow, false); assert.equal(initial.receiveShadow, false);
+    assert.equal(initial.raycastDisabled, true, 'Decorative dust must never intercept pointer rays');
     assert.equal(initial.depthWrite, false); assert.equal(initial.depthTest, true); assert.equal(initial.transparent, true); assert.equal(initial.additive, true);
 
     // One draw call: renderer.info for the whole frame, dust on vs off.
@@ -1397,7 +1467,8 @@ try {
   const restoredLayout = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(restoredLayout, expectedLayout);
   checks.layoutClipboard.restored = restoredLayout;
-  await debugPage.getByText('Intro', { exact: true }).click();
+  // Sound also has an "Intro" volume label after the branch merge.
+  await debugPage.getByText('Intro', { exact: true }).and(debugPage.locator('div')).click();
   for (const [key, value] of [['mat', 1.8], ['frame', 0.9], ['keys', 2.35]]) {
     const input = debugPage.locator(`[id="Intro.${key}"]`);
     await input.fill(String(value)); await input.press('Enter');

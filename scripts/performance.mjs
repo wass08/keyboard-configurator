@@ -18,7 +18,7 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
-  await page.waitForFunction(() => window.__kb?.finished);
+  await page.waitForFunction(() => window.__kb?.finished && window.__kb.introPhase === 'done');
   // A real click on empty desk unlocks the audio engine, so typing is measured with sound.
   await page.mouse.click(8, 450);
   const result = await page.evaluate(async () => {

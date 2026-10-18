@@ -4,6 +4,7 @@ import { KEYBOARD_Y } from '../dimensions';
 import { createAssembly, type AssemblyHandle } from '../../keyboard/assembly';
 import type { KeyboardMaterials } from '../../keyboard/materials';
 import { useConfigurator } from '../../state/store';
+import { sfx } from '../../audio/sfx';
 
 export type IntroPhase = 'mat' | 'frame' | 'keys' | 'done';
 export interface IntroDurations { mat: number; frame: number; keys: number }
@@ -49,6 +50,18 @@ export function createIntro(root: Group, keys: Group, mat: Object3D, caps: Group
     timeline.to(drop, { y: 0, duration: durations.frame * 0.12, ease: 'sine.inOut' }, frameAt + landing + durations.frame * 0.07);
   }
   timeline.add(assembly.timeline.play(), keysAt);
+  // play() never creates/unlocks an AudioContext: first-load playback stays
+  // silent; a Replay after a real gesture uses the already-unlocked engine.
+  if (!reduced) timeline.call(() => { sfx.play('thud', { category: 'intro', gain: 0.65 }); }, [], keysAt);
+  // Read actual cap landing times from the nested timeline, so these cues follow
+  // its stagger and the user's Keys duration. At most twelve soft contacts.
+  const seats = caps.map((cap, i) => ({ i, at: keysAt + assembly.timeline.getTweensOf(cap.position)[0].endTime() / assembly.timeline.timeScale() })).sort((a, b) => a.at - b.at);
+  let lastSeat = -Infinity, seatCount = 0;
+  for (const seat of seats) {
+    if (seat.at - lastSeat < 0.085 || seatCount >= 12) continue;
+    timeline.call(() => { sfx.play('capSeat', { category: 'intro', gain: 0.35, pan: (seat.i / caps.length - 0.5) * 0.4 }); }, [], seat.at);
+    lastSeat = seat.at; seatCount++;
+  }
   update();
   return { timeline, kind: 'initial', intro };
 }

@@ -47,7 +47,7 @@ export function ScreenText({ width, height, radiance }: { width: number; height:
     return { canvas, context: canvas.getContext('2d')!, texture, material, geometry: new PlaneGeometry(width, height) };
   }, [width, height, radiance]);
   useOwnedDisposal('Monitor.Typing', [resources.texture, resources.material, resources.geometry]);
-  const drawn = useRef({ version: -1, caretOn: false, redraws: 0, lines: [] as string[] });
+  const drawn = useRef({ version: -1, caretOn: false, caretFrozen: false, redraws: 0, lines: [] as string[] });
 
   useEffect(() => {
     const { context: ctx, canvas } = resources;
@@ -69,14 +69,17 @@ export function ScreenText({ width, height, radiance }: { width: number; height:
       return best;
     });
     window.__screen = () => ({ redraws: drawn.current.redraws, text: typing.text, caret: typing.caret, lines: drawn.current.lines.slice(), canvas: [canvas.width, canvas.height], fontPx: Math.round(FONT_SIZE * px) });
-    return () => { typing.setVerticalResolver(null); delete window.__screen; };
+    // Differential captures (e.g. dust on/off) need the same caret in both
+    // frames. Normal viewing and the typing idle check keep the live blink.
+    window.__screenControl = { freezeCaret: freeze => { drawn.current.caretFrozen = freeze; } };
+    return () => { typing.setVerticalResolver(null); delete window.__screen; delete window.__screenControl; };
   }, [resources, width]);
 
   useFrame(() => {
     const now = performance.now(), since = now - typing.editedAt;
     // Solid while typing, then ~1 Hz blink: at most two redraws per idle second.
-    const caretOn = since < SOLID_AFTER_EDIT_MS || Math.floor((since - SOLID_AFTER_EDIT_MS) / BLINK_MS) % 2 === 1;
     const state = drawn.current;
+    const caretOn = state.caretFrozen ? state.caretOn : since < SOLID_AFTER_EDIT_MS || Math.floor((since - SOLID_AFTER_EDIT_MS) / BLINK_MS) % 2 === 1;
     if (state.version === typing.version && state.caretOn === caretOn) return;
     state.version = typing.version; state.caretOn = caretOn; state.redraws++;
     const { context: ctx, canvas, texture } = resources;
