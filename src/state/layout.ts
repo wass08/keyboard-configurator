@@ -4,9 +4,11 @@ import { DESK_CENTER_Z, DESK_TOP, MAT_CENTER_Z, MAT_TOP } from '../scene/dimensi
 export type PropId = 'headphones' | 'monitor' | 'streamdeck';
 export interface PropPose { x: number; z: number; rotationY: number }
 export const DEFAULT_LAYOUT: Record<PropId, PropPose> = {
-  headphones: { x: -0.315, z: -0.326, rotationY: -0.35 * 180 / Math.PI },
-  monitor: { x: 0, z: -0.43, rotationY: 0 },
-  streamdeck: { x: 0.298, z: -0.173, rotationY: -0.12 * 180 / Math.PI },
+  // Positions: four decimals; rotations: degrees rounded to one decimal.
+  // The copied headphone angle (-0.019 degrees) rounds to 0.0 degrees.
+  headphones: { x: -0.5380, z: -0.3517, rotationY: 0.0 },
+  monitor: { x: 0.0000, z: -0.3840, rotationY: 0.0 },
+  streamdeck: { x: 0.2810, z: -0.3350, rotationY: -24.6 },
 };
 export const PROP_IDS = Object.keys(DEFAULT_LAYOUT) as PropId[];
 export function footprint(id: PropId, rotationY: number) {
@@ -27,7 +29,8 @@ export function supportHeight(id: PropId, p: PropPose) {
   return Math.abs(p.x) < 0.45 + ex && Math.abs(p.z - MAT_CENTER_Z) < 0.2 + ez ? MAT_TOP : DESK_TOP;
 }
 function constrain(id: PropId, p: PropPose): PropPose {
-  const rotationY = ((p.rotationY + 180) % 360 + 360) % 360 - 180;
+  // Preserve already-normalized angles exactly for clipboard round trips.
+  const rotationY = p.rotationY >= -180 && p.rotationY < 180 ? p.rotationY : ((p.rotationY + 180) % 360 + 360) % 360 - 180;
   const half = footprint(id, rotationY);
   return { x: Math.max(-0.8 + half.x, Math.min(0.8 - half.x, p.x)), z: Math.max(DESK_CENTER_Z - 0.375 + half.z, Math.min(DESK_CENTER_Z + 0.375 - half.z, p.z)), rotationY };
 }

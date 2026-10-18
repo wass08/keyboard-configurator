@@ -35,7 +35,14 @@ try {
     const assembled = await measure(180, 30);
     window.__kb.setVariant('cool-black');
     const variantChange = await measure(210, 0);
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, variantChange, finished: window.__kb.finished, render: window.__kb.inspect() };
+    const render = window.__kb.inspect();
+    window.__cameraStore.set({ depthOfField: true });
+    window.__cameraStore.focusOnKeyboard();
+    const depthOfField = await measure(180, 30);
+    const depthOfFieldRender = window.__kb.inspect();
+    const lens = window.__camera().lens;
+    window.__cameraStore.set({ depthOfField: false });
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');

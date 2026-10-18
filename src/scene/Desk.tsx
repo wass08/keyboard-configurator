@@ -1,13 +1,11 @@
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { CanvasTexture, DataTexture, MeshPhysicalMaterial, MeshStandardMaterial, RGBAFormat, RepeatWrapping, SRGBColorSpace, UnsignedByteType, Vector2, Vector3, Quaternion, Color, ShaderChunk } from 'three';
+import { CanvasTexture, DataTexture, MeshPhysicalMaterial, MeshStandardMaterial, RGBAFormat, RepeatWrapping, SRGBColorSpace, UnsignedByteType, Vector2, ShaderChunk } from 'three';
 import type { LightingSettings } from './lightingControls';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { DESK_CENTER_Z, DESK_TOP } from './dimensions';
-import { SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_RADIANCE, SCREEN_REFLECTION_COLOR } from './PracticalFixtures';
-import { WALL_BOUNCE_GAIN, WALL_REFLECTION_Z } from './RigEnvironment';
 import { useOwnedDisposal } from '../resources/ownership';
 
 export const DeskSettings = createContext<LightingSettings | null>(null);
@@ -102,50 +100,26 @@ export function Desk() {
       else uv.setXY(i, z / grainTile + 0.5, (x < 0 ? -0.8 : 0.8) / grainTile + y / grainTile + 0.5);
     }
     geometry.setAttribute('uv1', uv.clone());
-    const coatPanels = {
-      uCoatPositions: { value: [new Vector3(), new Vector3()] },
-      uCoatU: { value: [new Vector3(), new Vector3()] }, uCoatV: { value: [new Vector3(), new Vector3()] },
-      uCoatSizes: { value: [new Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2), new Vector2(0.25, 0.13)] },
-      uCoatColors: { value: [new Color(), new Color()] },
-    };
     const grainMin = { value: settings.deskRoughnessMin }, grainScale = { value: settings.deskRoughnessScale };
-    const material = new MeshPhysicalMaterial({ color: '#dedcd5', map: maps[0], normalMap: maps[1], roughnessMap: maps[2], aoMap: maps[3], aoMapIntensity: 0.4, roughness: 1, normalScale: new Vector2(0.055, 0.055), clearcoat: settings.deskClearcoat, clearcoatRoughness: settings.deskClearcoatRoughness, envMapIntensity: settings.deskEnvMapIntensity });
-    material.userData.coatPanels = coatPanels;
+    const material = new MeshPhysicalMaterial({ color: '#dedcd5', map: maps[0], normalMap: maps[1], roughnessMap: maps[2], aoMap: maps[3], aoMapIntensity: 0.4, roughness: 1, normalScale: new Vector2(settings.deskNormalStrength, settings.deskNormalStrength), clearcoatNormalMap: maps[1], clearcoatNormalScale: new Vector2(settings.deskCoatNormalStrength, settings.deskCoatNormalStrength), clearcoatRoughnessMap: maps[2], clearcoat: settings.deskClearcoat, clearcoatRoughness: settings.deskClearcoatRoughness, envMapIntensity: settings.deskEnvMapIntensity });
+    const coatRoughnessInfluence = { value: settings.deskCoatRoughnessInfluence };
+    material.userData.coatRoughnessInfluence = coatRoughnessInfluence;
     material.userData.grainMin = grainMin; material.userData.grainScale = grainScale;
     material.onBeforeCompile = shader => {
-      Object.assign(shader.uniforms, coatPanels);
+      shader.uniforms.uCoatRoughnessInfluence = coatRoughnessInfluence;
       shader.uniforms.uGrainMin = grainMin; shader.uniforms.uGrainScale = grainScale;
       // Slightly darker edge grain also makes the eased 28mm front face read
       // clearly in the low hero view, with a continuous roll across the bevel.
-      shader.vertexShader = `varying float vOakFace;\nvarying vec3 vOakWorldPosition;\n${shader.vertexShader}`.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvOakFace = abs(objectNormal.y);').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvOakWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      shader.fragmentShader = `varying float vOakFace;\nvarying vec3 vOakWorldPosition;
-        uniform vec3 uCoatPositions[2], uCoatU[2], uCoatV[2], uCoatColors[2];
-        uniform vec2 uCoatSizes[2];\nuniform float uGrainMin;\nuniform float uGrainScale;\n${shader.fragmentShader}`;
-      // Finite LCD/wall planes correct the nearby probe's reflection parallax.
-      // Keep Three's Fresnel/energy conservation and the physical area-light
-      // specular; only replace the coat's broad cubemap approximation.
-      shader.fragmentShader = shader.fragmentShader.replace('#include <envmap_physical_pars_fragment>', ShaderChunk.envmap_physical_pars_fragment + `
-        vec3 oakPanelRadiance(vec3 viewDir, vec3 normal, float roughness) {
-          vec3 ray = transformDirectionByInverseViewMatrix(reflect(-viewDir, normal), viewMatrix);
-          vec3 result = vec3(0.0);
-          for (int i = 0; i < 2; i++) {
-            vec3 planeNormal = cross(uCoatU[i], uCoatV[i]);
-            float denom = dot(ray, planeNormal);
-            if (abs(denom) < 0.0001) continue;
-            float t = dot(uCoatPositions[i] - vOakWorldPosition, planeNormal) / denom;
-            if (t <= 0.0) continue;
-            vec3 delta = vOakWorldPosition + ray * t - uCoatPositions[i];
-            vec2 coord = abs(vec2(dot(delta, uCoatU[i]), dot(delta, uCoatV[i])));
-            float blur = max(0.002, t * roughness * roughness * 0.8);
-            vec2 coverage = 1.0 - smoothstep(uCoatSizes[i] - blur, uCoatSizes[i] + blur, coord);
-            result += uCoatColors[i] * coverage.x * coverage.y;
-          }
-          return result * envMapIntensity;
-        }
-      `).replace('#include <lights_fragment_maps>', ShaderChunk.lights_fragment_maps.replace(
-        'clearcoatRadiance += getIBLRadiance( geometryViewDir, geometryClearcoatNormal, material.clearcoatRoughness );',
-        'clearcoatRadiance += oakPanelRadiance(geometryViewDir, geometryClearcoatNormal, material.clearcoatRoughness) + 0.08 * getIBLRadiance(geometryViewDir, geometryClearcoatNormal, material.clearcoatRoughness);'
-      ));
+      shader.vertexShader = `varying float vOakFace;\n${shader.vertexShader}`.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvOakFace = abs(objectNormal.y);');
+      shader.fragmentShader = `varying float vOakFace;\nuniform float uGrainMin;\nuniform float uGrainScale;\nuniform float uCoatRoughnessInfluence;\n${shader.fragmentShader}`;
+      // Keep Three's standard normal-mapped coat, direct specular and IBL.
+      // The roughness knob is the center of a grain-varying lacquer lobe;
+      // zero map influence gives the uniform roughness for comparison/tuning.
+      shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_fragment>',
+        ShaderChunk.lights_physical_fragment.replace(
+          'material.clearcoatRoughness *= texture2D( clearcoatRoughnessMap, vClearcoatRoughnessMapUv ).y;',
+          'material.clearcoatRoughness = clamp(clearcoatRoughness + uCoatRoughnessInfluence * (texture2D(clearcoatRoughnessMap, vClearcoatRoughnessMapUv).g - 0.5), 0.0525, 1.0);'
+        ));
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
         #include <map_fragment>
         float oakLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
@@ -157,9 +131,10 @@ export function Desk() {
           roughnessFactor = clamp(uGrainMin + uGrainScale * texture2D(roughnessMap, vRoughnessMapUv).g, 0.08, 1.0);
         #endif
       `);
+      material.userData.standardCoatIBL = shader.fragmentShader.includes('#include <lights_fragment_maps>') && shader.fragmentShader.includes('#include <envmap_physical_pars_fragment>');
     };
-    material.customProgramCacheKey = () => 'oiled-oak-finite-coat-v6';
-    return { geometry, material, grainMin, grainScale, coatPanels };
+    material.customProgramCacheKey = () => 'veneer-standard-ibl-grain-coat-v1';
+    return { geometry, material, grainMin, grainScale, coatRoughnessInfluence };
   }, [maps]);
   // The maps come from useTexture's shared loader cache; this mount owns only
   // its wood geometry/material and its generated finishes/display textures.
@@ -172,20 +147,12 @@ export function Desk() {
     resources.material.clearcoat = settings.deskClearcoat;
     resources.material.clearcoatRoughness = settings.deskClearcoatRoughness;
     resources.material.envMapIntensity = settings.deskEnvMapIntensity;
-    const { rimPosition: p, rimAim: aim } = settings;
-    const orientation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(aim.x - p.x, aim.y - p.y, aim.z - p.z).normalize());
-    const c = resources.coatPanels;
-    c.uCoatPositions.value[0].set(0, 0.003, 0.0001).applyQuaternion(orientation).add(new Vector3(p.x, p.y, p.z));
-    c.uCoatU.value[0].set(1, 0, 0).applyQuaternion(orientation); c.uCoatV.value[0].set(0, 1, 0).applyQuaternion(orientation);
-    c.uCoatPositions.value[1].set(p.x, p.y, WALL_REFLECTION_Z);
-    c.uCoatU.value[1].set(1, 0, 0); c.uCoatV.value[1].set(0, 1, 0);
-    const solo = new URLSearchParams(location.search).get('solo');
-    const enabled = settings.screenOn && (!solo || solo === 'env' || solo === 'rim');
-    c.uCoatColors.value[0].copy(SCREEN_REFLECTION_COLOR).multiplyScalar(enabled ? SCREEN_RADIANCE * settings.lightformerIntensity : 0);
-    c.uCoatColors.value[1].set(settings.rimColor).multiplyScalar(enabled ? settings.wallGlow * WALL_BOUNCE_GAIN * settings.lightformerIntensity : 0);
+    resources.material.normalScale.setScalar(settings.deskNormalStrength);
+    resources.material.clearcoatNormalScale.setScalar(settings.deskCoatNormalStrength);
+    resources.coatRoughnessInfluence.value = settings.deskCoatRoughnessInfluence;
     resources.grainMin.value = settings.deskRoughnessMin;
     resources.grainScale.value = settings.deskRoughnessScale;
-  }, [resources, scene, settings.deskClearcoat, settings.deskClearcoatRoughness, settings.deskEnvMapIntensity, settings.deskRoughnessMin, settings.deskRoughnessScale, settings.screenOn, settings.rimPosition, settings.rimAim, settings.rimColor, settings.wallGlow, settings.lightformerIntensity]);
+  }, [resources, scene, settings.deskClearcoat, settings.deskClearcoatRoughness, settings.deskEnvMapIntensity, settings.deskRoughnessMin, settings.deskRoughnessScale, settings.deskNormalStrength, settings.deskCoatNormalStrength, settings.deskCoatRoughnessInfluence]);
   return <DeskFinishes.Provider value={finishes}><group position={[0, 0, DESK_CENTER_Z]}>
     <mesh name="desk-wood" position={[0, DESK_TOP - 0.014, 0]} geometry={resources.geometry} material={resources.material} castShadow receiveShadow />
     {/* The central rail and side brackets mount directly to the desktop. */}

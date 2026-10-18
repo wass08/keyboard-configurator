@@ -11,7 +11,7 @@ export function LayoutControls() {
   const [, set] = useControls(() => ({ Layout: folder({
     showGizmos: { value: false, label: 'Show gizmos', onChange: (v: boolean) => useLayoutStore.getState().setShowGizmos(v) },
     ...Object.fromEntries(PROP_IDS.map(id => [id, folder({
-      [`${id}Position`]: { value: { x: DEFAULT_LAYOUT[id].x, z: DEFAULT_LAYOUT[id].z }, step: 0.001, pad: 3, label: 'Position (m)', onChange: (p: { x: number; z: number }) => useLayoutStore.getState().setPose(id, p) },
+      [`${id}Position`]: { value: { x: DEFAULT_LAYOUT[id].x, z: DEFAULT_LAYOUT[id].z }, step: 0.0001, pad: 4, label: 'Position (m)', onChange: (p: { x: number; z: number }) => useLayoutStore.getState().setPose(id, p) },
       [`${id}Rotation`]: { value: DEFAULT_LAYOUT[id].rotationY, step: 0.1, pad: 1, label: 'Rotation Y (°)', onChange: (rotationY: number) => useLayoutStore.getState().setPose(id, { rotationY }) },
     }, { collapsed: false })])),
     'Copy layout values': button(() => { void navigator.clipboard.writeText(JSON.stringify(layoutValues(), null, 2)); }),
@@ -35,8 +35,6 @@ export function LayoutControls() {
         const p = root ? root.getWorldPosition(new Vector3()).project(camera) : new Vector3();
         return [id, { x: (p.x + 1) / 2, y: (1 - p.y) / 2 }];
       }));
-      const wood = scene.getObjectByName('desk-wood') as import('three').Mesh;
-      const panels = (wood.material as import('three').Material).userData.coatPanels;
       const handles = Object.fromEntries(PROP_IDS.map(id => {
         const root = scene.getObjectByName(`gizmo-${id}`), points: { x: number; y: number }[] = [];
         root?.traverse(object => {
@@ -48,7 +46,7 @@ export function LayoutControls() {
         });
         return [id, points];
       }));
-      return { attachments: { coatColors: panels.uCoatColors.value.map((c: import('three').Color) => c.toArray()), coatPositions: panels.uCoatPositions.value.map((v: Vector3) => v.toArray()), coatU: panels.uCoatU.value.map((v: Vector3) => v.toArray()), coatV: panels.uCoatV.value.map((v: Vector3) => v.toArray()) }, handles, values: layoutValues(), dragging: state.dragging, orbitEnabled: controls?.enabled ?? true, visible: new URLSearchParams(location.search).has('debug') && state.showGizmos, projected };
+      return { handles, values: layoutValues(), dragging: state.dragging, orbitEnabled: controls?.enabled ?? true, visible: new URLSearchParams(location.search).has('debug') && state.showGizmos, projected };
     };
     return () => { delete window.__layout; delete window.__layoutStore; useLayoutStore.getState().setDragging(null); };
   }, [scene, camera, controls]);

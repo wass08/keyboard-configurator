@@ -180,3 +180,15 @@ Attached: Stream Deck reference, saved as `references/props-stream-deck-lit.png`
 > A
 
 (Option A: stronger wood normals, coat follows the wood normal and roughness maps, remove or make roughness-aware the synthetic panel reflection.)
+
+---
+
+## 17 — Layout values (2026-10-17)
+
+> ```json
+> {
+>   "headphones": { "x": -0.5380462825095854, "z": -0.3517161404582204, "rotationY": -0.019336665003038433, "y": 0.75 },
+>   "monitor": { "x": 0, "z": -0.384, "rotationY": 0, "y": 0.75 },
+>   "streamdeck": { "x": 0.28099999999999997, "z": -0.3350000000000001, "rotationY": -24.60000000000082, "y": 0.75 }
+> }
+> ```

@@ -17,7 +17,12 @@ const variants = ['glacial-blue', 'cool-black', 'emerald', 'pink', 'overnight', 
 const errors = [];
 const checks = {};
 const expectedEnvironment = { lightformerIntensity: 1.28, hdriIntensity: 0.095, rotation: -1.29 };
-const expectedDesk = { clearcoat: 0.24, clearcoatRoughness: 0.18, roughnessMin: 0.48, roughnessScale: 0.30, envMapIntensity: 0.9 };
+const expectedLayout = {
+  headphones: { x: -0.5380, z: -0.3517, rotationY: 0.0, y: 0.75 },
+  monitor: { x: 0.0000, z: -0.3840, rotationY: 0.0, y: 0.75 },
+  streamdeck: { x: 0.2810, z: -0.3350, rotationY: -24.6, y: 0.75 },
+};
+const expectedDesk = { clearcoat: 0.24, clearcoatRoughness: 0.22, roughnessMin: 0.30, roughnessScale: 0.32, normalStrength: 0.45, coatNormalStrength: 0.18, coatRoughnessInfluence: 0.32, envMapIntensity: 0.9 };
 const nearArray = (actual, expected, message) => {
   assert.equal(actual.length, expected.length, message);
   actual.forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-9, `${message}: ${actual} vs ${expected}`));
@@ -167,6 +172,9 @@ try {
   assert.equal(seated.wood.type, 'MeshPhysicalMaterial');
   assert.equal(seated.wood.explicitEnvironment, true, 'Desk intensity must bind an explicit environment, not be bypassed by scene.environmentIntensity');
   checks.matContact = { status: 'passed', matTop: seated.matTop, feetBottom: seated.feetBottom, bodyBottom: seated.bodyBottom, contactErrorMm: seated.contactErrorMm, propsStaticDuringAssembly: true };
+  assert.equal(seated.wood.standardCoatIBL, true);
+  assert.equal(seated.wood.sharedNormalMap, true); assert.equal(seated.wood.sharedRoughnessMap, true);
+  assert.ok(seated.wood.coatNormalStrength < seated.wood.normalStrength);
   checks.deskFinish = { status: 'passed', ...seated.wood };
   assert.equal(seated.streamdeck.keyCount, 15);
   assert.ok(seated.streamdeck.lcdRecessMm > 0 && seated.streamdeck.lcdRecessMm < 1, 'LCD faces must be recessed below real open bezels');
@@ -174,7 +182,10 @@ try {
   assert.ok(seated.streamdeck.topRoughness < 0.2 && seated.streamdeck.emission > 1.25);
   assert.ok(seated.streamdeck.openingGapMm >= 0.25);
   checks.streamdeckGeometry = { status: 'passed', ...seated.streamdeck };
-  assert.ok(Math.abs(seated.props['prop-streamdeck'].min[1] - seated.matTop) < 0.0005, 'Control pad stand must rest on the mat');
+  assert.ok(Math.abs(seated.props['prop-streamdeck'].min[1] - 0.75) < 0.0005, 'Control pad stand must rest on the wood, off the mat');
+  assert.ok(seated.props['prop-streamdeck'].max[2] < -0.24, 'The entire default deck must be behind the felt edge');
+  const startupLayout = await page.evaluate(() => window.__layout().values);
+  assert.deepEqual(startupLayout, expectedLayout, 'Initialize exact copied Layout defaults, in degrees, with computed wood support');
   assert.ok(Math.abs(seated.props['prop-headphones'].min[1] - 0.75) < 0.0005, 'Headphone tray must rest on the wood');
   assert.ok(seated.headrestOverlapMm.every(size => size > 0), 'Walnut headrest must connect to the upright');
   checks.propSupport = { status: 'passed', streamdeckBottom: seated.props['prop-streamdeck'].min[1], trayBottom: seated.props['prop-headphones'].min[1], headrestJointMm: seated.headrestOverlapMm };
@@ -209,6 +220,17 @@ try {
   assert.deepEqual(Object.keys(environment.lightformers).sort(), ['reflection-fill', 'reflection-screen', 'reflection-softbox', 'reflection-wall-glow']);
   assertReflectionCards(lighting, environment);
   nearArray(environment.lightformers['reflection-wall-glow'].radiance, new Color('#8d2d2d').multiplyScalar(23.3 * 0.035 * 1.28).toArray(), 'Wall-bounce reflection radiance');
+  const rawMonitor = lighting.values.lights.monitor, pose = startupLayout.monitor;
+  const screenQ = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(...rawMonitor.aim).sub(new Vector3(...rawMonitor.position)).normalize());
+  const origin = new Vector3(pose.x, rawMonitor.position[1], pose.z);
+  const attached = local => new Vector3(...local).applyQuaternion(screenQ).add(origin).toArray();
+  nearArray(lighting.monitor.position, attached([0, 0.003, 0.0001]), 'Screen initializes at new monitor pose');
+  nearArray(lighting.lights.find(light => light.name === 'screen-rim').position, attached([0, -0.154, 0.002]), 'Rim initializes at new monitor pose');
+  nearArray(lighting.lights.find(light => light.name === 'screen-wall-glow').position, attached([0, 0, -0.06]), 'Wall glow initializes at new monitor pose');
+  nearArray(environment.lightformers['reflection-screen'].position, lighting.monitor.position, 'LCD reflection initializes with the screen');
+  const wallPosition = environment.lightformers['reflection-wall-glow'].position;
+  nearArray(wallPosition, [0, 1.025 + (0.854 + pose.z) * 0.035 / 0.43, -0.854], 'Wall reflection initializes on the real wall');
+  checks.layoutInitialization = { status: 'passed', defaults: startupLayout, screen: lighting.monitor.position, rim: lighting.lights.find(light => light.name === 'screen-rim').position, wallGlow: lighting.lights.find(light => light.name === 'screen-wall-glow').position, wallReflection: wallPosition, environmentCaptures: environment.captures, deckOnWood: true };
   checks.wallGlowReflection = { status: 'passed', bounceGain: 0.035, ...environment.lightformers['reflection-wall-glow'] };
   checks.rigMatchedEnvironment = { status: 'passed', defaults: expectedEnvironment, ...environment };
   assert.deepEqual(lighting.values.streamDeck, { emissiveIntensity: 2.4, bloomStrength: 0.16, bloomThreshold: 1.25, spillIntensity: 0.8 });
@@ -274,11 +296,11 @@ try {
   await shot('desk-frame');
   // Unobscured product details; ordinary hero/mobile/UI captures retain the picker.
   await page.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
-  for (const view of ['props-wide', 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen', 'wall-paint']) {
+  for (const view of ['props-wide', 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen', 'desk-sheen-closeup', 'wall-paint']) {
     await page.evaluate(view => window.__kb.camera(view), view);
     const coatedBuffer = await shot(view);
     if (view === 'desk-sheen') {
-      const [point, remotePoint] = await page.evaluate(() => [window.__props().sheenSample, window.__props().sheenRemoteSample]);
+      const point = await page.evaluate(() => window.__props().sheenSample);
       await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0 }));
       await page.waitForFunction(() => window.__props().wood.clearcoat === 0);
       const bareBuffer = await shot('desk-sheen-uncoated');
@@ -290,15 +312,54 @@ try {
         return { pixel: [x, y], rgb, luminance: rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722 };
       };
       const coated = sample(coatedBuffer, point), uncoated = sample(bareBuffer, point);
-      const remoteCoated = sample(coatedBuffer, remotePoint), remoteBare = sample(bareBuffer, remotePoint);
       assert.ok(coated.rgb[0] > coated.rgb[2] + 8, 'Reflected wood must retain a rich warm base');
-      checks.woodReflectionLocalization = { status: 'passed', sourceGain: coated.luminance - uncoated.luminance, remoteGain: remoteCoated.luminance - remoteBare.luminance, warmRedBlueDifference: coated.rgb[0] - coated.rgb[2] };
-      assert.ok(checks.woodReflectionLocalization.sourceGain > checks.woodReflectionLocalization.remoteGain + 3, 'The finite screen reflection must be stronger than the remote wood patch');
       checks.woodSheen = { status: coated.luminance > uncoated.luminance + 3 ? 'passed' : 'failed', coated, uncoated, luminanceGain: coated.luminance - uncoated.luminance };
       await writeFile('screenshots/checks.json', JSON.stringify(checks, null, 2) + '\n');
       assert.equal(checks.woodSheen.status, 'passed', 'Clearcoat must produce visible reflected light on actual wood pixels');
       await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0.24 }));
       await page.waitForFunction(() => window.__props().wood.clearcoat === 0.24);
+    }
+    if (view === 'desk-sheen-closeup') {
+      // Fixed bare-wood ROI, with the same albedo/camera/lighting in every pair.
+      // Differences measure light response, rather than the diffuse grain photo.
+      const compare = (mappedBuffer, comparisonBuffer) => {
+        const a = PNG.sync.read(mappedBuffer), b = PNG.sync.read(comparisonBuffer);
+        const region = [0.4, 0.55, 0.86, 0.85];
+        const delta = (x, y) => {
+          const i = (y * a.width + x) * 4;
+          return [0.2126, 0.7152, 0.0722].reduce((v, w, c) => v + w * (a.data[i + c] - b.data[i + c]), 0);
+        };
+        let absolute = 0, gain = 0, along = 0, across = 0, pixels = 0;
+        for (let y = Math.floor(a.height * region[1]); y < a.height * region[3]; y++) {
+          for (let x = Math.floor(a.width * region[0]); x < a.width * region[2]; x++) {
+            const d = delta(x, y); absolute += Math.abs(d); gain += d;
+            along += (delta(x + 1, y) - d) ** 2; across += (delta(x, y + 1) - d) ** 2; pixels++;
+          }
+        }
+        return { region, pixels, meanAbsoluteDelta: absolute / pixels, meanLuminanceGain: gain / pixels, alongGrainRms: Math.sqrt(along / pixels), acrossGrainRms: Math.sqrt(across / pixels) };
+      };
+      await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskNormalStrength': 0, 'Desk.deskCoatNormalStrength': 0, 'Desk.deskCoatRoughnessInfluence': 0, 'Desk.deskRoughnessMin': 0.46, 'Desk.deskRoughnessScale': 0 }));
+      await page.waitForFunction(() => window.__props().wood.normalStrength === 0 && window.__props().wood.roughnessScale === 0);
+      const smoothBuffer = await shot('desk-sheen-smooth');
+      const grain = compare(coatedBuffer, smoothBuffer);
+      assert.ok(grain.meanAbsoluteDelta > 0.5 && grain.acrossGrainRms > 1.5 * grain.alongGrainRms, 'Mapped light response must visibly break up across the horizontal grain');
+      await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskNormalStrength': 0.45, 'Desk.deskRoughnessMin': 0.30, 'Desk.deskRoughnessScale': 0.32 }));
+      await page.waitForFunction(() => window.__props().wood.normalStrength === 0.45);
+      const flatCoatBuffer = await shot('desk-sheen-coat-smooth');
+      const coat = compare(coatedBuffer, flatCoatBuffer);
+      assert.ok(coat.meanAbsoluteDelta > 0.15 && coat.acrossGrainRms > 0.1, 'The clearcoat itself must respond to its grain maps');
+      await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskCoatNormalStrength': 0.18, 'Desk.deskCoatRoughnessInfluence': 0.32 }));
+      await page.waitForFunction(() => window.__props().wood.coatNormalStrength === 0.18);
+      const before = await page.evaluate(() => window.__environment().captures);
+      await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 0 }));
+      await page.waitForFunction(n => window.__environment().captures > n && window.__environment().lightformers['reflection-screen'].radiance.every(c => c === 0), before);
+      const noCards = await shot('desk-sheen-no-lightformers');
+      const environment = compare(coatedBuffer, noCards);
+      assert.ok(environment.meanLuminanceGain > 3, 'The real rig environment must contribute visible reflected light');
+      await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 1.28 }));
+      await page.waitForFunction(() => window.__environment().lightformers['reflection-screen'].radiance.some(c => c > 0));
+      checks.woodGrainResponse = { status: 'passed', grain, coat };
+      checks.woodReflectionSources = { status: 'passed', environment, standardCoatIBL: true };
     }
     if (view === 'props-wide') {
       const info = await page.evaluate(() => window.__props());
@@ -318,6 +379,37 @@ try {
     }
   }
   await page.evaluate(() => window.__kb.camera('default'));
+
+  // Lens evidence uses one unchanged hero pose/target. An 85 mm lens crops in
+  // optically; the controls must not dolly the camera to disguise that change.
+  const heroLens = await page.evaluate(() => window.__camera());
+  await page.evaluate(() => window.__cameraStore.set({ focalLengthMm: 85 }));
+  await rendered();
+  const lens85 = await page.evaluate(() => window.__camera());
+  assert.ok(Math.abs(lens85.lens.focalLengthMm - 85) < 1e-9);
+  nearArray(lens85.position, heroLens.position, '85 mm retains camera position');
+  nearArray(lens85.target, heroLens.target, '85 mm retains camera target');
+  await page.screenshot({ path: 'screenshots/lens-85mm.png' });
+  console.log('screenshots/lens-85mm.png');
+  await page.evaluate(() => { window.__cameraStore.reset(); window.__cameraStore.set({ depthOfField: true }); window.__cameraStore.focusOnKeyboard(); });
+  await rendered();
+  const focusedLens = await page.evaluate(() => window.__camera());
+  assert.equal(focusedLens.lens.depthOfField, true);
+  assert.ok(focusedLens.lens.focusDistance > 0.7 && focusedLens.lens.focusDistance < 0.8);
+  const dofBuffer = await page.screenshot({ path: 'screenshots/lens-dof.png' });
+  console.log('screenshots/lens-dof.png');
+  // Bloom remains active, evaluated before lens blur on linear HDR pixels.
+  const focusedSpill = await page.evaluate(() => window.__lighting().values.streamDeck);
+  assert.ok(focusedSpill.bloomStrength > 0 && focusedSpill.bloomThreshold > 1);
+  await page.evaluate(() => window.__cameraStore.set({ depthOfField: false }));
+  await rendered();
+  const sharpBuffer = await page.screenshot();
+  const softImage = PNG.sync.read(dofBuffer), sharpImage = PNG.sync.read(sharpBuffer);
+  let changed = 0;
+  for (let i = 0; i < softImage.data.length; i += 4) if (Math.abs(softImage.data[i] - sharpImage.data[i]) > 2) changed++;
+  assert.ok(changed > softImage.width * softImage.height * 0.01, 'DoF must actually change rendered pixels');
+  checks.lensEvidence = { status: 'passed', lens85, focused: focusedLens, changedPixels: changed, bloom: focusedSpill };
+  await page.evaluate(() => window.__cameraStore.reset());
 
   await page.locator('.variant-picker').evaluate(element => { element.style.visibility = ''; });
 
@@ -363,7 +455,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost']) {
+    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -425,6 +517,15 @@ try {
   await mobilePage.screenshot({ path: 'screenshots/mobile.png' });
   console.log('screenshots/mobile.png');
   checks.reducedMotionAndMobile = 'passed';
+  await mobilePage.evaluate(() => window.__cameraStore.set({ verticalFovDeg: 46 }));
+  await mobilePage.setViewportSize({ width: 430, height: 900 });
+  await renderedPage(mobilePage);
+  await mobilePage.waitForFunction(() => window.__camera().lens.verticalFovDeg === 46);
+  const mobileLens = await mobilePage.evaluate(() => window.__camera());
+  assert.equal(mobileLens.minDistance, 0.317); assert.equal(mobileLens.maxDistance, 0.719);
+  assert.ok(mobileLens.distance <= 0.719 + 1e-8);
+  assert.ok(Math.abs(mobileLens.lens.focalLengthMm - 35 / (2 * Math.tan(46 * Math.PI / 360))) < 1e-9);
+  checks.mobileLiveLens = { status: 'passed', resized: mobileLens, viewport: [430, 900] };
   await mobile.close();
 
   const debugContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -434,8 +535,12 @@ try {
   await debugPage.evaluate(() => window.__kb.finish());
   const originalCamera = await debugPage.evaluate(() => window.__camera());
   const edit = async (name, value) => {
+    // Linked numeric fields update together. Let Leva render the previous
+    // conversion before focusing another field and committing its text buffer.
+    await renderedPage(debugPage);
     const input = debugPage.getByRole('textbox', { name, exact: true }).first();
     await input.fill(String(value)); await input.press('Enter');
+    await renderedPage(debugPage);
   };
   // Drag both real slider tracks and inspect the actual OrbitControls limits.
   // The adjacent numeric fields exercise precise values separately.
@@ -467,7 +572,7 @@ try {
   const setMax = await debugPage.evaluate(() => window.__camera());
   await debugPage.getByRole('button', { name: 'Copy camera values', exact: true }).click();
   const copied = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
-  assert.deepEqual(Object.keys(copied).sort(), ['minDistance', 'maxDistance', 'distance', 'polarDeg', 'azimuthDeg', 'position', 'target'].sort());
+  assert.deepEqual(Object.keys(copied).sort(), ['minDistance', 'maxDistance', 'distance', 'polarDeg', 'azimuthDeg', 'position', 'target', 'lens'].sort());
   assert.ok(Math.abs(copied.distance - setMax.distance) < 0.0001);
   await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
   await debugPage.waitForFunction(() => window.__camera().minDistance === 0.317 && window.__camera().maxDistance === 0.719);
@@ -477,6 +582,57 @@ try {
   await renderedPage(debugPage);
   await debugPage.screenshot({ path: 'screenshots/debug-camera.png' });
   console.log('screenshots/debug-camera.png');
+
+  await debugPage.getByText('Lens', { exact: true }).click();
+  await edit('Focal length (mm)', 50);
+  await debugPage.waitForFunction(() => Math.abs(window.__camera().lens.focalLengthMm - 50) < 1e-9);
+  const lens50 = await debugPage.evaluate(() => window.__camera().lens);
+  const expectedFov50 = 2 * Math.atan((35 / 1.6) / (2 * 50)) * 180 / Math.PI;
+  assert.ok(Math.abs(lens50.verticalFovDeg - expectedFov50) < 1e-9);
+  assert.ok(Math.abs(parseFloat(await debugPage.getByRole('textbox', { name: 'Vertical FOV (deg)', exact: true }).inputValue()) - expectedFov50) <= 0.05);
+  // Sensor changes retain 50 mm and update FOV; FOV edits update the lens too.
+  await edit('Film gauge (mm)', 50);
+  await debugPage.waitForFunction(() => window.__camera().lens.filmGaugeMm === 50);
+  const largerSensor = await debugPage.evaluate(() => window.__camera().lens);
+  assert.ok(Math.abs(largerSensor.focalLengthMm - 50) < 1e-9);
+  assert.ok(Math.abs(largerSensor.verticalFovDeg - 2 * Math.atan((50 / 1.6) / 100) * 180 / Math.PI) < 1e-9);
+  await edit('Vertical FOV (deg)', 40);
+  await debugPage.waitForFunction(() => window.__camera().lens.verticalFovDeg === 40);
+  const reverseLens = await debugPage.evaluate(() => window.__camera().lens);
+  assert.ok(Math.abs(reverseLens.focalLengthMm - (50 / 1.6) / (2 * Math.tan(40 * Math.PI / 360))) < 1e-9);
+  await edit('Near (m)', 0.015); await edit('Far (m)', 32);
+  // Leva's native checkbox has zero dimensions; its visible label is the UI.
+  await debugPage.getByText('Enabled', { exact: true }).click();
+  await edit('Bokeh scale', 0.85); await edit('Focal range (m)', 0.12);
+  await debugPage.getByRole('button', { name: 'Focus on keyboard', exact: true }).click();
+  await debugPage.waitForFunction(() => {
+    const lens = window.__camera().lens;
+    return lens.near === 0.015 && lens.far === 32 && lens.depthOfField && lens.bokehScale === 0.85 && lens.focalRange === 0.12 && lens.focusDistance > 0.7;
+  });
+  const editedLens = await debugPage.evaluate(() => window.__camera().lens);
+  assert.equal(editedLens.near, 0.015); assert.equal(editedLens.far, 32);
+  assert.equal(editedLens.depthOfField, true); assert.equal(editedLens.bokehScale, 0.85); assert.equal(editedLens.focalRange, 0.12);
+  assert.ok(editedLens.focusDistance > 0.7 && editedLens.focusDistance < 0.8);
+  await debugPage.getByRole('button', { name: 'Copy camera values', exact: true }).click();
+  const lensCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
+  assert.deepEqual(lensCopy.lens, editedLens);
+  assert.equal(Object.keys(lensCopy.lens).length, 9);
+  await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
+  await debugPage.waitForFunction(() => !window.__camera().lens.depthOfField && window.__camera().lens.verticalFovDeg === 32);
+  const lensReset = await debugPage.evaluate(() => window.__camera());
+  assert.deepEqual(lensReset.lens, originalCamera.lens);
+  await debugPage.evaluate(lens => window.__cameraStore.set(lens), lensCopy.lens);
+  const roundTripped = await debugPage.evaluate(() => window.__camera().lens);
+  for (const [key, value] of Object.entries(editedLens)) {
+    if (typeof value === 'number') assert.ok(Math.abs(roundTripped[key] - value) < 1e-9, `${key} round trip`);
+    else assert.equal(roundTripped[key], value);
+  }
+  checks.lensControls = { status: 'passed', lens50, expectedFov50, largerSensor, reverseLens, copied: lensCopy, roundTripped, reset: lensReset.lens };
+  await debugPage.getByRole('button', { name: 'Reset camera', exact: true }).click();
+  await idleFrames(debugPage);
+  await debugPage.screenshot({ path: 'screenshots/debug-lens.png' });
+  console.log('screenshots/debug-lens.png');
+  await debugPage.getByText('Lens', { exact: true }).click();
 
   const defaultLighting = await debugPage.evaluate(() => window.__lighting().values);
   await debugPage.getByRole('button', { name: 'Copy lighting values', exact: true }).click();
@@ -488,15 +644,16 @@ try {
   checks.lightingClipboard = { status: 'passed', values: lightingCopy };
   assert.deepEqual(lightingCopy, checks.studioLighting.values, 'Startup clipboard must round-trip the exact saved rig, environment, rendering and desk defaults');
   checks.lightingRoundTrip = { status: 'passed', values: lightingCopy };
-  await debugPage.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0.57, 'Desk.deskClearcoatRoughness': 0.31, 'Desk.deskRoughnessMin': 0.4, 'Desk.deskRoughnessScale': 0.35, 'Desk.deskEnvMapIntensity': 1.7 }));
-  await debugPage.waitForFunction(() => window.__props().wood.envMapIntensity === 1.7 && window.__props().wood.roughnessMin === 0.4);
+  await debugPage.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0.57, 'Desk.deskClearcoatRoughness': 0.31, 'Desk.deskRoughnessMin': 0.4, 'Desk.deskRoughnessScale': 0.35, 'Desk.deskNormalStrength': 0.55, 'Desk.deskCoatNormalStrength': 0.21, 'Desk.deskCoatRoughnessInfluence': 0.4, 'Desk.deskEnvMapIntensity': 1.7 }));
+  await debugPage.waitForFunction(() => window.__props().wood.envMapIntensity === 1.7 && window.__props().wood.roughnessMin === 0.4 && window.__props().wood.coatRoughnessInfluence === 0.4);
   const editedDesk = await debugPage.evaluate(() => window.__props().wood);
+  assert.equal(editedDesk.normalStrength, 0.55); assert.equal(editedDesk.coatNormalStrength, 0.21); assert.equal(editedDesk.coatRoughnessInfluence, 0.4);
   assert.equal(editedDesk.clearcoat, 0.57); assert.equal(editedDesk.clearcoatRoughness, 0.31); assert.equal(editedDesk.roughnessScale, 0.35); assert.equal(editedDesk.explicitEnvironment, true);
   await debugPage.getByRole('button', { name: 'Copy lighting values', exact: true }).click();
   const editedDeskCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
-  assert.deepEqual(editedDeskCopy.desk, { clearcoat: 0.57, clearcoatRoughness: 0.31, roughnessMin: 0.4, roughnessScale: 0.35, envMapIntensity: 1.7 });
+  assert.deepEqual(editedDeskCopy.desk, { clearcoat: 0.57, clearcoatRoughness: 0.31, roughnessMin: 0.4, roughnessScale: 0.35, normalStrength: 0.55, coatNormalStrength: 0.21, coatRoughnessInfluence: 0.4, envMapIntensity: 1.7 });
   checks.deskControls = { status: 'passed', editedMaterial: editedDesk, copied: editedDeskCopy.desk };
-  await debugPage.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0.24, 'Desk.deskClearcoatRoughness': 0.18, 'Desk.deskRoughnessMin': 0.48, 'Desk.deskRoughnessScale': 0.30, 'Desk.deskEnvMapIntensity': 0.9 }));
+  await debugPage.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0.24, 'Desk.deskClearcoatRoughness': 0.22, 'Desk.deskRoughnessMin': 0.30, 'Desk.deskRoughnessScale': 0.32, 'Desk.deskNormalStrength': 0.45, 'Desk.deskCoatNormalStrength': 0.18, 'Desk.deskCoatRoughnessInfluence': 0.32, 'Desk.deskEnvMapIntensity': 0.9 }));
 
   // Use the real debug Leva store. Verify actual portal mesh transforms and
   // camera.update calls, rather than merely checking copied control values.
@@ -562,6 +719,7 @@ try {
   await debugPage.getByText('Camera', { exact: true }).click();
   await debugPage.getByText('Layout', { exact: true }).click();
   const initialLayout = await debugPage.evaluate(() => window.__layout().values);
+  assert.deepEqual(initialLayout, expectedLayout, 'Debug controls must retain exact startup defaults');
   await debugPage.getByRole('button', { name: 'Copy layout values', exact: true }).click();
   assert.deepEqual(JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText())), initialLayout);
   await debugPage.getByText('Show gizmos', { exact: true }).click();
@@ -610,8 +768,8 @@ try {
   }
   nearArray(movedLayout.env.lightformers['reflection-screen'].position, movedLayout.lighting.monitor.position, 'Moved LCD Lightformer matches actual screen');
   nearArray(movedLayout.env.lightformers['reflection-screen'].quaternion, movedLayout.lighting.monitor.quaternion, 'Moved LCD Lightformer orientation');
-  nearArray(movedLayout.layout.attachments.coatPositions[0], movedLayout.lighting.monitor.position, 'Existing desk coat screen uniforms follow');
-  nearArray(movedLayout.layout.attachments.coatPositions[1], movedLayout.env.lightformers['reflection-wall-glow'].position, 'Desk coat wall uniforms match projected wall return');
+  assert.equal(movedLayout.props.wood.explicitEnvironment, true, 'Wood reflects the same live rig cubemap after layout changes');
+  assert.equal(movedLayout.props.wood.standardCoatIBL, true);
   assert.ok(Math.abs(movedLayout.env.lightformers['reflection-wall-glow'].position[2] + 0.854) < 1e-9);
   assert.notDeepEqual(movedLayout.env.lightformers['reflection-wall-glow'].position, beforeLayoutMove.env.lightformers['reflection-wall-glow'].position);
   const beforeSpill = beforeLayoutMove.lighting.lights.find(l => l.name === 'streamdeck-spill');
@@ -639,9 +797,22 @@ try {
   assert.ok(clamped.min[0] >= -0.8 && clamped.max[0] <= 0.8 && clamped.min[2] >= -0.56 && clamped.max[2] <= 0.19);
   await debugPage.evaluate(() => window.__layoutStore.set('monitor', { rotationY: 170 }));
   await debugPage.waitForFunction(() => window.__environment().lightformers['reflection-wall-glow'].radiance.every(c => c === 0));
-  assert.ok((await debugPage.evaluate(() => window.__layout().attachments.coatColors[1])).every(c => c === 0), 'A rear emitter aimed away from the wall cannot reflect a phantom wall wash');
+  assert.equal(await debugPage.evaluate(() => window.__props().wood.explicitEnvironment), true, 'Wood stays bound to the environment with the phantom wall card disabled');
   checks.wallProjectionDirection = { status: 'passed', facingAwayRotationY: 170, wallRadiance: [0, 0, 0] };
-  checks.layoutConstraints = { status: 'passed', clamped, numericX: 0.125, onMat: initialLayout.streamdeck.y, offMat: copiedLayout.streamdeck.y };
+  await debugPage.evaluate(() => window.__layoutStore.set('streamdeck', { x: 0.281, z: -0.14, rotationY: -24.6 }));
+  await debugPage.waitForFunction(() => window.__layout().values.streamdeck.y === 0.754);
+  const onMat = await debugPage.evaluate(() => ({ pose: window.__layout().values.streamdeck, bounds: window.__props().props['prop-streamdeck'] }));
+  assert.ok(Math.abs(onMat.bounds.min[1] - 0.754) < 0.0005, 'Moving onto felt raises the real deck to mat height');
+  await debugPage.evaluate(pose => window.__layoutStore.set('streamdeck', pose), expectedLayout.streamdeck);
+  await debugPage.waitForFunction(() => window.__layout().values.streamdeck.y === 0.75);
+  checks.layoutConstraints = { status: 'passed', clamped, numericX: 0.125, onMat, defaultOffMat: initialLayout.streamdeck, movedOffMat: copiedLayout.streamdeck };
+  // Copy -> store -> copy round trip, including four-decimal positions.
+  await debugPage.evaluate(layout => { for (const [id, pose] of Object.entries(layout)) window.__layoutStore.set(id, pose); }, expectedLayout);
+  await renderedPage(debugPage);
+  await debugPage.getByRole('button', { name: 'Copy layout values', exact: true }).click();
+  const restoredLayout = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
+  assert.deepEqual(restoredLayout, expectedLayout);
+  checks.layoutClipboard.restored = restoredLayout;
   await debugContext.close();
   assert.deepEqual(errors, [], 'Browser must have no runtime or console errors');
   checks.browserErrors = errors;

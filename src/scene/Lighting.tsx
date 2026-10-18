@@ -10,7 +10,7 @@ import { lightingValues, useLightingControls, xyz } from './lightingControls';
 import { levaStore } from 'leva';
 import { RigEnvironment } from './RigEnvironment';
 import { areaOrientation } from './lightTransforms';
-import { monitorSettings, wallReflectionPosition, wallBounceVisible, screenOrientation as monitorOrientation } from './layoutTransforms';
+import { monitorSettings, screenOrientation as monitorOrientation } from './layoutTransforms';
 import { useLayoutStore } from '../state/layout';
 import { StudioWall } from './StudioWall';
 import { StudioPost } from './StudioPost';
@@ -92,23 +92,7 @@ export function Lighting({ children }: { children: ReactNode }) {
         texture or emissive decal. It follows the monitor's transform. */}
     <rectAreaLight name="screen-wall-glow" position={backPosition} quaternion={screenOrientation} width={0.5} height={0.26} intensity={rim && settings.screenOn ? settings.wallGlow : 0} color={settings.rimColor} />
     {children}
-    <MonitorCoatSync settings={settings} />
     <StudioWall settings={settings} />
     <StudioPost settings={settings} />
   </DeskSettings.Provider>;
-}
-
-// The oak finish/shader stays untouched. Move only its existing panel uniforms.
-function MonitorCoatSync({ settings }: { settings: ReturnType<typeof useLightingControls> }) {
-  const scene = useThree(state => state.scene);
-  useEffect(() => {
-    const wood = scene.getObjectByName('desk-wood') as Mesh;
-    const panels = (wood.material as import('three').Material).userData.coatPanels;
-    const q = monitorOrientation(settings), p = settings.rimPosition;
-    panels.uCoatPositions.value[0].set(0, 0.003, 0.0001).applyQuaternion(q).add(new Vector3(p.x, p.y, p.z));
-    panels.uCoatU.value[0].set(1, 0, 0).applyQuaternion(q); panels.uCoatV.value[0].set(0, 1, 0).applyQuaternion(q);
-    panels.uCoatPositions.value[1].copy(wallReflectionPosition(settings));
-    panels.uCoatColors.value[1].multiplyScalar(wallBounceVisible(settings));
-  }, [scene, settings]);
-  return null;
 }

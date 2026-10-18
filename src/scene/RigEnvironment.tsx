@@ -13,7 +13,7 @@ import { observeManagedDisposal } from '../resources/ownership';
 
 // Diffuse wall return: approximate paint reflectance / PI and emitter
 // solid angle. It follows the bias-light control, not the LCD white balance.
-export const WALL_BOUNCE_GAIN = 0.035, WALL_REFLECTION_Z = -0.854;
+export const WALL_BOUNCE_GAIN = 0.035;
 const PROBE_ORIGIN: [number, number, number] = [0, KEYBOARD_Y + 0.015, 0];
 interface Audit { captures: number }
 

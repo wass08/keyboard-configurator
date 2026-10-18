@@ -9,7 +9,9 @@ export function screenOrientation(s: LightingSettings) {
   return (s as PlacedSettings).screenQuaternion ?? new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(s.rimAim.x - s.rimPosition.x, s.rimAim.y - s.rimPosition.y, s.rimAim.z - s.rimPosition.z).normalize());
 }
 export function monitorSettings(s: LightingSettings, pose: PropPose): PlacedSettings {
-  if (pose.x === 0 && pose.z === -0.43 && pose.rotationY === 0) return s;
+  // The saved lighting rig and Monitor's local geometry were calibrated at
+  // z=-0.43. Keep that reference frame separate from the user's Layout default,
+  // and apply the pose from the first mount, including its support height.
   const q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.rotationY * Math.PI / 180);
   const transform = (p: { x: number; y: number; z: number }) => {
     const v = new Vector3(p.x, p.y - DESK_TOP, p.z + 0.43).applyQuaternion(q).add(new Vector3(pose.x, supportHeight('monitor', pose), pose.z));

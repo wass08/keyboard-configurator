@@ -26,6 +26,22 @@ launches headless Chromium with Metal on macOS (SwiftShader elsewhere), and clos
 capture. Set `SHOTS_RENDERER=swiftshader` to force software WebGL. Rebuild after source changes. The bundled local CC0 assets mean no
 remote asset requests are needed at runtime. `npm run assets` downloads them again.
 
+`?debug` → **Camera → Lens** edits the live perspective camera: linked focal
+length (12–200 mm) and vertical FOV, film gauge, and near/far clipping. Sensor
+edits retain focal length; resizing retains vertical FOV and recalculates its
+equivalent focal length. Defaults are 32° vertical, 35 mm film gauge, 0.008–25 m
+clipping (38.1436 mm at 16:10). Existing orbit limits remain 0.317–0.719 m.
+**Copy camera values** includes all nine lens parameters; **Reset camera** restores
+the lens, pose and orbit bounds. The optional depth-of-field controls default off,
+with focus distance 0.719 m, bokeh scale 1 and a 0.1 m sharp focal range.
+**Focus on keyboard** measures from the current camera to the case's world-space
+center. DoF uses a disabled-by-default BokehPass after selective HDR bloom and
+before tone mapping; its depth draw and blur are skipped when off. Per-mount
+depth targets/materials are disposed with the existing composer.
+`npm run shots` also checks lens conversion, sensor/FOV linking, copy/reset,
+portrait resizing and DoF pixels/disposal; captures `lens-85mm.png` (same pose)
+and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
+
 ## Architecture
 
 - `src/keyboard/layout.ts`: explicit key positions, dimensions, legends and default
@@ -86,20 +102,26 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   the actual desk and keyboard. That pass is cached while stationary and limited
   to 30 Hz during assembly. All of its allocated resources are owned/disposed.
   `Desk.tsx` uses MeshPhysicalMaterial for satin-lacquered oak. The **Desk** Leva
-  folder defaults to **clearcoat 0.24**, **clearcoatRoughness 0.18**, base grain
-  roughness **0.48 + 0.30 × map**, and **envMapIntensity 0.9**. The material
-  explicitly binds the shared environment: Three otherwise substitutes the scene
-  intensity for implicit scene maps, bypassing the desk's own intensity control.
-  Roughness controls update shader uniforms without rebuilding geometry.
-  The old wood forced roughness to **0.65–0.93**, had no separate clearcoat lobe,
-  and mostly reflected black in the hero's mirror direction. Those broad, weak
-  reflections were easy to miss. A smoother clearcoat now carries screen sheen
-  while the grain retains its rougher base response. The lower coat contribution
-  avoids the former grey veil, and the base texture retains 88% of its chroma.
-  For the desktop coat, finite screen/wall planes correct the keyboard-centered
-  cubemap parallax: reflections have actual world positions, dimensions and
-  softly blurred boundaries, with Three’s normal Fresnel/energy conservation.
-  Physical area lights retain their own specular response. No extra render pass.
+  folder defaults to **normal strength 0.45**, **coat normal strength 0.18**,
+  **clearcoat 0.24**, **coat roughness 0.22**, **coat roughness map influence 0.32**,
+  base grain roughness **0.30 + 0.32 × map**, and **envMapIntensity 0.9**.
+  Both layers share the veneer normal and roughness textures, with the lacquer's
+  weaker normal response representing partly filled pores. Coat roughness is
+  `clamp(0.22 + 0.32 × (map − 0.5), 0.0525, 1)`; zero influence makes it uniform.
+  Every value is live and included in **Copy lighting values**. Uniform changes
+  do not rebuild geometry or recapture the environment.
+  The former 0.055 base normal was too weak, the coat had neither map, and an
+  analytic panel replacement suppressed standard coat IBL to 8%. The result
+  could not show convincing grain in the lacquer reflections. That replacement,
+  its panel uniforms, and its duplicate layout-follow wiring have been removed.
+  Both layers now use Three's standard per-pixel normal/roughness-dependent IBL
+  and direct specular, with full coat IBL from the shared rig environment.
+  The base's lower roughness adds soft grain-modulated specular even uncoated.
+  The material explicitly binds the existing environment so its own intensity
+  works. It retains the warm base texture, 88% chroma and existing eased-edge UVs.
+  The keyboard-centered cubemap remains an approximation for nearby parallax;
+  it is shared and captured only when reflection-source controls/layout change.
+  No reflection-specific rectangles, extra render passes, or textures are added.
   The wall reflection card represents diffuse paint return (0.035 gain),
   following the saved 23.3 / #8d2d2d bias light and gating with screenOn.
   The LCD uses 0.62 radiance and a subdued continuous mint/lavender gradient;
@@ -120,7 +142,7 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   A dark icon on the white key preserves contrast. **Stream Deck** controls
   default to emission **2.4**, bloom strength **0.16**, threshold **1.25**,
   and spill intensity **0.8**. One **10 × 1.8 cm** RectAreaLight, colored from
-  the atlas's measured linear average, aims down across the plate and nearby mat.
+  the atlas's measured linear average, aims down across the plate and nearby support surface.
   The area source avoids a point-like specular pinprick on wood. It follows the deck
   and is disabled in all isolated-light captures. No logos or wordmarks.
   `StudioPost.tsx` uses Three's HDR EffectComposer, UnrealBloomPass and OutputPass.
@@ -147,10 +169,17 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   clamp to the desk; the deck sits on the highest surface its support touches,
   following the felt's 4 mm height as it moves on/off it.
   **Copy layout values** exports `{ headphones, monitor, streamdeck }`, each with
-  `{ x, y, z, rotationY }`. Defaults retain the previous placements. Moving the
+  `{ x, y, z, rotationY }`. Default X/Z/Y-rotation values are headphones
+  `(-0.5380, -0.3517, 0.0°)`, monitor `(0, -0.3840, 0.0°)`, and Stream Deck
+  `(0.2810, -0.3350, -24.6°)`; all three resolve to wood height **0.75 m**.
+  The copied headphone angle −0.019° rounds to 0.0°. Position fields preserve four
+  decimals and rotation fields show degrees to one decimal. The Stream Deck is
+  fully behind the mat at startup; moving onto felt still raises it to 0.754 m.
+  Monitor geometry and the saved light rig retain their original calibration
+  frame, transformed by Layout from first mount. Moving the
   monitor carries its complete stand, screen, rim/bias lights and reflection card.
-  The rear glow projects back onto the wall. Existing desk-coat panel uniforms
-  follow the same world transform; **Desk.tsx and the wood finish are unchanged**.
+  The rear glow projects back onto the wall. Wood follows the same cached rig
+  environment through standard IBL, with no separate desk-coat transform wiring.
   Cubemaps stay frozen during a pointer drag and refresh once on release;
   numeric/debug-store edits refresh once, with no idle captures. Prop moves also
   invalidate the spot's cached shadows.
@@ -232,7 +261,11 @@ These product detail captures hide the picker to leave the objects unobscured;
 hero, mobile and debug captures keep the actual UI. The wide preset uses a 64°
 lens while retaining the user's orbit bounds, fitting all five desk objects.
 The grazing preset exposes the bare wood beside the mat. A paired 9×9-pixel
-wood sample checks that clearcoat adds visible reflected light. Tests also
+wood sample checks that clearcoat adds visible reflected light. The wood follow-up
+adds `desk-sheen-closeup.png` plus paired smooth-finish, smooth-coat and disabled-
+Lightformer captures. Fixed bare-wood pixels verify directional grain breakup in
+lighting response, the coat's own map response, and actual rig-IBL contribution,
+replacing the former finite-panel spatial-localization assertion. Tests also
 measure actual world-space foot/mat contact within 0.5 mm, case clearance,
 static prop bounds during assembly, all-prop wide framing, startup lighting
 clipboard round-trip, live desk material/uniform controls, and prop disposal.
