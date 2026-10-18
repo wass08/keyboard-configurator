@@ -11,7 +11,7 @@ import type { Character, VoiceName } from './synth';
  * time-sliced chunks so no frame is blocked; playback is then one buffer
  * source per sound with ±3% pitch/gain jitter.
  *
- * graph: buffer source -> voice gain -> (panner) -> category gain -> master gain -> limiter -> out
+ * graph: buffer source -> voice gain -> (panner) -> category gain -> master gain -> high shelf -> limiter -> out
  */
 export type SfxName = VoiceName;
 export interface PlayOptions {
@@ -33,6 +33,8 @@ interface SfxEvent { name: SfxName; at: number; wall: number; rate: number; gain
 
 const MAX_VOICES = 20;
 const HOVER_INTERVAL = 0.06;
+/** Default minimum spacing of knob detent ticks (seconds); see play(). */
+export const DEFAULT_TICK_GAP = 0.045;
 /** Work budget per precompute slice before yielding to the page. */
 const SLICE_MS = 4;
 /** A queued play() (made before its buffers existed) is kept this long. */
@@ -46,7 +48,7 @@ const CATEGORY: Record<SfxName, SfxCategory> = {
 const JITTER: Partial<Record<SfxName, number>> = { knobTick: 0.012, thud: 0.02, matUnroll: 0.02 };
 
 const stats = {
-  contexts: 0, unlocked: false, ready: false, suppressed: 0, muted: 0, dropped: 0, scheduled: 0, stolen: 0,
+  contexts: 0, unlocked: false, ready: false, suppressed: 0, muted: 0, dropped: 0, scheduled: 0, stolen: 0, coalesced: 0,
   byName: {} as Partial<Record<SfxName, number>>, events: [] as SfxEvent[], errors: [] as string[],
   precompute: { runs: 0, buffers: 0, samples: 0, ms: 0, workMs: 0, longestSliceMs: 0, slices: 0, afterUnlockMs: -1 },
 };
@@ -56,7 +58,7 @@ let unlockedAt = 0;
 const buffers = new Map<SfxName, AudioBuffer[]>();
 const voices: Voice[] = [];
 let pending: { name: SfxName; opts: PlayOptions; at: number }[] = [];
-let lastHover = -1;
+let lastHover = -1, lastTick = -1, tickGap = DEFAULT_TICK_GAP;
 const lastVariant: Partial<Record<SfxName, number>> = {};
 let character: Character = { ...DEFAULT_CHARACTER };
 let generation = 0, recharacterTimer = 0;
@@ -129,10 +131,15 @@ function unlock() {
       ctx = new Context({ latencyHint: 'interactive' });
       stats.contexts++;
       unlockedAt = performance.now();
+      // A gentle safety limiter (it should rarely engage: voices peak around
+      // -9 dBFS at the default volume) and a soft top-end guard against fatigue.
       const limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -9; limiter.knee.value = 8; limiter.ratio.value = 6; limiter.attack.value = 0.002; limiter.release.value = 0.12;
+      limiter.threshold.value = -6; limiter.knee.value = 10; limiter.ratio.value = 3; limiter.attack.value = 0.004; limiter.release.value = 0.18;
       limiter.connect(ctx.destination);
-      master = ctx.createGain(); master.gain.value = 0; master.connect(limiter);
+      const shelf = ctx.createBiquadFilter();
+      shelf.type = 'highshelf'; shelf.frequency.value = 6000; shelf.gain.value = -3;
+      shelf.connect(limiter);
+      master = ctx.createGain(); master.gain.value = 0; master.connect(shelf);
       buses = Object.fromEntries(SFX_CATEGORIES.map(category => { const bus = ctx!.createGain(); bus.connect(master); return [category, bus]; })) as Record<SfxCategory, GainNode>;
       applyVolumes();
       precompute(VOICE_ORDER);
@@ -173,8 +180,17 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
     while (voices.length >= MAX_VOICES) { release(voices.shift()!, now); stats.stolen++; }
     const category = opts.category ?? CATEGORY[name];
     const amount = JITTER[name] ?? 0.03;
-    const rate = (opts.rate ?? 1) * jitter(amount), gain = (opts.gain ?? 1) * jitter(amount);
-    const at = now + Math.max(0, opts.delay ?? 0) + 0.002;
+    let rate = (opts.rate ?? 1) * jitter(amount), gain = (opts.gain ?? 1) * jitter(amount);
+    let at = now + Math.max(0, opts.delay ?? 0) + 0.002;
+    if (name === 'knobTick') {
+      // Fast turns: detents closer than the minimum gap are coalesced into a
+      // regular ratchet (at most one tick per gap), never a buzz. The visual
+      // detents and the volume steps are unaffected.
+      const next = Math.max(at, lastTick + tickGap);
+      if (next - at > tickGap) { stats.coalesced++; return false; }
+      if (next > at) { at = next; gain *= 0.82 * jitter(0.08); rate *= jitter(0.025); }
+      lastTick = at;
+    }
     const source = ctx.createBufferSource();
     source.buffer = variants[pick(name, variants.length)];
     source.playbackRate.value = rate;
@@ -211,11 +227,16 @@ function setCharacter(patch: Partial<Character>) {
   recharacterTimer = window.setTimeout(() => precompute([...new Set([...CHARACTER_VOICES, ...VOICE_ORDER.filter(name => !buffers.has(name))])]), 120);
 }
 
+/** Minimum spacing of knob detent ticks, in seconds (debug control). */
+function setTickGap(seconds: number) { tickGap = Math.max(0, seconds); }
+
 /** Public API, also intended for the intro sequence (spec 07b). */
 export const sfx = {
   play,
   unlock,
   setCharacter,
+  setTickGap,
+  get tickGap() { return tickGap; },
   get character(): Readonly<Character> { return character; },
   get ready() { return stats.ready; },
   get context() { return ctx; },
@@ -233,8 +254,9 @@ if (typeof window !== 'undefined') {
     ...stats, byName: { ...stats.byName }, events: stats.events.slice(), errors: stats.errors.slice(), precompute: { ...stats.precompute },
     state: ctx?.state ?? 'none', voices: voices.filter(v => !ctx || v.end >= ctx.currentTime).length, maxVoices: MAX_VOICES,
     enabled: useSound.getState().enabled, master: useSound.getState().master, sampleRate: ctx?.sampleRate ?? 0,
-    buffers: Object.fromEntries([...buffers].map(([name, list]) => [name, list.length])), character: { ...character },
+    buffers: Object.fromEntries([...buffers].map(([name, list]) => [name, list.length])), character: { ...character }, tickGap,
   });
+  window.__sfxPlay = (name: string, opts?: PlayOptions) => play(name as SfxName, opts);
   // Evidence/analysis hook: the exact samples that are played (scripts/audio-analysis.mjs).
   window.__sfxDump = () => ({ sampleRate: ctx?.sampleRate ?? 0, voices: Object.fromEntries([...buffers].map(([name, list]) => [name, list.map(b => Array.from(b.getChannelData(0)))])) });
 }

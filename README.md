@@ -286,16 +286,21 @@ dust on and off.
   snap on release; each detent ticks and nudges the master volume by 4% with a
   brief readout beside the speaker toggle. A click without a drag dips it 0.5 mm.
 - **Sound:** fully synthesized, no audio files. `src/audio/synth.ts` renders each
-  voice sample by sample (half-sine contact pulse into damped two-pole modal
-  resonators, a falling-pitch case thump, band-passed noise grain), with 1-6
-  seeded micro-variations per voice. `src/audio/sfx.ts` creates one AudioContext
+  voice sample by sample, layered like a close-miked press: a short band-passed
+  contact click, damped two-pole modal resonators for the cap/plate "clack"
+  body, a modest falling-pitch thock, noise grain and sparse 12-25 ms case/desk
+  reflections, with 1-6 seeded micro-variations per voice. `src/audio/sfx.ts` creates one AudioContext
   in the first user gesture and renders all ~42 buffers right after it, in 4 ms
   time slices (press/release first). Playback is one buffer source per sound with
-  ±3% pitch/gain jitter, a 20-voice cap with voice stealing, and a gentle limiter.
+  ±3% pitch/gain jitter, a 20-voice cap with voice stealing, a -3 dB high shelf
+  at 6 kHz and a gentle limiter. Knob detents closer than the tick gap (45 ms)
+  coalesce into a regular ratchet; the visual detents and volume steps do not.
   The speaker toggle in the picker caption is remembered in `localStorage`
-  (`kc.sound`). `?debug` → **Sound** holds master and per-category volumes,
+  (`kc.sound`). `?debug` → **Sound** holds master and per-category volumes, the
+  knob tick gap,
   **Synthesis** (body pitch, brightness, decay, stabilizer wire; re-renders live)
-  and **Preview** (one button per voice, plus a typing phrase and a knob sweep).
+  and **Preview** (one button per voice, plus a typing phrase, a knob sweep and a
+  fast knob spin).
   Replacement clicks are derived from the cap transforms during a colorway change
   and thinned to at most 20 events.
 - **Intro hook (spec 07b):** `import { sfx } from './audio/sfx'` then

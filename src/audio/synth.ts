@@ -152,8 +152,11 @@ interface Hit {
   hits?: [ms: number, amp: number][];
   thump?: { f0: number; f1: number; glideMs: number; tauMs: number; amp: number };
   body?: { f: number; q: number; tauMs: number; amp: number };
-  click?: { f: number; q: number; tauMs: number; amp: number };
+  /** Contact click transient (band-passed noise); follows the Brightness control. */
+  click?: { f: number; q: number; tauMs: number; amp: number; attackMs?: number };
   wire?: number;
+  /** Early reflections off the case and desk: sparse taps over `ms`, low-passed. */
+  room?: { ms: number; amount: number; lp: number };
 }
 interface Variation { rng: Rng; pitch: number; decay: number; bright: number; wire: number }
 
@@ -177,7 +180,7 @@ function renderHit(spec: Hit, v: Variation, fs: number) {
     }
     if (spec.click) {
       const c = spec.click;
-      grain(out, rng, at, c.f * vary(0.08), c.q, 0.15, c.tauMs * vary(0.15), c.amp * strength * (v.bright / 0.35) * vary(0.2), fs);
+      grain(out, rng, at, c.f * vary(0.08), c.q, c.attackMs ?? 0.15, c.tauMs * vary(0.15), c.amp * strength * (v.bright / 0.35) * vary(0.2), fs);
     }
   }
   if (spec.wire && v.wire > 0) {
@@ -196,41 +199,59 @@ function renderHit(spec: Hit, v: Variation, fs: number) {
     mode(out, ring, Math.round(fs * 0.004), 1150 * vary(0.05), 0.022, level * 0.5, fs);
     mode(out, ring, Math.round(fs * 0.005), 1730 * vary(0.05), 0.016, level * 0.3, fs);
   }
-  return finish(out, { hp: spec.hp, lp: spec.lp * 2 ** ((v.bright - 0.35) * 2.2), peak: spec.peak * vary(0.04) }, fs);
+  if (spec.room) {
+    // A tiny synthesized "convolution": the object sits on a desk, not in a void.
+    const { ms, amount, lp } = spec.room, wet = new Float32Array(out.length), taps = 14;
+    for (let j = 0; j < taps; j++) {
+      const t = 1.5 + (ms - 1.5) * ((j + rng()) / taps) ** 1.2;
+      const d = Math.round(t * 0.001 * fs), g = amount * Math.exp(-t / (ms / 3)) * (rng() < 0.5 ? -1 : 1) * (0.5 + 0.5 * rng());
+      for (let i = 0; i + d < out.length; i++) wet[i + d] += out[i] * g;
+    }
+    biquad(wet, 'lp', lp, 0.707, fs); biquad(wet, 'hp', 220, 0.707, fs);
+    for (let i = 0; i < out.length; i++) out[i] += wet[i];
+  }
+  return finish(out, { hp: spec.hp, lp: Math.min(9000, spec.lp * 2 ** ((v.bright - 0.35) * 2.2)), peak: spec.peak * vary(0.04) }, fs);
 }
 
 const HITS: Record<Exclude<VoiceName, 'matUnroll'>, Hit> = {
-  // Lubed linear bottom-out on PBT, dampened case: energy 150-500 Hz, soft transient.
+  // Bottom-out of a lubed switch on PBT, close-miked: a short plastic contact
+  // click, a mid "clack" body (cap and plate), a modest thock under it, and a
+  // tiny case/desk reflection tail.
   keyDown: {
-    length: 0.12, peak: 0.75, hp: 85, lp: 3200, pulseMs: 0.6,
-    modes: [[228, 0.0125, 1], [305, 0.0105, 0.85], [392, 0.009, 0.85], [520, 0.0068, 1], [690, 0.0055, 1.1], [940, 0.0042, 1], [1350, 0.0028, 0.65], [1900, 0.0018, 0.3]],
-    thump: { f0: 185, f1: 122, glideMs: 6, tauMs: 10, amp: 0.35 },
-    body: { f: 600, q: 0.8, tauMs: 6, amp: 0.7 },
-    click: { f: 2500, q: 0.9, tauMs: 0.6, amp: 0.06 },
+    length: 0.1, peak: 0.64, hp: 120, lp: 7000, pulseMs: 0.35,
+    modes: [[245, 0.009, 0.3], [335, 0.0075, 0.35], [620, 0.007, 0.65], [870, 0.006, 0.9], [1150, 0.0048, 1], [1500, 0.003, 0.85], [2100, 0.002, 0.6], [2900, 0.0013, 0.35]],
+    thump: { f0: 210, f1: 160, glideMs: 5, tauMs: 7, amp: 0.22 },
+    body: { f: 1200, q: 0.9, tauMs: 4, amp: 0.55 },
+    click: { f: 2800, q: 0.7, tauMs: 1.8, amp: 1.1, attackMs: 0.4 },
+    room: { ms: 22, amount: 0.4, lp: 3500 },
   },
-  // Stabilized keys: lower, fuller, two contacts (both stem sides), faint wire.
+  // Stabilized keys: only slightly deeper (~0.88x), a bit longer and fuller,
+  // both stem sides landing, a tiny wire rattle.
   keyDownStab: {
-    length: 0.16, peak: 0.82, hp: 80, lp: 2800, pulseMs: 0.9,
-    modes: [[176, 0.014, 1], [238, 0.013, 0.9], [305, 0.011, 0.8], [410, 0.0085, 0.7], [560, 0.0065, 0.6], [760, 0.005, 0.5], [1050, 0.0036, 0.35], [1500, 0.0024, 0.18]],
-    hits: [[2.6, 0.55]],
-    thump: { f0: 150, f1: 96, glideMs: 8, tauMs: 12, amp: 0.3 },
-    body: { f: 260, q: 1, tauMs: 9, amp: 0.5 },
-    click: { f: 2200, q: 0.9, tauMs: 0.6, amp: 0.05 },
+    length: 0.13, peak: 0.62, hp: 110, lp: 6500, pulseMs: 0.4,
+    modes: [[215, 0.011, 0.4], [295, 0.009, 0.45], [545, 0.0082, 0.7], [765, 0.007, 0.9], [1010, 0.0056, 1], [1320, 0.0036, 0.85], [1850, 0.0024, 0.55], [2550, 0.0015, 0.3]],
+    hits: [[2.4, 0.5]],
+    thump: { f0: 185, f1: 140, glideMs: 6, tauMs: 9, amp: 0.26 },
+    body: { f: 1050, q: 0.9, tauMs: 5, amp: 0.55 },
+    click: { f: 2500, q: 0.7, tauMs: 1.9, amp: 1, attackMs: 0.4 },
     wire: 0.12,
+    room: { ms: 25, amount: 0.38, lp: 3200 },
   },
-  // Top-out on release: lighter, shorter, a little higher.
+  // Top-out on release: a distinct, lighter, shorter and higher event.
   keyUp: {
-    length: 0.06, peak: 0.175, hp: 190, lp: 3800, pulseMs: 0.7,
-    modes: [[410, 0.0065, 0.6], [560, 0.0058, 1], [770, 0.0048, 0.85], [1080, 0.0036, 0.6], [1620, 0.0024, 0.35], [2300, 0.0016, 0.15]],
-    body: { f: 640, q: 1.3, tauMs: 3.5, amp: 0.4 },
-    click: { f: 2900, q: 1, tauMs: 0.4, amp: 0.08 },
+    length: 0.06, peak: 0.215, hp: 220, lp: 7000, pulseMs: 0.3,
+    modes: [[420, 0.005, 0.25], [960, 0.004, 0.7], [1300, 0.0034, 1], [1750, 0.0026, 0.7], [2400, 0.0017, 0.35]],
+    body: { f: 1350, q: 1, tauMs: 2.5, amp: 0.45 },
+    click: { f: 3200, q: 0.8, tauMs: 0.9, amp: 0.8, attackMs: 0.25 },
+    room: { ms: 16, amount: 0.3, lp: 3800 },
   },
   keyUpStab: {
-    length: 0.08, peak: 0.26, hp: 150, lp: 3200, pulseMs: 0.8,
-    modes: [[330, 0.008, 0.7], [450, 0.007, 1], [620, 0.0055, 0.8], [880, 0.004, 0.55], [1300, 0.0028, 0.3], [1850, 0.0018, 0.12]],
-    body: { f: 520, q: 1.2, tauMs: 4, amp: 0.4 },
-    click: { f: 2500, q: 1, tauMs: 0.4, amp: 0.06 },
+    length: 0.07, peak: 0.25, hp: 200, lp: 6500, pulseMs: 0.32,
+    modes: [[370, 0.006, 0.3], [845, 0.0048, 0.7], [1145, 0.004, 1], [1540, 0.003, 0.7], [2100, 0.002, 0.35]],
+    body: { f: 1190, q: 1, tauMs: 3, amp: 0.45 },
+    click: { f: 2900, q: 0.8, tauMs: 1, amp: 0.75, attackMs: 0.25 },
     wire: 0.1,
+    room: { ms: 20, amount: 0.32, lp: 3500 },
   },
   // Almost subliminal soft air tick.
   hover: {
@@ -245,13 +266,14 @@ const HITS: Record<Exclude<VoiceName, 'matUnroll'>, Hit> = {
     thump: { f0: 360, f1: 800, glideMs: 5, tauMs: 8, amp: 1 },
     body: { f: 700, q: 1, tauMs: 3, amp: 0.3 },
   },
-  // Cap pressed onto its stem: a small thock.
+  // Cap pressed onto its stem: a small, softer version of the press.
   capSeat: {
-    length: 0.08, peak: 0.42, hp: 110, lp: 3200, pulseMs: 0.8,
-    modes: [[270, 0.0095, 1], [360, 0.008, 0.85], [470, 0.0068, 0.75], [640, 0.0052, 0.6], [880, 0.004, 0.45], [1250, 0.0028, 0.25]],
-    thump: { f0: 215, f1: 150, glideMs: 5, tauMs: 8, amp: 0.4 },
-    body: { f: 400, q: 1.1, tauMs: 5, amp: 0.45 },
-    click: { f: 2600, q: 0.9, tauMs: 0.5, amp: 0.05 },
+    length: 0.08, peak: 0.4, hp: 140, lp: 6500, pulseMs: 0.4,
+    modes: [[290, 0.0075, 0.4], [700, 0.0055, 0.8], [980, 0.0045, 1], [1300, 0.0035, 0.75], [1800, 0.0024, 0.4], [2500, 0.0014, 0.18]],
+    thump: { f0: 240, f1: 180, glideMs: 5, tauMs: 6, amp: 0.18 },
+    body: { f: 1100, q: 0.9, tauMs: 3.5, amp: 0.45 },
+    click: { f: 2900, q: 0.7, tauMs: 1.1, amp: 0.7, attackMs: 0.3 },
+    room: { ms: 18, amount: 0.3, lp: 3500 },
   },
   // Knob pushed onto its shaft: muted aluminium-on-plastic click.
   knobSeat: {
@@ -259,19 +281,23 @@ const HITS: Record<Exclude<VoiceName, 'matUnroll'>, Hit> = {
     modes: [[620, 0.008, 0.8], [1050, 0.006, 0.6], [1720, 0.004, 0.4], [2650, 0.0025, 0.18]],
     body: { f: 900, q: 1, tauMs: 3, amp: 0.4 },
   },
-  // Quality encoder detent: short, crisp, high band-passed click with a hint of ring.
+  // Encoder detent: a soft, clicky snap with a little body; no high ringing.
   knobTick: {
-    length: 0.03, peak: 0.26, hp: 700, lp: 7000, pulseMs: 0.22,
-    modes: [[1250, 0.0028, 0.35], [2950, 0.0034, 0.8], [4350, 0.0042, 0.35], [6150, 0.0018, 0.12]],
-    click: { f: 4800, q: 0.8, tauMs: 0.25, amp: 0.3 },
+    length: 0.035, peak: 0.24, hp: 400, lp: 6000, pulseMs: 0.3,
+    modes: [[620, 0.003, 0.3], [980, 0.0028, 0.6], [1450, 0.0024, 0.85], [2100, 0.0018, 0.6], [2950, 0.0011, 0.25]],
+    body: { f: 1500, q: 0.9, tauMs: 1.5, amp: 0.45 },
+    click: { f: 2400, q: 0.8, tauMs: 0.4, amp: 0.4, attackMs: 0.2 },
+    room: { ms: 12, amount: 0.25, lp: 3500 },
   },
-  // Push-switch click: a tactile snap and its bottom-out, 4-5 ms apart.
+  // The push switch under the knob: a firm tactile click over a short low-mid thump.
   knobClick: {
-    length: 0.07, peak: 0.5, hp: 140, lp: 6000, pulseMs: 0.55,
-    modes: [[600, 0.009, 0.5], [1350, 0.006, 1], [2200, 0.0042, 0.55], [3400, 0.0025, 0.25]],
-    hits: [[4.6, 0.5]],
-    thump: { f0: 260, f1: 180, glideMs: 5, tauMs: 8, amp: 0.35 },
-    click: { f: 3500, q: 0.9, tauMs: 0.35, amp: 0.25 },
+    length: 0.08, peak: 0.5, hp: 110, lp: 6500, pulseMs: 0.5,
+    modes: [[300, 0.009, 0.7], [450, 0.0075, 0.8], [700, 0.0055, 0.65], [1100, 0.0038, 0.55], [1600, 0.0026, 0.35], [2300, 0.0016, 0.15]],
+    hits: [[5, 0.6]],
+    thump: { f0: 230, f1: 165, glideMs: 5, tauMs: 9, amp: 0.45 },
+    body: { f: 600, q: 0.9, tauMs: 4, amp: 0.45 },
+    click: { f: 2300, q: 0.8, tauMs: 1.4, amp: 1.2, attackMs: 0.35 },
+    room: { ms: 20, amount: 0.35, lp: 3200 },
   },
   // Frame landing on the felt mat: soft and weighty, no ring.
   thud: {

@@ -30,6 +30,8 @@ function typingDemo() {
   }
 }
 function knobSweep() { sfx.unlock(); for (let i = 0; i < 6; i++) sfx.play('knobTick', { delay: i * 0.07, pan: 0.33 }); }
+/** 24 detents in ~0.4 s, as a fast flick delivers them; the engine coalesces to the tick gap. */
+function knobSpin() { sfx.unlock(); for (let i = 0; i < 24; i++) setTimeout(() => sfx.play('knobTick', { pan: 0.33 }), i * 16); }
 
 /** `?debug` → Sound: master and per-category volumes (two-way synced with the knob), synthesis character, previews. */
 function useSoundControls() {
@@ -37,11 +39,13 @@ function useSoundControls() {
     Sound: folder({
       masterVolume: { value: useSound.getState().master, min: 0, max: 1, step: 0.01, label: 'Master', onChange: (v: number) => useSound.getState().setMaster(v) },
       ...Object.fromEntries(CATEGORY_LABELS.map(([category, label]) => [`${category}Volume`, { value: useSound.getState().volumes[category], min: 0, max: 1.5, step: 0.01, label, onChange: (v: number) => useSound.getState().setVolume(category, v) }])),
+      tickGap: { value: sfx.tickGap * 1000, min: 0, max: 120, step: 1, label: 'Tick gap ms', onChange: (v: number) => sfx.setTickGap(v / 1000) },
       Synthesis: folder(Object.fromEntries(CHARACTER.map(([key, label, min, max]) => [`synth${key[0].toUpperCase()}${key.slice(1)}`, { value: sfx.character[key], min, max, step: 0.01, label, onChange: (v: number) => sfx.setCharacter({ [key]: v }) }])), { collapsed: true }),
       Preview: folder({
         ...Object.fromEntries(PREVIEWS.map(([label, name]) => [label, button(() => preview(name))])),
         'Typing phrase': button(typingDemo),
         'Knob sweep': button(knobSweep),
+        'Fast knob spin': button(knobSpin),
       }, { collapsed: true }),
     }, { collapsed: true, order: 100 }),
   }));

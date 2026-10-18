@@ -65,11 +65,22 @@ export function analyse(samples, fs) {
     for (const [name, lo, hi] of BANDS) if (f >= lo && f < hi) { bands[name] += p; break; }
   }
   for (const key of Object.keys(bands)) bands[key] = round(bands[key] / total * 100, 2);
+  // Narrow resonance probe, 3-8 kHz: spectrum smoothed over ~60 Hz vs over one
+  // octave around it. A ringing high mode shows up as a large ratio.
+  const binHz = fs / size, power = k => re[k] * re[k] + im[k] * im[k];
+  const prefix = new Float64Array(size / 2 + 1);
+  for (let k = 1; k <= size / 2; k++) prefix[k] = prefix[k - 1] + power(k - 1);
+  const mean = (lo, hi) => { lo = Math.max(1, Math.floor(lo)); hi = Math.min(size / 2, Math.ceil(hi)); return (prefix[hi] - prefix[lo]) / Math.max(1, hi - lo); };
+  let peakiness = -Infinity;
+  for (let f = 3000; f <= Math.min(8000, fs / 2 - 1000); f += binHz) {
+    const k = f / binHz, narrow = mean(k - 30 / binHz, k + 30 / binHz), local = mean(k / Math.SQRT2, k * Math.SQRT2);
+    if (local > 0) peakiness = Math.max(peakiness, 10 * Math.log10(narrow / local));
+  }
   const hf = highpass(x, 4000, fs); let hfPeak = 0; for (const v of hf) hfPeak = Math.max(hfPeak, Math.abs(v));
   return {
     samples: n, durationMs: round(n / fs * 1000), peakDb: round(db(peak), 2), rmsDb: round(db(Math.sqrt(activeEnergy / Math.max(1, activeSamples))), 2),
     totalRmsDb: round(db(Math.sqrt(energy / n)), 2), attackMs: round(peakAt / fs * 1000, 2), decay20Ms: round(lastAbove(-20)), decay40Ms: round(lastAbove(-40)), decay60Ms: round(lastAbove(-60)),
-    centroidHz: Math.round(weighted / total), bandsPercent: bands, above4kPeakDbRel: round(db(hfPeak) - db(peak), 1),
+    centroidHz: Math.round(weighted / total), bandsPercent: bands, above4kPeakDbRel: round(db(hfPeak) - db(peak), 1), peak3to8kDb: round(peakiness, 1),
   };
 }
 
@@ -108,9 +119,9 @@ export async function exportVoices(voices, fs, dir = 'screenshots/audio') {
 export function table(report) {
   const rows = Object.entries(report).filter(([name]) => name !== 'relations').map(([name, s]) => [
     name, s.variants, s.durationMs, s.peakDb, s.rmsDb, s.attackMs, s.decay20Ms, s.decay40Ms, s.centroidHz,
-    ...BANDS.map(([b]) => s.bandsPercent[b]), s.above4kPeakDbRel,
+    ...BANDS.map(([b]) => s.bandsPercent[b]), s.above4kPeakDbRel, s.peak3to8kDb,
   ]);
-  const head = ['voice', 'var', 'ms', 'peak', 'rms', 'atk', 'd-20', 'd-40', 'centroid', '<150', '150-500', '0.5-2k', '2-6k', '>6k', 'hf>4k'];
+  const head = ['voice', 'var', 'ms', 'peak', 'rms', 'atk', 'd-20', 'd-40', 'centroid', '<150', '150-500', '0.5-2k', '2-6k', '>6k', 'hf>4k', 'pk3-8k'];
   return [head, ...rows].map(r => r.map((c, i) => String(c).padStart(i ? 8 : 12)).join(' ')).join('\n') + `\nrelations: ${JSON.stringify(report.relations)}`;
 }
 

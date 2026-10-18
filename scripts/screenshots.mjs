@@ -237,14 +237,20 @@ async function interactionChecks(browser) {
       assert.ok(Number.isFinite(v.peakDb) && v.peakDb <= -1 && v.durationMs > 0, `${name}: finite, headroom`);
     }
     const kd = voiceStats.keyDown, kds = voiceStats.keyDownStab, ku = voiceStats.keyUp;
-    assert.ok(kd.bandsPercent.lowMid >= 55 && kd.centroidHz <= 500, `Press energy sits in 150-500 Hz (${kd.bandsPercent.lowMid}%, centroid ${kd.centroidHz} Hz)`);
-    assert.ok(kd.bandsPercent.high + kd.bandsPercent.air <= 2 && kd.above4kPeakDbRel <= -20, 'Press has no harsh top end');
-    assert.ok(kd.decay40Ms >= 35 && kd.decay40Ms <= 90, `Press decays in ~40-70 ms (${kd.decay40Ms} ms to -40 dB)`);
-    assert.ok(kds.centroidHz < kd.centroidHz && kds.decay40Ms > kd.decay40Ms && kds.bandsPercent.high + kds.bandsPercent.air <= 2, 'Stabilized press is deeper and fuller');
+    // Retargeted after listening (08b follow-up): a close-miked real press, i.e. a
+    // short contact click, a mid clack body and a modest thock; never harsh.
+    for (const [name, v] of Object.entries(voiceStats)) if (name !== 'relations') assert.ok(v.peak3to8kDb <= 10, `${name}: no narrow 3-8 kHz resonance (${v.peak3to8kDb} dB)`);
+    assert.ok(kd.centroidHz >= 850 && kd.centroidHz <= 1600 && kd.spread.centroidHz[0] >= 800, `Press centroid ~0.9-1.6 kHz (${kd.spread.centroidHz.join('-')} Hz)`);
+    assert.ok(kd.bandsPercent.high >= 3 && kd.bandsPercent.high < 25 && kd.bandsPercent.air < 2, `Press click present, top end tame (2-6 kHz ${kd.bandsPercent.high}%, >6 kHz ${kd.bandsPercent.air}%)`);
+    assert.ok(kd.bandsPercent.sub + kd.bandsPercent.lowMid >= 8 && kd.bandsPercent.sub + kd.bandsPercent.lowMid <= 35, 'The thock supports rather than dominates');
+    assert.ok(kd.above4kPeakDbRel <= -10 && kd.decay40Ms >= 25 && kd.decay40Ms <= 80, `Press decay ${kd.decay40Ms} ms to -40 dB, no piercing peak`);
+    assert.ok(kds.centroidHz < kd.centroidHz && kds.centroidHz >= kd.centroidHz * 0.7 && kds.decay40Ms > kd.decay40Ms && kds.bandsPercent.sub < 15, 'Stabilized press: slightly deeper, longer, never boomy');
     assert.ok(voiceStats.relations.keyUpVsKeyDownDb <= -7 && voiceStats.relations.keyUpVsKeyDownDb >= -11, 'Release is ~8-10 dB under the press');
-    assert.ok(ku.centroidHz > kd.centroidHz && ku.durationMs < kd.durationMs, 'Release is lighter, shorter and higher');
+    assert.ok(ku.centroidHz > kd.centroidHz && ku.durationMs < kd.durationMs, 'Release is a distinct, lighter, shorter, higher event');
     assert.ok(voiceStats.hover.peakDb <= -20, 'Hover stays almost subliminal');
-    assert.ok(voiceStats.knobTick.durationMs <= 40 && voiceStats.knobTick.centroidHz >= 1500, 'Detent tick is short and bright');
+    const tick = voiceStats.knobTick, click = voiceStats.knobClick;
+    assert.ok(tick.durationMs <= 40 && tick.centroidHz >= 1000 && tick.centroidHz <= 2000 && tick.bandsPercent.high < 20 && tick.above4kPeakDbRel <= -10, 'Detent tick: short, clicky, little 4-6 kHz');
+    assert.ok(click.centroidHz >= 400 && click.centroidHz <= 1000 && click.bandsPercent.lowMid >= 40 && click.bandsPercent.high >= 1, 'Knob press: a grounded switch click');
     assert.ok(voiceStats.matUnroll.durationMs >= 1000 && voiceStats.matUnroll.attackMs >= 50 && voiceStats.matUnroll.centroidHz < 1000, 'Mat unroll is a slow, soft swoosh');
     result.synthesis = { status: 'passed', sampleRate: dump.sampleRate, precompute: synthesized.precompute, buffers: synthesized.buffers, audioRequests, wavDir: 'screenshots/audio', voices: voiceStats };
     assert.equal(await page.evaluate(() => window.__screen().text), 'h', 'Clicking a key types its character');
@@ -372,7 +378,24 @@ async function interactionChecks(browser) {
     const knob = await state();
     const knobSound = await sound();
     assert.equal(knob.knob.detents, 5); assert.equal(knob.knob.ticks, 5);
-    assert.equal((knobSound.byName.knobTick ?? 0) - ticksBefore, 5, 'One tick per detent');
+    // A fast drag delivers detents a few ms apart: they coalesce into a ratchet
+    // spaced by the minimum tick gap (the visual detents above are all there).
+    const fastTicks = knobSound.events.filter(e => e.name === 'knobTick').slice(-((knobSound.byName.knobTick ?? 0) - ticksBefore));
+    const tickGap = knobSound.tickGap;
+    assert.ok(fastTicks.length >= 1 && fastTicks.length <= 5, `Fast drag ticks ${fastTicks.length}`);
+    assert.equal(fastTicks.length + knobSound.coalesced, 5, 'Every detent either ticks or is coalesced');
+    assert.ok(fastTicks.slice(1).every((e, i) => e.at - fastTicks[i].at >= tickGap - 1e-6), 'Ticks respect the minimum gap');
+    // A flick: 24 detents 10 ms apart through the engine (as the caller staggers them).
+    const flick = await page.evaluate(() => {
+      const before = window.__sfx();
+      for (let i = 0; i < 24; i++) window.__sfxPlay('knobTick', { delay: i * 0.01, pan: 0.33 });
+      const after = window.__sfx();
+      const ticks = after.events.slice(-(after.scheduled - before.scheduled));
+      return { scheduled: ticks.length, coalesced: after.coalesced - before.coalesced, gaps: ticks.slice(1).map((e, i) => e.at - ticks[i].at), gains: ticks.map(e => e.gain), gap: after.tickGap };
+    });
+    assert.equal(flick.scheduled + flick.coalesced, 24);
+    assert.ok(flick.scheduled >= 4 && flick.scheduled <= 7 && flick.gaps.every(g => g >= flick.gap - 1e-6), `A flick becomes a ratchet (${flick.scheduled} ticks)`);
+    assert.ok(new Set(flick.gains.map(g => g.toFixed(3))).size > 2, 'Ratchet ticks vary slightly');
     assert.ok(Math.abs(knobSound.master - Math.min(1, masterBefore + 0.2)) < 1e-9, 'Clockwise detents raise the master volume');
     nearArray((await page.evaluate(() => window.__camera())).position, cameraKnob.position, 'Knob drags never orbit');
     assert.ok(await page.locator('.sound-level.visible').count() === 1, 'Transient volume readout');
@@ -385,10 +408,17 @@ async function interactionChecks(browser) {
     assert.equal((await state()).knob.clicks, 1); assert.equal((await sound()).byName.knobClick, 1);
     await page.mouse.move(kx - detentPx * 5 - 3, ky, { steps: 12 }); // no button: nothing happens
     assert.equal((await state()).knob.detents, 5);
-    await page.mouse.move(kx, ky); await page.mouse.down(); await page.mouse.move(kx - detentPx * 5 - 3, ky, { steps: 12 }); await page.mouse.up();
+    // A slow turn back: one detent every ~90 ms, so every detent ticks.
+    const slowBefore = await sound();
+    await page.mouse.move(kx, ky); await page.mouse.down();
+    for (let i = 1; i <= 5; i++) { await page.mouse.move(kx - detentPx * i - (i === 5 ? 3 : 0), ky); await page.waitForTimeout(90); }
+    await page.mouse.up();
     await page.waitForFunction(() => Math.abs(window.__interaction.state().knob.angleDeg) < 0.01, null, { timeout: 5000 });
+    const slowAfter = await sound();
+    assert.equal((slowAfter.byName.knobTick ?? 0) - (slowBefore.byName.knobTick ?? 0), 5, 'A slow turn ticks once per detent');
+    assert.equal(slowAfter.coalesced, slowBefore.coalesced);
     assert.ok(Math.abs((await sound()).master - masterBefore) < 1e-9, 'Counter-clockwise restores the volume');
-    result.knob = { status: 'passed', detents: knob.knob.detents, angleDeg: knob.knob.angleDeg, ticks: knob.knob.ticks, dipMm: dip * 1000, master: [masterBefore, knobSound.master] };
+    result.knob = { status: 'passed', detents: knob.knob.detents, angleDeg: knob.knob.angleDeg, ticks: knob.knob.ticks, dipMm: dip * 1000, master: [masterBefore, knobSound.master], tickGapMs: tickGap * 1000, fastDragTicks: fastTicks.length, coalesced: knobSound.coalesced, flick: { detents: 24, ticks: flick.scheduled, coalesced: flick.coalesced, minGapMs: Math.min(...flick.gaps) * 1000 }, slowTurnTicks: 5 };
     await page.mouse.move(5, H / 2);
     await page.evaluate(() => window.__kb.camera('default'));
 
@@ -1539,7 +1569,10 @@ try {
   await debugPage.waitForFunction(runs => window.__sfx().precompute.runs > runs && window.__sfx().precompute.buffers === 22, runsBefore);
   const recharacter = await debugPage.evaluate(() => window.__sfx());
   assert.equal(recharacter.character.pitch, 0.85); assert.equal(recharacter.contexts, 1); assert.deepEqual(recharacter.errors, []);
-  checks.soundDebugControls = { status: 'passed', previewed: ['keyDown', 'keyDownStab', 'knobTick', 'thud', 'matUnroll'], character: recharacter.character, rerender: recharacter.precompute };
+  const gapInput = debugPage.locator('[id="Sound.tickGap"]');
+  await gapInput.fill('60'); await gapInput.press('Enter');
+  await debugPage.waitForFunction(() => Math.abs(window.__sfx().tickGap - 0.06) < 1e-9);
+  checks.soundDebugControls = { status: 'passed', tickGapMs: 60, previewed: ['keyDown', 'keyDownStab', 'knobTick', 'thud', 'matUnroll'], character: recharacter.character, rerender: recharacter.precompute };
   await debugContext.close();
   assert.deepEqual(errors, [], 'Browser must have no runtime or console errors');
   checks.browserErrors = errors;
