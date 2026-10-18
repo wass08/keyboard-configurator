@@ -230,3 +230,10 @@ Attached: Stream Deck reference, saved as `references/props-stream-deck-lit.png`
 > - hover the keys should slightly push the keys. clicking the knob should allow to rotate it.
 > - when typing we could make it really press the keys, and write it on the desk screen
 > - use very pleasant sfx for keyboard (hover / typing / animating key replacement) nice knob tick/click when rotating it
+
+---
+
+## 22 — SFX sources, cleanup (2026-10-18)
+
+> what did you use for the sfx?
+> yes you can clean the worktrees and branches
