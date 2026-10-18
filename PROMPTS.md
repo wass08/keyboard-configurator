@@ -250,3 +250,40 @@ Attached: Stream Deck reference, saved as `references/props-stream-deck-lit.png`
 > - I noticed the knobs is adjusting the audio level, it's super nice. maybe on the bottom right of the screen we could show the audio level adjusted by this. it doesn't stay always on screen. only when adjusted.
 
 Attached: case corner faceting, saved as `references/issue-case-corner-faceting.png`.
+
+---
+
+## 24 — Dev server (2026-10-18)
+
+> launch dev server so I can check
+
+---
+
+## 25 — DoF defaults + autofocus, SFX feedback, smooth volume OSD (2026-10-18)
+
+> awesome. please take the depth of field values from there, and make the focus on keyboard automatic when camera moves.
+> ```json
+> { "minDistance": 0.317, "maxDistance": 1.351, "distance": 1.219, "polarDeg": 74.594, "azimuthDeg": -29.975,
+>   "position": [-0.5872853580350695, 1.1489139423515344, 1.0232402900148423], "target": [0, 0.825, 0.005],
+>   "lens": { "focalLengthMm": 80.343, "verticalFovDeg": 19.022, "filmGaugeMm": 35, "near": 0.008, "far": 25,
+>             "depthOfField": true, "focusDistance": 1.2428487839406714, "bokehScale": 1, "focalRange": 0.285 } }
+> ```
+>
+> currently the sfx is too harsh:
+> - hovering key is nice
+> - pressing keys is very low and doesn't sound convincing/realistic (even synthesized we can do better). the backspace is super low too
+> - the knobs press should feel more grounded. like a switch.
+> - the knobs turning could feel a little bit more natural/clicky but a bit less harsh. also set a min gap between so a fast turn of the knobs still feels nice.
+> - for the sound on the bottom right of the screen, it's perfect but please make a transition of the value so it doesn't feel laggy
+
+---
+
+## 26 — Sampled keyboard SFX from ASMR recording, knob spin bug (2026-10-18)
+
+> I still don't like the sfx for the keyboard
+> Let's try a different approach.
+> Let's extract samples from the attached audio between 52 seconds to 6mn is one keyboard I like its sound  (it's asmr keyboard typing.)  let's do round robin and attach some specific to spacebar/backspace for max realism/feel
+>
+> I also noticed an issue on the knob, when adjusting its value it's doing tons of rotation like crazy on 5181 (don't know if it's the right port too look at it, but just notifying you in case)
+
+Attached: `[Cozy ASMR ☁] typing on 9 different Keyboards (no mid-roll ads).mp3` (kept outside the repo).
