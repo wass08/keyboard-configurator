@@ -69,6 +69,10 @@ MP4 as the fallback).
 
 ### Synthesized voices
 
-Hover, knob, replacement and intro sounds (and the fallback key sounds) are
-synthesized at runtime by hand-written code in `src/audio/synth.ts`; they use
-no recordings or third-party assets.
+The **knob press** is not synthesized: it is a set of 3 keystrokes (press +
+release) cut from the same non-CC recording above, re-pitched (+2 semitones),
+high-passed and lightly layered, so the same personal/prototype-only terms apply.
+
+Hover, knob detent ticks, replacement and intro sounds (and the fallback key
+sounds) are synthesized at runtime by hand-written code in `src/audio/synth.ts`;
+they use no recordings or third-party assets.

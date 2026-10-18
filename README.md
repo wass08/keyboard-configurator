@@ -329,17 +329,17 @@ queries are disabled during normal viewing and FPS sampling.
   lowest ~40 mm of the panel. It redraws on edits and on the ~1 Hz caret blink only.
 - **Knob:** drag horizontally (14 px per 15° detent, 24 per turn) with a magnetic
   snap on release; each detent ticks and nudges the master volume by 4% with a
-  brief readout beside the speaker toggle. A click without a drag dips it 0.5 mm.
-- **Sound:** key presses and releases are recorded samples; everything else is
-  synthesized. `scripts/extract-samples.mjs` cuts round-robin sets (16 alpha, 7
-  spacebar and 5 stabilized keystrokes, each a press and its own release) from
+  brief macOS-style volume OSD in the monitor's bottom-right corner. A click without a drag dips it 0.5 mm.
+- **Sound:** key presses/releases and the knob press are recorded samples;
+  everything else is synthesized. `scripts/extract-samples.mjs` cuts round-robin sets (16 alpha, 6
+  spacebar, 5 stabilized and 3 knob-press keystrokes, each a press and its own release) from
   the owner-supplied ASMR recording (0:52-6:00), into one Opus sprite (~145 KB,
   AAC fallback) plus `public/audio/keys.json`. **Not CC-licensed: personal
   /prototype use only, see CREDITS.md.** `src/audio/samples.ts` fetches the
   sprite on idle (bytes only) and decodes it once after the unlocking gesture;
   Space maps to the spacebar set, Backspace/Enter/Shift to the stabilized set,
   every other key to the alphas, with ±2% pitch/gain jitter. `src/audio/synth.ts`
-  renders hover, knob, replacement and intro voices (and synthesized stand-in
+  renders hover, knob detent, replacement and intro voices (and synthesized stand-in
   keys, used until the samples decode) sample by sample: band-passed contact
   clicks, damped two-pole modal resonators, short thumps, noise grain and sparse
   case/desk reflections. One AudioContext, created in the first user gesture; a
@@ -375,7 +375,7 @@ ambientCG **Fabric 034**, 2K color, OpenGL normal and roughness, for felt and
 cushions. All CC0 1.0. `npm run assets` requires the standard `unzip` utility
 for the ambientCG archive. Full names, source pages, exact download URLs,
 license links and the earlier evaluated wood set are in `public/CREDITS.md`.
-Key sounds use user-provided, non-CC ASMR samples for personal/prototype use;
+Key and knob-press sounds use user-provided, non-CC ASMR samples for personal/prototype use;
 other voices are synthesized locally. See `public/CREDITS.md` for the recording's
 title and the creator-permission requirement for publishing.
 No downloaded models, fonts, logos or images of keyboards/props are used in the app.
