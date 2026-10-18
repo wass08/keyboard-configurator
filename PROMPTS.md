@@ -308,3 +308,16 @@ Attached: `[Cozy ASMR ☁] typing on 9 different Keyboards (no mid-roll ads).mp3
 > - even with all the settings on max I can't see dust at all. did we go too far with the subtltety?
 
 Attached: headphone stand intersection, saved as `references/issue-headphone-stand-intersection.png`.
+
+---
+
+## 29 — Final lighting/film defaults, remove anamorphic, wall on the right (2026-10-18)
+
+> amazing, here are my lighting settings : *(full "Copy lighting values" JSON — same lights as prompt 28; Stream Deck bloomThreshold 2; film: toneMapping "ACES Filmic", exposure 1, anamorphic disabled, grade enabled with contrast 1.11, saturation 1, vibrance 0.19, temperature 0.28, tint 0.22, neutral lift/gamma/gain, vignette amount 0.52 / softness 0.48; dust: count 84, size 0.71, intensity 0.17, speed 1.85, padding 0.07)*
+>
+> get rid of anamorphic even in the settings.
+>
+> on the attached image you can see our fill light is shown on the wall far away on the right and we can see the bottom of the wall too.
+> Do you have an idea to make it non visible at all on the right of the wall? my only usage of the wall is to see  the back light of the monitor. please discuss it with me before taking any action.
+
+Attached: saved as `references/issue-wall-fill-visible-right.png`.
