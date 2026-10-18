@@ -3,9 +3,10 @@
  * manifest (public/audio/keys.json), cut by scripts/extract-samples.mjs from the
  * user's ASMR typing recording (see public/CREDITS.md). Fetched once on idle
  * (bytes only), decoded once after the unlocking gesture, then played as
- * offset/duration slices of a single AudioBuffer.
+ * offset/duration slices of a single AudioBuffer. Classes: alpha, space and stab
+ * keys, plus "knob" (a clean keystroke reshaped into the knob's push switch).
  */
-export type SampleClass = 'alpha' | 'space' | 'stab';
+export type SampleClass = 'alpha' | 'space' | 'stab' | 'knob';
 export type SampleKind = 'press' | 'release';
 interface Slot { class: SampleClass; kind: SampleKind; index: number; start: number; length: number }
 interface Manifest { sampleRate: number; preRollMs: number; files: { ogg: string; m4a: string }; classes: Record<SampleClass, { variants: number; gain: number }>; slots: Slot[] }
@@ -73,7 +74,7 @@ export async function decodeSamples(ctx: BaseAudioContext, onError: (message: st
     shifts.sort((a, b) => a - b);
     // The extraction's own onset is within ~1 ms of this one: only a consistent offset is codec delay.
     const median = shifts[shifts.length >> 1], shift = Math.abs(median) > 0.002 ? Math.max(-0.025, Math.min(0.025, median)) : 0;
-    const slices = { alpha: { press: [], release: [] }, space: { press: [], release: [] }, stab: { press: [], release: [] } } as SampleBank['slices'];
+    const slices = { alpha: { press: [], release: [] }, space: { press: [], release: [] }, stab: { press: [], release: [] }, knob: { press: [], release: [] } } as SampleBank['slices'];
     for (const slot of manifest.slots) slices[slot.class][slot.kind][slot.index] = { offset: Math.max(0, slot.start + shift), duration: slot.length };
     Object.assign(sampleStats, {
       status: 'decoded', decodeMs: performance.now() - t0, codecShiftMs: shift * 1000,

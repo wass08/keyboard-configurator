@@ -31,7 +31,7 @@ export interface PlayOptions {
 }
 export type { SfxCategory, Character };
 
-interface Voice { output: GainNode; source: AudioBufferSourceNode; end: number }
+interface Voice { output: GainNode; sources: AudioBufferSourceNode[]; end: number }
 interface SfxEvent { name: SfxName; at: number; wall: number; rate: number; gain: number; category: SfxCategory; source: 'sample' | 'synth' }
 
 const MAX_VOICES = 20;
@@ -55,8 +55,10 @@ const JITTER: Partial<Record<SfxName, number>> = { knobTick: 0.012, thud: 0.02, 
 const SAMPLE_JITTER = 0.02;
 const SAMPLE_VOICE: Partial<Record<SfxName, [SampleClass, SampleKind]>> = {
   keyDown: ['alpha', 'press'], keyUp: ['alpha', 'release'], keyDownStab: ['stab', 'press'], keyUpStab: ['stab', 'release'],
-  keyDownSpace: ['space', 'press'], keyUpSpace: ['space', 'release'],
+  keyDownSpace: ['space', 'press'], keyUpSpace: ['space', 'release'], knobClick: ['knob', 'press'],
 };
+/** Sampled voices that also play their matched release: the knob's push and return (seconds). */
+const WITH_RELEASE: Partial<Record<SfxName, [number, number]>> = { knobClick: [0.055, 0.075] };
 /** Synthesized stand-ins while samples are unavailable (or disabled in ?debug). */
 const SYNTH_FALLBACK: Partial<Record<SfxName, VoiceName>> = { keyDownSpace: 'keyDownStab', keyUpSpace: 'keyUpStab' };
 
@@ -178,7 +180,7 @@ function pick(name: SfxName, count: number) {
 
 function release(voice: Voice, t: number) {
   voice.output.gain.setTargetAtTime(0, t, 0.004);
-  try { voice.source.stop(t + 0.03); } catch { /* already stopped */ }
+  for (const source of voice.sources) { try { source.stop(t + 0.03); } catch { /* already stopped */ } }
   voice.end = t + 0.03;
 }
 
@@ -221,8 +223,8 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
       lastTick = at;
     }
     const source = ctx.createBufferSource();
-    let slice: { offset: number; duration: number } | null = null;
-    if (slices) { source.buffer = bank!.buffer; slice = slices[pick(name, slices.length)]; gain *= bank!.gain[sampled![0]]; }
+    let slice: { offset: number; duration: number } | null = null, variant = 0;
+    if (slices) { source.buffer = bank!.buffer; variant = pick(name, slices.length); slice = slices[variant]; gain *= bank!.gain[sampled![0]]; }
     else source.buffer = variants![pick(name, variants!.length)];
     source.playbackRate.value = rate;
     const output = ctx.createGain();
@@ -235,10 +237,18 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
     }
     tail.connect(buses[category]);
     if (slice) source.start(at, slice.offset, slice.duration); else source.start(at);
-    const end = at + (slice ? slice.duration : source.buffer!.duration) / rate;
-    voices.push({ output, source, end });
+    let end = at + (slice ? slice.duration : source.buffer!.duration) / rate, last = source;
+    const sources = [source], pair = slice && WITH_RELEASE[name] ? bank!.slices[sampled![0]].release[variant] : undefined;
+    if (pair) {
+      // The matched release of the same recording, a natural hold later.
+      const [lo, hi] = WITH_RELEASE[name]!, back = ctx.createBufferSource(), when = at + lo + Math.random() * (hi - lo);
+      back.buffer = bank!.buffer; back.playbackRate.value = rate * jitter(0.01); back.connect(output);
+      back.start(when, pair.offset, pair.duration); sources.push(back);
+      end = Math.max(end, when + pair.duration / back.playbackRate.value); last = back;
+    }
+    voices.push({ output, sources, end });
     // Disconnect the voice graph once it ends.
-    source.onended = () => { try { source.disconnect(); output.disconnect(); if (tail !== output) tail.disconnect(); } catch { /* ok */ } };
+    last.onended = () => { try { for (const s of sources) s.disconnect(); output.disconnect(); if (tail !== output) tail.disconnect(); } catch { /* ok */ } };
     stats.scheduled++;
     stats.byName[name] = (stats.byName[name] ?? 0) + 1;
     stats.events.push({ name, at, wall: performance.now(), rate, gain, category, source: slice ? 'sample' : 'synth' });

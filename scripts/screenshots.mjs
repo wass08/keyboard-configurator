@@ -135,7 +135,10 @@ async function selectionDuringLoading(browser) {
 const expectedVoices = { keyDown: 6, keyUp: 5, keyDownStab: 4, keyUpStab: 3, hover: 3, knobTick: 4, knobClick: 2, capLift: 3, capSeat: 4, knobSeat: 2, thud: 2, softClick: 3, matUnroll: 1 };
 const audioFile = /\.(mp3|ogg|oga|wav|m4a|aac|flac|opus|weba)(\?|$)|\/audio\//i;
 // Recorded key samples (08b follow-up): one manifest and one sprite per page load.
-const sampleClasses = { alpha: { press: 16, release: 16 }, space: { press: 7, release: 7 }, stab: { press: 5, release: 5 } };
+const sampleClasses = { alpha: { press: 16, release: 16 }, space: { press: 6, release: 6 }, stab: { press: 5, release: 5 }, knob: { press: 3, release: 3 } };
+// Spacebar set before the re-extraction (merge 8309616), measured the same way
+// (noiseFloor, median over the set, dB re. peak): the user heard room air.
+const spacebarBefore = { press: { tailDb: -32.6, hissDb: -47.8 }, release: { tailDb: -33.5, hissDb: -47.1 } };
 const audioName = url => new URL(url).pathname.split('/').pop();
 const expectedCodeMap = {
   Escape: 'esc', F1: 'f1', F2: 'f2', F3: 'f3', F4: 'f4', F5: 'f5', F6: 'f6', F7: 'f7', F8: 'f8', F9: 'f9', F10: 'f10', F11: 'f11', F12: 'f12',
@@ -271,6 +274,16 @@ async function interactionChecks(browser) {
       assert.ok(v.spread.peakDb[1] - v.spread.peakDb[0] <= 9, `${name}: round-robin levels are consistent`);
     }
     assert.ok(sampleStats['space-press'].centroidHz < sampleStats['alpha-press'].centroidHz && sampleStats['stab-press'].centroidHz < sampleStats['alpha-press'].centroidHz, 'Space and stabilized presses sit lower than alphas');
+    // Room air: every class's tail hiss (>6 kHz) stays far under its peak; the
+    // spacebar set improves on the previous one by at least 6 dB.
+    for (const [name, v] of Object.entries(sampleStats)) if (name !== 'relations') assert.ok(v.noise.hissDb <= -54 && v.noise.worstHissDb <= -49, `${name}: no audible room air (${v.noise.hissDb} dB)`);
+    for (const kind of ['press', 'release']) {
+      const now = sampleStats[`space-${kind}`].noise, before = spacebarBefore[kind];
+      assert.ok(now.hissDb <= before.hissDb - 6 && now.tailDb <= before.tailDb - 2, `Spacebar ${kind}: hiss ${before.hissDb} -> ${now.hissDb} dB, tail ${before.tailDb} -> ${now.tailDb} dB`);
+    }
+    // Knob push switch: a keystroke made smaller and tighter (no low end, short).
+    const kc = sampleStats['knob-press'];
+    assert.ok(kc.durationMs <= 75 && kc.centroidHz > sampleStats['alpha-press'].centroidHz && kc.bandsPercent.sub + kc.bandsPercent.lowMid < 2, 'Knob click: short, brighter than a key, no low end');
     for (const [name, v] of Object.entries(voiceStats)) {
       if (name === 'relations') continue;
       assert.ok(Number.isFinite(v.peakDb) && v.peakDb <= -1 && v.durationMs > 0, `${name}: finite, headroom`);
@@ -292,7 +305,7 @@ async function interactionChecks(browser) {
     assert.ok(click.centroidHz >= 400 && click.centroidHz <= 1000 && click.bandsPercent.lowMid >= 40 && click.bandsPercent.high >= 1, 'Knob press: a grounded switch click');
     assert.ok(voiceStats.matUnroll.durationMs >= 1000 && voiceStats.matUnroll.attackMs >= 50 && voiceStats.matUnroll.centroidHz < 1000, 'Mat unroll is a slow, soft swoosh');
     result.synthesis = { status: 'passed', sampleRate: dump.sampleRate, precompute: synthesized.precompute, buffers: synthesized.buffers, wavDir: 'screenshots/audio', voices: voiceStats };
-    result.samples = { status: 'passed', ...sampled.samples, requests: audioRequests.map(r => r.file), wavDir: 'screenshots/audio/samples', voices: sampleStats };
+    result.samples = { status: 'passed', spacebarNoise: { before: spacebarBefore, after: { press: sampleStats['space-press'].noise, release: sampleStats['space-release'].noise } }, ...sampled.samples, requests: audioRequests.map(r => r.file), wavDir: 'screenshots/audio/samples', voices: sampleStats };
     assert.equal(await page.evaluate(() => window.__screen().text), 'h', 'Clicking a key types its character');
     result.press = { status: 'passed', depth: press.offsets.H, stem: press.stemOffsets.H, cameraUnchanged: true, audio: afterPress.probe };
     await page.mouse.move(5, H / 2); await settle();
@@ -482,6 +495,8 @@ async function interactionChecks(browser) {
     assert.ok(Math.abs(dip - 0.0005) < 2e-5, `Knob press dips 0.5 mm (${dip})`);
     await page.mouse.up(); await frames(3);
     assert.equal((await state()).knob.clicks, 1); assert.equal((await sound()).byName.knobClick, 1);
+    assert.equal((await sound()).events.filter(e => e.name === 'knobClick').at(-1).source, 'sample', 'The knob press plays the recorded push switch');
+    assert.ok((await sound()).probe.starts >= 2, 'Push and return');
     await page.mouse.move(kx - detentPx * 5 - 3, ky, { steps: 12 }); // no button: nothing happens
     assert.equal((await state()).knob.detents, 5);
     // A slow turn back: one detent every ~90 ms, so every detent ticks.
