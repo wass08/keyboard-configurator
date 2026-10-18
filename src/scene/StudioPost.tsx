@@ -6,11 +6,9 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
-import { Pass } from 'three/addons/postprocessing/Pass.js';
-import { observeManagedDisposal, useOwnedDisposal } from '../resources/ownership';
+import { observeManagedDisposal } from '../resources/ownership';
 import type { LightingSettings } from './lightingControls';
 import { DEFAULT_DOF, keyboardFocus, useDepthOfField } from './lens';
-import { AnamorphicPass } from './post/AnamorphicPass';
 import { FilmOutputPass } from './post/FilmOutputPass';
 import { DustOverlayPass } from './post/DustOverlayPass';
 import { PassProfiler } from './post/PassProfiler';
@@ -38,20 +36,16 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
       .replace('uniform float focus;', 'uniform float focus;\nuniform float focalRange;')
       .replace('float factor = ( focus + viewZ );', 'float difference = focus + viewZ;\nfloat factor = sign(difference) * max(abs(difference) - focalRange * 0.5, 0.0);');
     const dust = new DustOverlayPass(scene, camera as PerspectiveCamera, depth);
-    const anamorphic = new AnamorphicPass(), output = new FilmOutputPass(), profiler = new PassProfiler(gl);
+    const output = new FilmOutputPass(), profiler = new PassProfiler(gl);
     const audit = new HighlightAudit();
     const renderScene = render.render.bind(render), renderBloom = bloom.render.bind(bloom);
     render.render = (...args) => { renderScene(...args); audit.capture('scene', args[0], args[2]); };
     bloom.render = (...args) => { renderBloom(...args); audit.capture('bloomSeed', args[0], bloom.renderTargetBright); audit.capture('bloomHalo', args[0], bloom.renderTargetsHorizontal[0]); };
-    anamorphic.audit = audit.capture.bind(audit);
-    const extract = new Pass(); extract.needsSwap = false;
-    extract.render = (renderer, _write, read) => anamorphic.extract(renderer, read);
-    const stages = [['scene', render], ['anamorphicExtract', extract], ['bloom', bloom], ['depthOfField', depth], ['dustAfterDoF', dust], ['anamorphic', anamorphic], ['gradingAndOutput', output]] as const;
+    const stages = [['scene', render], ['bloom', bloom], ['depthOfField', depth], ['dustAfterDoF', dust], ['gradingAndOutput', output]] as const;
     for (const [name, pass] of stages) { composer.addPass(pass); profiler.wrap(name, pass); }
-    return { composer, bloom, depth, dust, anamorphic, extract, output, profiler, stages, audit };
+    return { composer, bloom, depth, dust, output, profiler, stages, audit };
   }, [gl, scene, camera]);
   useEffect(() => { pipeline.composer.setPixelRatio(gl.getPixelRatio()); pipeline.composer.setSize(size.width, size.height); }, [pipeline, gl, size]);
-  useOwnedDisposal('StudioPost.Anamorphic', pipeline.anamorphic.resources);
   useEffect(() => {
     // Observe the library owners' real dispose events. The shared fullscreen
     // triangle is Three's intentional cache, not a per-mount allocation.
@@ -80,8 +74,7 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
   pipeline.depth.materialBokeh.uniforms.focalRange.value = dof.focalRange;
   pipeline.depth.materialBokeh.uniforms.aperture.value = 0.04 * dof.bokehScale;
   pipeline.depth.materialBokeh.uniforms.maxblur.value = 0.012 * dof.bokehScale;
-  pipeline.anamorphic.configure(settings); pipeline.output.configure(settings);
-  pipeline.extract.enabled = pipeline.anamorphic.enabled;
+  pipeline.output.configure(settings);
   useEffect(() => {
     window.__film = () => ({
       passes: pipeline.stages.map(([name, pass]) => ({ name, enabled: pass.enabled })), rendererToneMapping: gl.toneMapping,
@@ -108,7 +101,7 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     };
     return () => { delete window.__film; delete window.__filmControl; };
   }, [pipeline, gl, settings]);
-  // OutputPass uses the existing Neutral tone mapper and exposure exactly once.
+  // The final output pass applies the selected tone mapper and exposure once.
   useFrame((_, delta) => {
     const lens = useDepthOfField.getState();
     const distance = lens.autoFocus ? keyboardFocus.distance : lens.focusDistance;

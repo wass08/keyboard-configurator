@@ -154,10 +154,10 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   the atlas's measured linear average, aims down across the plate and nearby support surface.
   The area source avoids a point-like specular pinprick on wood. It follows the deck
   and is disabled in all isolated-light captures. No logos or wordmarks.
-  `StudioPost.tsx` uses Three's WebGL HDR EffectComposer: scene → anamorphic extraction → bloom → DoF → occluded dust overlay
-  → anamorphic composite → grading/tone mapping/sRGB.
+  `StudioPost.tsx` uses Three's WebGL HDR EffectComposer: scene → bloom → DoF
+  → occluded dust overlay → grading/tone mapping/sRGB.
   The high luminance threshold blooms bright LCD content while leaving the
-  monitor gradient and ordinary paint/caps alone. Neutral tone mapping/exposure
+  monitor gradient and ordinary paint/caps alone. The chosen tone mapping/exposure
   run once at output. MSAA preserves edges; all per-mount targets and materials
   are released on unmount (including the bloom library's high-pass material).
   `props/Headphones.tsx` builds smooth superellipsoid aluminum cups, rounded knit
@@ -201,7 +201,8 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   `?solo=key|softbox|spot|fill|rim|env` isolates each role. Key includes both key
   emitters; rim shows the saved purple screen rim (7.1) and wall glow (27.2), both #8f77ff.
   Env has four reflection cards plus dim HDRI. Other solos keep 0.008 HDRI
-  and no Lightformers. Khronos PBR Neutral tone mapping preserves palette hues.
+  and no Lightformers. Palette fidelity uses an ungraded Neutral reference capture;
+  the hero uses the saved ACES Filmic grade.
   `CameraRig.tsx` puts **Camera first** in the `?debug` panel. It shows distance
   in meters (3 decimals) and polar/azimuth angles, refreshed at 10 Hz only in
   debug mode. `minDistance` / `maxDistance` sliders cover 0.10–6.00 m and apply
@@ -230,9 +231,10 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   resource disposal on two unmounts. The shared HDRI loader cache remains separate.
   `scripts/color-fidelity.mjs` samples 3×3 median patches from blank top-face
   points on H, Caps Lock and Enter in the
-  Glacial Blue, Cool Black and Pink PNGs. Both full-rig and isolated-key
-  comparisons are reported. The user's strong purple rim shifts dark caps, so
-  the fidelity gate uses the key softbox/spot with neutral studio reflections;
+  Glacial Blue, Cool Black and Pink PNGs. Both the user's ACES + grade hero and the isolated-key Neutral
+  reference comparisons are reported. The user's strong purple rim shifts dark caps, so
+  the fidelity gate uses Neutral with grading off and the key softbox/spot with
+  neutral studio reflections;
   the other direct lights are disabled only in that diagnostic context. Checks
   enforce approximately **5°** hue error (5.5° allowance for 8-bit dark-patch
   quantization) for chromatic targets (HSV saturation ≥12%), saturation error ≤12 percentage
@@ -263,8 +265,8 @@ Before tuning, 44/120 motes were inside the cone, but the old default brightness
 and 0.08× bloom luminance ceiling made even maximum intensity plateau. DoF
 further scattered their few pixels. The default now caps at 0.45× bloom;
 intensity can reach 12 and the cap rises smoothly to 2× bloom only at the high
-end, keeping maximum intensity clearly visible. Defaults: **120 motes, 0.5 mm,
-intensity 0.25, speed 1, padding 0.03 m**. A few faint dots survive default DoF;
+end, keeping maximum intensity clearly visible. Defaults: **84 motes, 0.71 mm,
+intensity 0.17, speed 1.85, padding 0.07 m**. A few faint dots survive default DoF;
 max intensity is distinctly stronger. Reduced motion slows drift 5×;
 `?capture` freezes it. Dust never intercepts pointer raycasts, casts shadows,
 or enters depth-override/environment passes. Copy lighting values includes it.
@@ -273,31 +275,28 @@ draw, live controls, caching, reduced motion and disposal.
 
 ## Film controls (spec 09)
 
-`?debug` → **Film** exposes six tone operators, exposure, anamorphic flare,
-contrast, saturation, vibrance, temperature/tint, per-channel lift/gamma/gain and
-vignette amount/softness. Copy lighting values includes the complete `film`
-section. **Neutral, exposure 1** and identity grading preserve Three's original
-single OutputPass pixel-for-pixel; the scene renderer stays NoToneMapping and
-one final raw shader performs grading → tone mapping → vignette → sRGB.
+`?debug` → **Film** exposes six tone operators, exposure, contrast, saturation,
+vibrance, temperature/tint, per-channel lift/gamma/gain and vignette amount/softness.
+Copy lighting values includes the complete `film` section. The saved defaults are
+**ACES Filmic, exposure 1**, grading enabled, contrast **1.11**, saturation **1**,
+vibrance **0.19**, temperature **0.28**, tint **0.22**, lift **[0,0,0]**,
+gamma/gain **[1,1,1]**, vignette amount **0.52**, softness **0.48**.
+The scene renderer stays NoToneMapping; one final raw shader performs grading →
+tone mapping → vignette → sRGB. An explicit **Neutral, grade off** reference
+capture matches Three's original single OutputPass pixel-for-pixel. The user's
+ACES/grade hue deltas are reported without gating those intentional color changes.
 
-The WebGL anamorphic port uses an HDR high-pass, three weighted horizontal blur
-iterations at quarter resolution and a tinted additive composite. Defaults:
-**on, threshold 1.6, intensity 0.12, length 0.12, tint #83cfff, resolution 0.25,
-16 taps**. Both thresholds use scene-linear luminance, before tone mapping and
-exposure; streak extraction also precedes bloom, preventing feedback from bloom
-into the streak source. A 5,040-point top-face audit measures the hero white-cap
-peak at about **1.19**, below either threshold. Caps seed **zero** bloom/streak
-radiance, while actual Stream Deck LCD samples remain positive. The hotspot's
-composited effect buffers remain essentially black; white faces peak at **245/255**
-and retain shading and legend contrast. Readbacks only run on an explicit
-capture request and add no ordinary-frame GPU work. Grading remains
-neutral by default. All per-mount targets/materials are disposed by their owner;
-Three's shared fullscreen triangle remains cached. `scripts/film-checks.mjs`
-compares Neutral to the official OutputShader, checks ACES/AgX deltas, flare and
-grade pixels, DoF-on dust and actual headphone/bar geometry clearance.
-`scripts/highlight-checks.mjs` audits the real HDR/extraction buffers, proves
-threshold invariance under exposure/operator changes, checks cap clipping and
-legend contrast, and reports both lighting conditions without hiding rim tint.
+Bloom's **2.0** threshold uses scene-linear luminance before tone mapping and
+exposure. A 5,040-point cap-top audit keeps the diffuse white caps below it:
+caps seed zero bloom while actual Stream Deck LCD samples stay positive. The
+ungraded reference also checks white clipping, shading and legend contrast.
+Readbacks run only on an explicit capture request and add no ordinary-frame
+GPU work. All per-mount targets/materials are disposed by their owner; Three's
+shared fullscreen triangle remains cached. `scripts/film-checks.mjs` checks the
+single tone mapper, Neutral reference, ACES/AgX and grade pixel deltas, default
+DoF-on dust visibility, and actual headphone/bar geometry clearance.
+`scripts/highlight-checks.mjs` audits HDR/bloom buffers and threshold invariance,
+and gates fidelity only in dedicated Neutral captures with grading disabled.
 
 `npm run perf` measures all effects with non-identity grading at native Metal
 speed, then records asynchronous whole-frame GPU timer queries with each effect
@@ -391,8 +390,7 @@ Studio evidence includes `lighting-hero.png`, `lighting-hero-cool-black.png`,
 `lighting-hero-pink.png`, `lighting-wide.png`, `lighting-closeup.png`,
 `solo-key.png`, `solo-softbox.png`, `solo-spot.png`, `solo-fill.png`,
 `solo-rim.png`, `solo-env.png`, `monitor-off.png`, `monitor-on.png`, and `debug-camera.png`.
-Spec 09 adds `headphones-fixed.png`, `film-anamorphic-on.png`,
-`film-anamorphic-off.png`, `tonemap-aces.png`, `tonemap-agx.png`,
+Film evidence includes `headphones-fixed.png`, `tonemap-aces.png`, `tonemap-agx.png`,
 `tonemap-neutral.png`, `grade-example.png`, `dust-default-dof.png`, and
 `dust-max-dof.png`.
 The solo views share the default hero camera; the debug view exposes Camera.

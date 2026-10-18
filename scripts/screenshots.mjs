@@ -670,10 +670,10 @@ try {
     assert.ok(points.every(p => p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1), 'Projected cap-top hue patches must remain inside the new hero');
     checks.fullRigColorFidelity ??= {};
     const measured = measureCapColors(buffer, points, expectedPalettes[id]);
-    checks.fullRigColorFidelity[id] = { status: 'measured', lighting: 'Full saved rig, including the purple rim; key-light-only fidelity is gated separately', maxColoredHueDegrees: Math.max(...measured.samples.filter(s => s.colored).map(s => s.hueDeltaDegrees)), samples: measured.samples.map(({ status, ...sample }) => sample) };
+    checks.fullRigColorFidelity[id] = { status: 'measured', lighting: 'User ACES + grade and full saved rig; Neutral ungraded key-light fidelity is gated separately', maxColoredHueDegrees: Math.max(...measured.samples.filter(s => s.colored).map(s => s.hueDeltaDegrees)), samples: measured.samples.map(({ status, ...sample }) => sample) };
     // Keep actionable pixel deltas even if a later assertion fails.
     await writeFile('screenshots/checks.json', `${JSON.stringify(checks, null, 2)}\n`);
-    assert.equal(checks.colorFidelity[id].status, 'passed', `${id}: key-light-only cap hue/saturation must match (see checks.json)`);
+    assert.equal(checks.colorFidelity[id].status, 'passed', `${id}: Neutral ungraded key-light cap hue/saturation must match (see checks.json)`);
   };
   const change = async id => {
     const previous = await page.evaluate(() => window.__kb.generation);
@@ -894,6 +894,7 @@ try {
   checks.rigMatchedEnvironment = { status: 'passed', defaults: expectedEnvironment, ...environment };
   assert.deepEqual(lighting.values.streamDeck, { emissiveIntensity: 2.4, bloomStrength: 0.16, bloomThreshold: 2, spillIntensity: 0.8 });
   assert.deepEqual(lighting.values.wall, { color: '#2a2b2e', roughness: 0.55, normalStrength: 0.035 });
+  assert.deepEqual(lighting.values.screen, { textLightEnabled: true, textIntensity: 12, textFlare: 0.32 });
   checks.studioLighting = { status: 'passed', ...lighting };
 
   assert.equal(lighting.monitor.screenOn, true); assert.equal(lighting.monitor.hasWallpaper, true);
@@ -1135,7 +1136,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Keyboard.Precompile', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Background', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'StudioPost.Anamorphic', 'DustMotes']) {
+    for (const owner of ['Keyboard', 'Keyboard.Precompile', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Background', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'DustMotes']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -1182,7 +1183,7 @@ try {
 
   // --- dust motes (spec 07a) ---
   {
-    const expectedDust = { enabled: true, count: 120, size: 0.5, intensity: 0.25, speed: 1, padding: 0.03 };
+    const expectedDust = { enabled: true, count: 84, size: 0.71, intensity: 0.17, speed: 1.85, padding: 0.07 };
     const dustContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
     const dustPage = await dustContext.newPage(); observeErrors(dustPage);
     await dustPage.goto(`${url}/?capture=1`);
@@ -1196,7 +1197,6 @@ try {
       // The CPU cone-footprint test measures the dust shader's exact pixels,
       // before optical blur spreads them beyond the projected point sprites.
       window.__cameraStore.set({ depthOfField: false });
-      window.__lightingStore.set({ 'Film.anamorphicEnabled': false });
     });
     await dustPage.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
     await renderedPage(dustPage); await idleFrames(dustPage, 4);
@@ -1209,7 +1209,7 @@ try {
     const dustState = () => dustPage.evaluate(() => { const { evaluate, ...state } = window.__dust(); return state; });
     const initial = await dustState();
     assert.deepEqual(await dustPage.evaluate(() => window.__lighting().values.dust), expectedDust, 'Dust defaults are part of the copied lighting values');
-    assert.equal(initial.enabled, true); assert.equal(initial.count, 120); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
+    assert.equal(initial.enabled, true); assert.equal(initial.count, 84); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
     assert.equal(initial.castShadow, false); assert.equal(initial.receiveShadow, false);
     assert.equal(initial.raycastDisabled, true, 'Decorative dust must never intercept pointer rays');
     assert.equal(initial.depthWrite, false); assert.equal(initial.depthTest, true); assert.equal(initial.transparent, true); assert.equal(initial.additive, true);
@@ -1245,7 +1245,7 @@ try {
       assert.ok(outside.every(m => m.luminance === 0 && m.spot === 0), 'Motes outside the cone must evaluate to zero brightness');
       assert.ok(outside.length > 0 && (!requireOutsideInFrame || outsideInFrame.length > 0), 'The test needs out-of-cone motes in frame');
       assert.ok(lit.length >= 3, 'Some motes must be lit inside the beam');
-      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.45 + 1e-9, 'Default motes stay below the bloom and streak thresholds');
+      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.45 + 1e-9, 'Default motes stay below the bloom threshold');
       let changed = 0, stray = 0, maxDelta = 0;
       for (let y = 0; y < on.height; y++) for (let x = 0; x < on.width; x++) {
         const i = (y * on.width + x) * 4;
@@ -1266,7 +1266,7 @@ try {
 
     // Editing dust never updates shadow maps or the environment probe.
     await setDust({ 'Dust.dustCount': 400, 'Dust.dustSize': 1.2, 'Dust.dustIntensity': 0.8, 'Dust.dustSpeed': 2, 'Dust.dustPadding': 0.06 });
-    await setDust({ 'Dust.dustCount': 120, 'Dust.dustSize': 0.5, 'Dust.dustIntensity': 0.25, 'Dust.dustSpeed': 1, 'Dust.dustPadding': 0.03 });
+    await setDust({ 'Dust.dustCount': 84, 'Dust.dustSize': 0.71, 'Dust.dustIntensity': 0.17, 'Dust.dustSpeed': 1.85, 'Dust.dustPadding': 0.07 });
     const after = await dustState();
     const lighting = await dustPage.evaluate(() => window.__lighting());
     assert.equal(after.shadowUpdates, shadowsBefore, 'Dust must add no shadow-map updates when assembled');
@@ -1328,7 +1328,7 @@ try {
       return { enabled: state.enabled, motionScale: state.motionScale, frozen: state.frozen, advanced: state.time - start, elapsed: (performance.now() - began) / 1000 };
     });
     assert.equal(reduced.enabled, true); assert.equal(reduced.frozen, false); assert.equal(reduced.motionScale, 0.2);
-    assert.ok(reduced.advanced > 0 && reduced.advanced <= reduced.elapsed * 0.2 + 0.02, 'Reduced motion still drifts, about 5x slower');
+    assert.ok(reduced.advanced > 0 && reduced.advanced <= reduced.elapsed * 1.85 * 0.2 + 0.02, 'Reduced motion still drifts, about 5x slower');
     checks.dustReducedMotion = { status: 'passed', ...reduced };
     await reducedContext.close();
     await writeFile('screenshots/checks.json', `${JSON.stringify(checks, null, 2)}\n`);
@@ -1538,7 +1538,7 @@ try {
   await debugPage.getByRole('button', { name: 'Copy lighting values', exact: true }).click();
   const lightingCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(lightingCopy, defaultLighting, 'Clipboard must contain every current light parameter');
-  assert.deepEqual(lightingCopy.film, checks.film.defaults, 'Copy includes every neutral grade, operator, exposure, vignette and anamorphic control');
+  assert.deepEqual(lightingCopy.film, checks.film.defaults, 'Copy includes the complete user grade, operator, exposure and vignette');
   assert.deepEqual(Object.keys(lightingCopy.lights).sort(), ['softbox', 'spot', 'fill', 'monitor'].sort());
   assert.deepEqual(lightingCopy.lights.softbox.position, [-0.67, 1.75, 0.8]);
   assert.deepEqual(lightingCopy.lights.spot.position, [-0.67, 1.75, 0.8]);

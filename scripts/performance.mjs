@@ -25,7 +25,7 @@ try {
     const defaults = window.__camera().lens;
     if (!defaults.depthOfField || !defaults.autoFocus || defaults.focalRange !== 0.285) throw new Error('Measure the production DoF/autofocus defaults');
     const filmDefaults = window.__lighting().values.film;
-    if (!filmDefaults.anamorphic.enabled || !filmDefaults.grade.enabled || filmDefaults.toneMapping !== 'Neutral') throw new Error('Measure the production film defaults');
+    if (!filmDefaults.grade.enabled || filmDefaults.toneMapping !== 'ACES Filmic' || filmDefaults.grade.contrast !== 1.11 || filmDefaults.vignette.amount !== 0.52) throw new Error('Measure the production film defaults');
     const gl = document.querySelector('canvas').getContext('webgl2');
     const debug = gl.getExtension('WEBGL_debug_renderer_info');
     const renderer = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
@@ -89,12 +89,10 @@ try {
     const depthOfField = await measure(180, 30);
     const depthOfFieldRender = window.__kb.inspect();
     const lens = window.__camera().lens;
-    // Also exercise non-identity grading: neutral defaults intentionally bypass
-    // its arithmetic. GPU queries run separately from the FPS sample.
-    window.__lightingStore.set({ 'Film.contrast': 1.05, 'Film.saturation': 0.96, 'Film.temperature': 0.06, 'Film.vignetteAmount': 0.12 });
+    // Time the exact user grade. GPU queries run separately from FPS sampling.
     const allEffects = await measure(180, 30);
     const gradeValues = window.__lighting().values.film;
-    if (!window.__film().gradingActive) throw new Error('The measured example grade must actually run');
+    if (!window.__film().gradingActive) throw new Error('The default user grade must actually run');
     const sampleGpu = async () => {
       await measure(30, 0); // Warm the changed pass configuration before querying.
       window.__filmControl.profile(true); await measure(120, 0);
@@ -104,9 +102,7 @@ try {
     const gpuAllEffects = await sampleGpu();
     window.__lightingStore.set({ 'Film.gradeEnabled': false });
     const gpuWithoutGrade = await sampleGpu();
-    window.__lightingStore.set({ 'Film.gradeEnabled': true, 'Film.anamorphicEnabled': false });
-    const gpuWithoutAnamorphic = await sampleGpu();
-    window.__lightingStore.set({ 'Film.anamorphicEnabled': true });
+    window.__lightingStore.set({ 'Film.gradeEnabled': true });
     window.__filmControl.bloom(false);
     const gpuWithoutBloom = await sampleGpu();
     window.__filmControl.bloom(true);
@@ -114,11 +110,10 @@ try {
     const gpuWithoutDoF = await sampleGpu();
     window.__cameraStore.set({ depthOfField: true });
     const gpuAllEffectsAfter = await sampleGpu();
-    window.__lightingStore.set({ 'Film.contrast': 1, 'Film.saturation': 1, 'Film.temperature': 0, 'Film.vignetteAmount': 0 });
     const fullFrameMs = (gpuAllEffects.gpu.frame?.medianMs + gpuAllEffectsAfter.gpu.frame?.medianMs) / 2;
     const cost = without => Number.isFinite(fullFrameMs) ? fullFrameMs - without.gpu.frame.medianMs : null;
-    const incrementalGpuMs = { bloom: cost(gpuWithoutBloom), depthOfField: cost(gpuWithoutDoF), anamorphic: cost(gpuWithoutAnamorphic), grading: cost(gpuWithoutGrade) };
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, defaults, filmDefaults, assembled, intro, dust, typing, variantChange, depthOfField, allEffects, gradeValues, gpuAllEffects, gpuAllEffectsAfter, gpuWithoutGrade, gpuWithoutAnamorphic, gpuWithoutBloom, gpuWithoutDoF, incrementalGpuMs, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
+    const incrementalGpuMs = { bloom: cost(gpuWithoutBloom), depthOfField: cost(gpuWithoutDoF), grading: cost(gpuWithoutGrade) };
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, defaults, filmDefaults, assembled, intro, dust, typing, variantChange, depthOfField, allEffects, gradeValues, gpuAllEffects, gpuAllEffectsAfter, gpuWithoutGrade, gpuWithoutBloom, gpuWithoutDoF, incrementalGpuMs, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');

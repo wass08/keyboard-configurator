@@ -26,16 +26,22 @@ export async function filmChecks(browser, url, observeErrors) {
     const defaults = await page.evaluate(() => window.__lighting().values);
     assert.equal(defaults.lights.monitor.intensity, 7.1); assert.equal(defaults.lights.monitor.color, '#8f77ff');
     assert.equal(defaults.lights.monitor.wallGlow.intensity, 27.2);
-    assert.equal(defaults.film.toneMapping, 'Neutral'); assert.equal(defaults.film.exposure, 1);
-    assert.equal(defaults.film.anamorphic.enabled, true);
+    assert.deepEqual(defaults.film, {
+      toneMapping: 'ACES Filmic', exposure: 1,
+      grade: { enabled: true, contrast: 1.11, saturation: 1, vibrance: 0.19, temperature: 0.28, tint: 0.22, lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1] },
+      vignette: { amount: 0.52, softness: 0.48 },
+    });
+    assert.deepEqual(defaults.dust, { enabled: true, count: 84, size: 0.71, intensity: 0.17, speed: 1.85, padding: 0.07 });
     const graph = await page.evaluate(() => window.__film());
     assert.equal(graph.rendererToneMapping, 0, 'Scene renderer stays linear while the composer is active');
     assert.equal(graph.toneMapStages, 1); assert.equal(graph.outputColorSpace, 'srgb');
-    assert.deepEqual(Object.keys(graph.outputDefines).sort(), ['NEUTRAL_TONE_MAPPING', 'SRGB_TRANSFER']);
+    assert.deepEqual(Object.keys(graph.outputDefines).sort(), ['ACES_FILMIC_TONE_MAPPING', 'SRGB_TRANSFER']);
     assert.ok(graph.passes.findIndex(p => p.name === 'dustAfterDoF') > graph.passes.findIndex(p => p.name === 'depthOfField'));
-    assert.ok(graph.passes.findIndex(p => p.name === 'anamorphic') > graph.passes.findIndex(p => p.name === 'dustAfterDoF'));
-    assert.ok(graph.passes.findIndex(p => p.name === 'anamorphicExtract') < graph.passes.findIndex(p => p.name === 'bloom'), 'Streak sources must be extracted before bloom can amplify them');
     await page.evaluate(() => { document.querySelector('.variant-picker').style.visibility = 'hidden'; });
+    assert.equal(graph.gradingActive, true, 'The user grade runs by default');
+    const gradedDefault = await shot('grade-example');
+    await set({ 'Film.toneOperator': 'Neutral', 'Film.gradeEnabled': false });
+    assert.deepEqual(Object.keys((await page.evaluate(() => window.__film())).outputDefines).sort(), ['NEUTRAL_TONE_MAPPING', 'SRGB_TRANSFER']);
     const neutral = await shot('tonemap-neutral');
     await page.evaluate(() => window.__filmControl.referenceOutput(true));
     const reference = await page.screenshot();
@@ -43,24 +49,17 @@ export async function filmChecks(browser, url, observeErrors) {
     assert.ok(identity.maxDelta <= 1, `Neutral grade must match Three's official single OutputPass: ${JSON.stringify(identity)}`);
     await page.evaluate(() => window.__filmControl.referenceOutput(false));
     await frames();
-    const on = await shot('film-anamorphic-on');
-    await set({ 'Film.anamorphicEnabled': false });
-    const off = await shot('film-anamorphic-off');
-    const flare = pixelDelta(on, off);
-    assert.ok(flare.changedPixels > 20, 'Anamorphic must contribute actual highlight pixels');
-    assert.ok(flare.meanDelta < 2, 'Default flare must remain subtle, rather than smear the image');
-    await set({ 'Film.anamorphicEnabled': true, 'Film.toneOperator': 'ACES Filmic' });
-    const aces = pixelDelta(await shot('tonemap-aces'), neutral);
+    await set({ 'Film.toneOperator': 'ACES Filmic' });
+    const acesBuffer = await shot('tonemap-aces');
+    const aces = pixelDelta(acesBuffer, neutral);
     assert.ok(aces.changedPixels > 1000);
+    const example = pixelDelta(gradedDefault, acesBuffer);
+    assert.ok(example.changedPixels > 1000, 'The user grade must visibly change ACES output');
     await set({ 'Film.toneOperator': 'AgX' });
     const agx = pixelDelta(await shot('tonemap-agx'), neutral);
     assert.ok(agx.changedPixels > 1000);
-    await set({ 'Film.toneOperator': 'Neutral', 'Film.contrast': 1.05, 'Film.saturation': 0.95, 'Film.vibrance': 0.1, 'Film.temperature': 0.09, 'Film.tint': -0.03,
-      'Film.lift': { x: -0.004, y: -0.002, z: 0.003 }, 'Film.gamma': { x: 1.01, y: 1, z: 1 }, 'Film.gain': { x: 1.015, y: 1, z: 0.995 }, 'Film.vignetteAmount': 0.12, 'Film.vignetteSoftness': 0.7 });
-    const exampleValues = await page.evaluate(() => window.__lighting().values.film);
-    const example = pixelDelta(await shot('grade-example'), neutral);
-    assert.ok(example.changedPixels > 1000); assert.equal(await page.evaluate(() => window.__film().gradingActive), true);
-    await set({ 'Film.contrast': 1, 'Film.saturation': 1, 'Film.vibrance': 0, 'Film.temperature': 0, 'Film.tint': 0, 'Film.lift': { x: 0, y: 0, z: 0 }, 'Film.gamma': { x: 1, y: 1, z: 1 }, 'Film.gain': { x: 1, y: 1, z: 1 }, 'Film.vignetteAmount': 0, 'Film.vignetteSoftness': 0.65 });
+    await set({ 'Film.toneOperator': 'ACES Filmic', 'Film.gradeEnabled': true });
+    assert.deepEqual(await page.evaluate(() => window.__lighting().values.film), defaults.film, 'Restore the exact user grade for dust evidence');
     assert.equal(await page.evaluate(() => window.__camera().lens.depthOfField), true);
     const dustDefault = await shot('dust-default-dof');
     await set({ 'Dust.dustEnabled': false }); const dustOff = await page.screenshot();
@@ -82,6 +81,6 @@ export async function filmChecks(browser, url, observeErrors) {
     assert.ok(clearance.canopyClearanceMm >= 0.5 && clearance.canopyClearanceMm < 2, `Canopy must rest just above the walnut: ${clearance.canopyClearanceMm} mm`);
     assert.ok(clearance.frameClearanceMm >= 0.5, `Steel rails must clear the entire bar: ${clearance.frameClearanceMm} mm`);
     await shot('headphones-fixed');
-    return { status: 'passed', defaults: defaults.film, graph, neutralReference: identity, anamorphic: flare, toneMaps: { aces, agx }, grade: { values: exampleValues, delta: example }, dust: { before, defaultDelta, maxDelta, ...dustState, compositeAfterDoF: true }, headphones: clearance };
+    return { status: 'passed', defaults: defaults.film, graph, neutralReference: identity, toneMaps: { aces, agx }, grade: { values: defaults.film, delta: example }, dust: { defaults: defaults.dust, before, defaultDelta, maxDelta, ...dustState, compositeAfterDoF: true }, headphones: clearance };
   } finally { await context.close(); }
 }

@@ -56,6 +56,7 @@ export async function highlightChecks(browser, url, observeErrors, palettes) {
     await page.evaluate(() => { window.__kb.finish(); window.__screenControl.freezeCaret(true); document.querySelector('.variant-picker').style.visibility = 'hidden'; });
     await frames(40);
     const defaults = await page.evaluate(() => window.__lighting().values);
+    await set({ 'Film.toneOperator': 'Neutral', 'Film.gradeEnabled': false });
     const fullRig = {}, buffers = {};
     let displayFaces, invariance;
     for (const id of Object.keys(palettes)) {
@@ -66,12 +67,10 @@ export async function highlightChecks(browser, url, observeErrors, palettes) {
       fullRig[id] = { status: 'measured', maxColoredHueDegrees: maxHue(measured), samples: measured.samples.map(({ status, ...sample }) => sample) };
       buffers[id] = await capture();
       const measuredScene = buffers[id].scene.allCaps.luminance;
-      assert.ok(defaults.streamDeck.bloomThreshold > measuredScene * 1.15 && defaults.film.anamorphic.threshold > measuredScene * 1.15, 'Thresholds must exceed the brightest sampled cap top, including a safety margin');
+      assert.ok(defaults.streamDeck.bloomThreshold > measuredScene * 1.15, 'Bloom threshold must exceed the brightest sampled cap top, including a safety margin');
       assert.equal(buffers[id].bloomSeed.allCaps.luminance, 0, 'No cap top can seed bloom');
-      assert.equal(buffers[id].anamorphicSeed.allCaps.luminance, 0, 'No cap top can seed a streak');
       assert.ok(buffers[id].bloomHalo.hotspot.luminance < 0.001, 'Bloom buffer must be approximately black over the hotspot caps');
-      assert.ok(buffers[id].anamorphicStreaks.hotspot.luminance < 0.001, 'Streak buffer must be approximately black over the hotspot caps');
-      assert.ok(buffers[id].bloomSeed.emissive.luminance > 0.1 && buffers[id].anamorphicSeed.emissive.luminance > 0.01, 'LCDs must still seed both effects');
+      assert.ok(buffers[id].bloomSeed.emissive.luminance > 0.1, 'LCDs must still seed bloom');
       if (id === 'glacial-blue') {
         displayFaces = inspectFaces(buffer, await page.evaluate(() => window.__kb.capFaceSamples()));
         assert.ok(Math.max(...Object.values(displayFaces).map(p => p.maxChannel)) < 250, 'Brightest white cap faces must remain below 250/255');
@@ -83,7 +82,6 @@ export async function highlightChecks(browser, url, observeErrors, palettes) {
         const changedOutput = await capture();
         assert.deepEqual(changedOutput.scene, buffers[id].scene, 'Exposure/operator must not affect scene-referred radiance');
         assert.deepEqual(changedOutput.bloomSeed, buffers[id].bloomSeed);
-        assert.deepEqual(changedOutput.anamorphicSeed, buffers[id].anamorphicSeed);
         invariance = { status: 'passed', exposure: 0.65, operator: 'AgX' };
         await set({ 'Film.exposure': 1, 'Film.toneOperator': 'Neutral' });
       }
@@ -99,8 +97,8 @@ export async function highlightChecks(browser, url, observeErrors, palettes) {
       // quantization of dark caps (one channel step can move hue by 2–3°).
       const measured = measureCapColors(buffer, await page.evaluate(() => window.__kb.inspect().colorSamples), palettes[id], 5.5);
       assert.equal(measured.status, 'passed', `${id}: isolated key hue/saturation (max ${maxHue(measured)}°)`);
-      keyLightColorFidelity[id] = { ...measured, lighting: 'Key softbox + shadow spot; neutral IBL retained; other direct lights off', maxColoredHueDegrees: maxHue(measured) };
+      keyLightColorFidelity[id] = { ...measured, lighting: 'Neutral, grade off; key softbox + shadow spot; neutral IBL retained; other direct lights off', maxColoredHueDegrees: maxHue(measured) };
     }
-    return { status: 'passed', thresholdSpace: 'scene-linear, before bloom/DoF/tone mapping', thresholds: { bloom: defaults.streamDeck.bloomThreshold, anamorphic: defaults.film.anamorphic.threshold }, buffers, displayFaces, invariance, fullRig, keyLightColorFidelity };
+    return { status: 'passed', reference: { toneMapping: 'Neutral', gradeEnabled: false, exposure: 1 }, thresholdSpace: 'scene-linear, before bloom/DoF/tone mapping', thresholds: { bloom: defaults.streamDeck.bloomThreshold }, buffers, displayFaces, invariance, fullRig, keyLightColorFidelity };
   } finally { await context.close(); }
 }
