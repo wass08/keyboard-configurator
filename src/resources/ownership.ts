@@ -46,3 +46,14 @@ export function observeManagedDisposal(owner: string, resource: OwnedResource) {
   };
   resource.addEventListener('dispose', release);
 }
+
+/** Non-shadowing lights own no GPU maps. Verify their actual scene removal. */
+export function useTrackedLight(owner: string, light: import('three').Light) {
+  useEffect(() => {
+    const count = counts[owner] ??= { registered: 0, disposed: 0, active: 0 };
+    count.registered++; count.active++;
+    const removed = () => { count.disposed++; count.active--; light.removeEventListener('removed', removed); };
+    light.addEventListener('removed', removed);
+    return () => { light.removeFromParent(); };
+  }, [owner, light]);
+}

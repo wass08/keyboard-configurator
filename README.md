@@ -22,8 +22,8 @@ npm run perf                   # optional native GPU timing, preview on port 417
 ```
 
 `shots` serves **the existing production build** with Vite preview on port 4175,
-launches headless Chromium with software WebGL, and closes both processes after
-capture. Rebuild after source changes. The bundled local CC0 assets mean no
+launches headless Chromium with Metal on macOS (SwiftShader elsewhere), and closes both processes after
+capture. Set `SHOTS_RENDERER=swiftshader` to force software WebGL. Rebuild after source changes. The bundled local CC0 assets mean no
 remote asset requests are needed at runtime. `npm run assets` downloads them again.
 
 ## Architecture
@@ -57,8 +57,12 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   monitor, its off-panel reflections, and smooth generated wallpaper. Its owned rounded-box
   neck avoids extruded-edge raster fragments through the wallpaper in software
   WebGL; a projected pixel check guards against their return.
-  `StudioWall.tsx` places a real charcoal plaster wall 30 cm behind the desk,
-  with 1K CC0 normal/roughness/diffuse maps tiled at 75 cm. The background is
+  `StudioWall.tsx` places a real charcoal satin-painted wall 30 cm behind the desk. It uses generated,
+  non-repeating 512² roller/orange-peel normal and roughness fields; the
+  plaster scans are removed. Paint defaults are **#2a2b2e**, roughness **0.55**,
+  normal strength **0.035**. An explicit environment response of 3.5 keeps
+  charcoal visible in the dim studio while the physical softbox and rear
+  monitor glow supply the falloff and sheen. The background is
   black, without fog. A dark floor grounds the desk in wide views.
   `Lighting.tsx` saves the spec 05 user-tuned rig exactly: **44 × 68 cm**
   softbox at **(-0.67, 1.75, 0.80)** m, aimed at **(0, 0.79, -0.02)**,
@@ -96,7 +100,7 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   cubemap parallax: reflections have actual world positions, dimensions and
   softly blurred boundaries, with Three’s normal Fresnel/energy conservation.
   Physical area lights retain their own specular response. No extra render pass.
-  The wall reflection card represents diffuse plaster return (0.035 gain),
+  The wall reflection card represents diffuse paint return (0.035 gain),
   following the saved 23.3 / #8d2d2d bias light and gating with screenOn.
   The LCD uses 0.62 radiance and a subdued continuous mint/lavender gradient;
   its environment card uses the same radiance and linear average color. The front-left softbox
@@ -110,9 +114,20 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   `KEYBOARD_Y` accounts for the case tilt and half the rubber-foot thickness.
   Root placement carries every assembly target, switch, cap and shadow upward.
   `props/StreamDeck.tsx` builds a 118 × 84 × 21 mm black control pad on an open
-  wedge stand. Fifteen glossy bezels are instanced; a single merged LCD surface
-  samples a generated atlas of generic play/chat/mic/music/waveform/crown/toggle
-  icons. No brand logos or wordmarks; modest emission creates no extra lights.
+  wedge stand. Fifteen clear rounded key tops protrude **3 mm** above the faceplate,
+  with **0.3 mm** opening gaps; LCD faces sit **0.6 mm** below the tops.
+  Tops and bezels are instanced, LCDs share one merged generic icon atlas.
+  A dark icon on the white key preserves contrast. **Stream Deck** controls
+  default to emission **2.4**, bloom strength **0.16**, threshold **1.25**,
+  and spill intensity **0.8**. One **10 × 1.8 cm** RectAreaLight, colored from
+  the atlas's measured linear average, aims down across the plate and nearby mat.
+  The area source avoids a point-like specular pinprick on wood. It follows the deck
+  and is disabled in all isolated-light captures. No logos or wordmarks.
+  `StudioPost.tsx` uses Three's HDR EffectComposer, UnrealBloomPass and OutputPass.
+  The high luminance threshold blooms bright LCD content while leaving the
+  monitor gradient and ordinary paint/caps alone. Neutral tone mapping/exposure
+  run once at output. MSAA preserves edges; all per-mount targets and materials
+  are released on unmount (including the bloom library's high-pass material).
   `props/Headphones.tsx` builds smooth superellipsoid aluminum cups, rounded knit
   cushions and baffles, solid normal/roughness-mapped knit canopy with sheen,
   thin stainless headband rails and straight polished telescoping stems. Both
@@ -123,10 +138,26 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   keyboard assembly, cast/receive shadows, share geometry/materials, and explicitly
   dispose owned geometry, materials and cloned/generated textures. Shared loader
   textures and the environment remain separate owners.
-  Below Camera, Leva groups **Key · softbox**, **Key · spot (shadows)**,
-  **Fill · area**, **Monitor · rim**, **Desk**, **Environment**, and **Rendering**.
+  `PropLayout.tsx` and `state/layout.ts` provide constrained **Layout** controls
+  below Camera: X/Z position and Y rotation in degrees for the headphone stand,
+  monitor and Stream Deck. **Show gizmos** is off by default and only renders
+  drei PivotControls in `?debug`. The handles have X/Z arrows, an XZ plane and a
+  Y arc; no height, scaling or other rotation handles. Orbit pauses for the entire
+  real pointer drag. Numeric fields and handles share one store. Rotated footprints
+  clamp to the desk; the deck sits on the highest surface its support touches,
+  following the felt's 4 mm height as it moves on/off it.
+  **Copy layout values** exports `{ headphones, monitor, streamdeck }`, each with
+  `{ x, y, z, rotationY }`. Defaults retain the previous placements. Moving the
+  monitor carries its complete stand, screen, rim/bias lights and reflection card.
+  The rear glow projects back onto the wall. Existing desk-coat panel uniforms
+  follow the same world transform; **Desk.tsx and the wood finish are unchanged**.
+  Cubemaps stay frozen during a pointer drag and refresh once on release;
+  numeric/debug-store edits refresh once, with no idle captures. Prop moves also
+  invalidate the spot's cached shadows.
+  Below Layout, Leva groups **Key · softbox**, **Key · spot (shadows)**,
+  **Fill · area**, **Monitor · rim**, **Desk**, **Environment**, **Stream Deck**, **Wall**, and **Rendering**.
   Copy lighting values exports
-  `{ lights: { softbox, spot, fill, monitor }, desk, environment, rendering }`.
+  `{ lights: { softbox, spot, fill, monitor }, desk, environment, streamDeck, wall, rendering }`.
   The spot follows the softbox by default and can be unlinked.
   `?solo=key|softbox|spot|fill|rim|env` isolates each role. Key includes both key
   emitters; rim now shows only the saved red wall glow (screen rim is zero).
@@ -155,7 +186,7 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
   limits/current-distance buttons, camera clipboard/reset, and
   exact tuned defaults, screen-off and screen-on paths, wallpaper continuity,
   matching actual reflection-card transforms/radiance, debug-store movement,
-  idle cubemap/planar caching, and owned wallpaper/reflection/cubemap/plaster/floor
+  idle cubemap/planar caching, and owned wallpaper/reflection/cubemap/paint/floor
   resource disposal on two unmounts. The shared HDRI loader cache remains separate.
   `scripts/color-fidelity.mjs` samples 3×3 median patches from blank top-face
   points on H, Caps Lock and Enter in the
@@ -169,7 +200,7 @@ remote asset requests are needed at runtime. `npm run assets` downloads them aga
 ## Assets
 
 Poly Haven **Oak Veneer 01**, 2K diffuse, OpenGL normal, roughness and AO;
-**Studio Small 09**, 1K HDR; **Plastered Wall 04**, 1K diffuse, OpenGL normal and roughness.
+**Studio Small 09**, 1K HDR. The wall uses procedural paint maps.
 ambientCG **Fabric 034**, 2K color, OpenGL normal and roughness, for felt and
 cushions. All CC0 1.0. `npm run assets` requires the standard `unzip` utility
 for the ambientCG archive. Full names, source pages, exact download URLs,
@@ -182,7 +213,7 @@ The monitor geometry and screen wallpaper are procedural.
 `screenshots/` contains `assembly-mid.png`, the seven `<variant-id>.png` renders,
 `closeup.png`, `switch-mid.png`, plus `dark-closeup.png`, `profile.png`,
 `desk-wide.png`, `desk-frame.png`, `mobile.png`, `checks.json`,
-the captured build output in `build.txt`, and hardware timing in `performance.json`.
+the captured build output in `build.log`, and hardware timing in `performance.json`.
 Studio evidence includes `lighting-hero.png`, `lighting-hero-cool-black.png`,
 `lighting-hero-pink.png`, `lighting-wide.png`, `lighting-closeup.png`,
 `solo-key.png`, `solo-softbox.png`, `solo-spot.png`, `solo-fill.png`,
@@ -190,6 +221,11 @@ Studio evidence includes `lighting-hero.png`, `lighting-hero-cool-black.png`,
 The solo views share the default hero camera; the debug view exposes Camera.
 `lighting-closeup.png` uses Cool Black so the broad cap-edge and chrome highlights
 are easier to inspect. The separate `closeup.png` retains Glacial Blue.
+Spec 06 adds `wall-paint.png`, `gizmos-debug.png` and `layout-moved.png`.
+The latter moves all three props through the debug store with their attached
+lights and reflection cards. Checks exercise real gizmo pointer drags, orbit
+locking/release, one cubemap recapture, numeric/store/clipboard round-trips,
+clamps and mat support.
 Spec 05 adds `props-wide.png`, `props-streamdeck.png`, `props-airpods.png`,
 `deskmat-closeup.png`, `desk-sheen.png`, and `desk-sheen-uncoated.png`.
 These product detail captures hide the picker to leave the objects unobscured;
@@ -213,7 +249,7 @@ window.__kb.finish();        // run all finalization callbacks
 window.__kb.play();          // resume real-time animation
 window.__kb.camera('closeup'); // also 'default', 'profile', 'desk', 'desk-frame',
                               // 'lighting-wide', 'lighting-closeup', 'props-wide',
-                              // 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen'
+                              // 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen', 'wall-paint'
 window.__kb.finished;        // assembled, last requested palette
 window.__kb.inspect();      // offsets, palette, draw calls, geometry counts, framing
 window.__camera();          // actual orbit limits, distance, angles, position and target

@@ -4,7 +4,7 @@ import { RoundedBox } from '@react-three/drei';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { useOwnedDisposal } from '../resources/ownership';
 import { DESK_TOP } from './dimensions';
-import { xyz } from './lightingControls';
+import { MovableProp } from './PropLayout';
 import type { LightingSettings } from './lightingControls';
 import { OffScreenReflection } from './OffScreenReflection';
 
@@ -61,10 +61,10 @@ export function Monitor({ settings, enabled }: { settings: LightingSettings; ena
   const { rimPosition: p, rimAim: aim } = settings;
   const orientation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(aim.x - p.x, aim.y - p.y, aim.z - p.z).normalize());
   const powered = settings.screenOn && enabled;
-  return <>
-    <RoundedBox args={[0.235, 0.009, 0.174]} radius={0.004} smoothness={3} position={[p.x, DESK_TOP + 0.005, p.z - 0.025]} castShadow receiveShadow><meshStandardMaterial color={graphite} roughness={0.57} metalness={0.45} /></RoundedBox>
-    <mesh name="monitor-neck" geometry={neckGeometry} position={[p.x, DESK_TOP + 0.15, p.z - 0.04]} castShadow><meshStandardMaterial color={graphite} metalness={0.5} roughness={0.55} /></mesh>
-    <group position={xyz(p)} quaternion={orientation}>
+  return <MovableProp id="monitor">
+    <RoundedBox args={[0.235, 0.009, 0.174]} radius={0.004} smoothness={3} position={[p.x, 0.005, p.z + 0.43 - 0.025]} castShadow receiveShadow><meshStandardMaterial color={graphite} roughness={0.57} metalness={0.45} /></RoundedBox>
+    <mesh name="monitor-neck" geometry={neckGeometry} position={[p.x, 0.15, p.z + 0.43 - 0.04]} castShadow><meshStandardMaterial color={graphite} metalness={0.5} roughness={0.55} /></mesh>
+    <group position={[p.x, p.y - DESK_TOP, p.z + 0.43]} quaternion={orientation}>
       <RoundedBox args={[0.614, 0.36, 0.018]} radius={0.006} smoothness={3} position={[0, 0, -0.011]} castShadow receiveShadow><meshStandardMaterial color="#242a2c" roughness={0.64} metalness={0.15} /></RoundedBox>
       <RoundedBox args={[0.265, 0.17, 0.029]} radius={0.012} smoothness={3} position={[0, -0.032, -0.033]} castShadow><meshStandardMaterial color={graphite} roughness={0.76} /></RoundedBox>
       {/* Keep the powered-on wallpaper emission-only to avoid reflected seams.
@@ -79,5 +79,5 @@ export function Monitor({ settings, enabled }: { settings: LightingSettings; ena
       {!powered && <OffScreenReflection width={SCREEN_WIDTH} height={SCREEN_HEIGHT} revision={JSON.stringify(settings)} />}
       <mesh position={[0.28, -0.174, 0]}><sphereGeometry args={[0.0009, 8, 6]} /><meshBasicMaterial color={powered ? '#b9d8da' : '#050606'} /></mesh>
     </group>
-  </>;
+  </MovableProp>;
 }

@@ -58,10 +58,11 @@ export function CameraRig() {
       const mobileScale = Math.max(1, (aspect < 0.75 ? 1.62 : 1.12) / aspect);
       // Evidence presets use explicit lens choices without changing orbit bounds.
       if (camera instanceof PerspectiveCamera) {
-        camera.fov = view === 'props-wide' ? 64 : view === 'props-airpods' ? 35 : view === 'props-streamdeck' ? 23 : view === 'deskmat-closeup' ? 22 : view === 'desk-sheen' ? 48 : 32;
+        camera.fov = view === 'wall-paint' ? 70 : view === 'props-wide' ? 64 : view === 'props-airpods' ? 35 : view === 'props-streamdeck' ? 23 : view === 'deskmat-closeup' ? 22 : view === 'desk-sheen' ? 48 : 32;
         camera.updateProjectionMatrix();
       }
-      if (view === 'props-wide') { camera.position.set(-0.05, 1.24, 0.54); controls.current?.target.set(-0.025, 0.9, -0.12); }
+      if (view === 'wall-paint') { camera.position.set(0.40, 1.20, 0.25); controls.current?.target.set(0, 1.15, -0.43); }
+      else if (view === 'props-wide') { camera.position.set(-0.05, 1.24, 0.54); controls.current?.target.set(-0.025, 0.9, -0.12); }
       else if (view === 'props-streamdeck') { camera.position.set(0.41, 1.02, 0.12); controls.current?.target.set(0.298, 0.790, -0.173); }
       else if (view === 'props-airpods') { camera.position.set(-0.11, 1.10, 0.15); controls.current?.target.set(-0.315, 0.90, -0.326); }
       else if (view === 'deskmat-closeup') { camera.position.set(-0.17, 0.87, 0.25); controls.current?.target.set(-0.14, 0.758, 0.12); }

@@ -148,3 +148,35 @@ Attached: 3 prop references, saved as `references/props-desk-mat.png`, `referenc
 ## 12 — Status question (2026-10-17)
 
 > what is it waiting?
+
+---
+
+## 13 — Restart dev server (2026-10-17)
+
+> thx please restart dev serv
+
+---
+
+## 14 — Prop gizmos, wood PBR question, Stream Deck buttons, charcoal wall (2026-10-17)
+
+> awesome
+> - please add me gizmos to adjust the position of the headphone stand, screen and streamdeck
+> - the light reflection don't seem to come from the wood (do they properly have normals / roughness map, is it a pbr? do nothing about it, first explain.
+> - about the stream deck, the buttons should feel more button and emit light
+> - remove the brick texture on the wall, I just want it charcoal / dark gray paint so we can see light reflections on it
+
+Attached: Stream Deck reference, saved as `references/props-stream-deck-lit.png`.
+
+---
+
+## 15 — Lens settings (2026-10-17)
+
+> and give me the lens settings in the controls
+
+---
+
+## 16 — Wood fix choice (2026-10-17)
+
+> A
+
+(Option A: stronger wood normals, coat follows the wood normal and roughness maps, remove or make roughness-aware the synthetic panel reflection.)

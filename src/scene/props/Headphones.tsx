@@ -4,7 +4,7 @@ import { useTexture } from '@react-three/drei';
 import { BufferGeometry, CatmullRomCurve3, CylinderGeometry, ExtrudeGeometry, Float32BufferAttribute, MeshPhysicalMaterial, MeshStandardMaterial, RepeatWrapping, Shape, SRGBColorSpace, TubeGeometry, Vector2, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { useOwnedDisposal } from '../../resources/ownership';
-import { DESK_TOP } from '../dimensions';
+import { MovableProp } from '../PropLayout';
 import { FELT_MAPS } from './DeskMat';
 import { earShell, roundedPath, softRing, woodUV } from './geometry';
 
@@ -50,7 +50,7 @@ export function Headphones() {
   const { clones, ...owned } = r;
   useOwnedDisposal('Props.Headphones', [...Object.values(owned), ...clones]);
   useEffect(() => { r.aluminum.envMap = scene.environment; r.aluminum.needsUpdate = true; }, [r, scene]);
-  return <group name="prop-headphones" position={[-0.315, DESK_TOP, -0.326]} rotation={[0, -0.35, 0]}>
+  return <MovableProp id="headphones"><group name="prop-headphones">
     <mesh geometry={r.tray} material={r.walnut} position={[0, 0.0045, 0]} castShadow receiveShadow />
     <mesh geometry={r.trayLip} material={r.walnut} castShadow receiveShadow />
     <mesh name="headphone-upright" geometry={r.upright} material={r.metal} position={[0, 0.13, -0.024]} castShadow receiveShadow />
@@ -73,5 +73,5 @@ export function Headphones() {
         </group>
       </group>)}
     </group>
-  </group>;
+  </group></MovableProp>;
 }

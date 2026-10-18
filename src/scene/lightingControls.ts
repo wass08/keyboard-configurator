@@ -53,6 +53,17 @@ export function useLightingControls() {
       hdriIntensity: { value: 0.095, min: 0, max: 0.5, step: 0.005, label: 'HDRI intensity' },
       environmentRotation: { value: -1.29, min: -Math.PI, max: Math.PI, step: 0.01, label: 'HDRI rotation (rad)' },
     }, { collapsed: true, order: 5 }),
+    'Stream Deck': folder({
+      deckEmissive: { value: 2.4, min: 0, max: 8, step: 0.05, label: 'Key emission' },
+      bloomStrength: { value: 0.16, min: 0, max: 1, step: 0.01, label: 'Bloom strength' },
+      bloomThreshold: { value: 1.25, min: 0.5, max: 4, step: 0.05, label: 'Bloom threshold' },
+      deckSpill: { value: 0.8, min: 0, max: 8, step: 0.05, label: 'Key light spill' },
+    }, { collapsed: true, order: 5.5 }),
+    Wall: folder({
+      wallColor: { value: '#2a2b2e', label: 'Paint color' },
+      wallRoughness: { value: 0.55, min: 0.3, max: 0.9, step: 0.01, label: 'Roughness' },
+      wallNormal: { value: 0.035, min: 0, max: 0.2, step: 0.005, label: 'Normal strength' },
+    }, { collapsed: true, order: 5.6 }),
     Rendering: folder({
       exposure: { value: 1, min: 0.2, max: 2, step: 0.01, label: 'Exposure' },
     }, { collapsed: true, order: 6 }),
@@ -77,6 +88,8 @@ export function lightingValues(s: LightingSettings) {
     },
     environment: { lightformerIntensity: s.lightformerIntensity, hdriIntensity: s.hdriIntensity, rotation: s.environmentRotation },
     desk: { clearcoat: s.deskClearcoat, clearcoatRoughness: s.deskClearcoatRoughness, roughnessMin: s.deskRoughnessMin, roughnessScale: s.deskRoughnessScale, envMapIntensity: s.deskEnvMapIntensity },
+    streamDeck: { emissiveIntensity: s.deckEmissive, bloomStrength: s.bloomStrength, bloomThreshold: s.bloomThreshold, spillIntensity: s.deckSpill },
+    wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal },
     rendering: { exposure: s.exposure },
   };
 }

@@ -6,7 +6,7 @@ import { Lighting } from './Lighting';
 import { CameraRig } from './CameraRig';
 import { Keyboard } from '../keyboard/Keyboard';
 import { useOwnedDisposal } from '../resources/ownership';
-import { StudioWall } from './StudioWall';
+import { LayoutControls } from './PropLayout';
 import { FloorContact } from './FloorContact';
 import { DeskProps } from './props/DeskProps';
 
@@ -29,11 +29,11 @@ export function Stage() {
   return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: [-0.073, 1.125, 0.570], fov: 32, near: 0.008, far: 25 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl }) => { gl.toneMappingExposure = 1; }}>
     <color attach="background" args={['#000000']} />
     <Suspense fallback={null}>
+      <LayoutControls />
       <Lighting><Desk /><DeskProps /></Lighting>
       <Keyboard />
       <CameraRig />
       <StudioFloor />
-      <StudioWall />
       {/* Static floor contact is a cached occlusion pass, not another emitter.
           The moving caps are above its capture range. */}
       <FloorContact />

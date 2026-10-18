@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import { Color } from 'three';
+import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 
@@ -103,7 +103,7 @@ try {
     if (attempt === 99) throw new Error('Preview did not start');
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
   const page = await context.newPage();
@@ -136,6 +136,13 @@ try {
     assert.equal(info.knobOffset, 0);
     return info;
   };
+  await page.evaluate(() => window.__layoutStore.show(true));
+  await rendered();
+  const hiddenGizmos = await page.evaluate(() => window.__layout());
+  assert.equal(hiddenGizmos.visible, false);
+  assert.ok(Object.values(hiddenGizmos.handles).every(points => points.length === 0), 'No gizmo objects outside debug, even when toggled in the store');
+  await page.evaluate(() => window.__layoutStore.show(false));
+  checks.gizmosDebugOnly = { status: 'passed' };
   await page.evaluate(() => window.__kb.seek(0.95));
   const mid = await page.evaluate(() => window.__kb.inspect());
   assert.ok(mid.capOffsets.some(y => y > 0.01) && mid.capOffsets.some(y => y < 0.001), 'Initial shot must show a partially seated wave');
@@ -163,6 +170,9 @@ try {
   checks.deskFinish = { status: 'passed', ...seated.wood };
   assert.equal(seated.streamdeck.keyCount, 15);
   assert.ok(seated.streamdeck.lcdRecessMm > 0 && seated.streamdeck.lcdRecessMm < 1, 'LCD faces must be recessed below real open bezels');
+  assert.ok(Math.abs(seated.streamdeck.keyProtrusionMm - 3) < 0.05, 'Clear key tops protrude 3mm above the actual faceplate');
+  assert.ok(seated.streamdeck.topRoughness < 0.2 && seated.streamdeck.emission > 1.25);
+  assert.ok(seated.streamdeck.openingGapMm >= 0.25);
   checks.streamdeckGeometry = { status: 'passed', ...seated.streamdeck };
   assert.ok(Math.abs(seated.props['prop-streamdeck'].min[1] - seated.matTop) < 0.0005, 'Control pad stand must rest on the mat');
   assert.ok(Math.abs(seated.props['prop-headphones'].min[1] - 0.75) < 0.0005, 'Headphone tray must rest on the wood');
@@ -176,7 +186,7 @@ try {
   assert.deepEqual(Object.keys(lighting.areaFrusta).sort(), ['key-softbox', 'studio-fill']);
   for (const [name, source] of Object.entries(lighting.areaFrusta)) assert.equal(source.outside, true, `${name}: entire area source must be outside the hero frustum`);
   checks.areasOutsideHeroFrustum = { status: 'passed', sources: lighting.areaFrusta };
-  assert.deepEqual(lighting.lights.map(light => light.type).sort(), ['RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'SpotLight']);
+  assert.deepEqual(lighting.lights.map(light => light.type).sort(), ['RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'SpotLight']);
   assert.equal(lighting.lights.filter(light => light.castShadow).length, 1);
   assert.equal(lighting.shadowAutoUpdate, false);
   assert.equal(lighting.environment, 1, 'Individual source intensities are baked into the environment');
@@ -201,6 +211,8 @@ try {
   nearArray(environment.lightformers['reflection-wall-glow'].radiance, new Color('#8d2d2d').multiplyScalar(23.3 * 0.035 * 1.28).toArray(), 'Wall-bounce reflection radiance');
   checks.wallGlowReflection = { status: 'passed', bounceGain: 0.035, ...environment.lightformers['reflection-wall-glow'] };
   checks.rigMatchedEnvironment = { status: 'passed', defaults: expectedEnvironment, ...environment };
+  assert.deepEqual(lighting.values.streamDeck, { emissiveIntensity: 2.4, bloomStrength: 0.16, bloomThreshold: 1.25, spillIntensity: 0.8 });
+  assert.deepEqual(lighting.values.wall, { color: '#2a2b2e', roughness: 0.55, normalStrength: 0.035 });
   checks.studioLighting = { status: 'passed', ...lighting };
 
   assert.equal(lighting.monitor.screenOn, true); assert.equal(lighting.monitor.hasWallpaper, true);
@@ -262,7 +274,7 @@ try {
   await shot('desk-frame');
   // Unobscured product details; ordinary hero/mobile/UI captures retain the picker.
   await page.locator('.variant-picker').evaluate(element => { element.style.visibility = 'hidden'; });
-  for (const view of ['props-wide', 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen']) {
+  for (const view of ['props-wide', 'props-streamdeck', 'props-airpods', 'deskmat-closeup', 'desk-sheen', 'wall-paint']) {
     await page.evaluate(view => window.__kb.camera(view), view);
     const coatedBuffer = await shot(view);
     if (view === 'desk-sheen') {
@@ -351,7 +363,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones']) {
+    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -539,6 +551,97 @@ try {
   const tunedCopy = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
   assert.deepEqual(tunedCopy, tuned.values, 'Copy must use live edited values, not mount-time defaults');
   checks.debugControls = { status: 'passed', linkedPosition: [-0.75, 1.75, 0.8], unlinkedPosition: tunedCopy.lights.spot.position, assembledShadowCache: true, values: tunedCopy };
+  // Restore the user's rig before layout evidence. Only prop transforms change.
+  await debugPage.evaluate(() => window.__lightingStore.set({
+    'Key · softbox.softboxIntensity': 0.75, 'Key · softbox.keyPosition': { x: -0.67, y: 1.75, z: 0.8 },
+    'Key · spot (shadows).linkSpot': true, 'Key · spot (shadows).keyIntensity': 6.235, 'Key · spot (shadows).shadowRadius': 4.1,
+  }));
+  await debugPage.waitForFunction(() => window.__lighting().values.lights.spot.intensity === 6.235);
+  await debugPage.evaluate(() => window.__kb.camera('props-wide'));
+  await debugPage.getByText('Key · spot (shadows)', { exact: true }).click();
+  await debugPage.getByText('Camera', { exact: true }).click();
+  await debugPage.getByText('Layout', { exact: true }).click();
+  const initialLayout = await debugPage.evaluate(() => window.__layout().values);
+  await debugPage.getByRole('button', { name: 'Copy layout values', exact: true }).click();
+  assert.deepEqual(JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText())), initialLayout);
+  await debugPage.getByText('Show gizmos', { exact: true }).click();
+  await renderedPage(debugPage);
+  await debugPage.screenshot({ path: 'screenshots/gizmos-debug.png' }); console.log('screenshots/gizmos-debug.png');
+  const initialGizmos = await debugPage.evaluate(() => window.__layout());
+  assert.equal(initialGizmos.visible, true);
+  assert.ok(Object.values(initialGizmos.handles).every(points => points.length === 2), 'Only X/Z translation handles plus the Y rotation arc');
+  // Exercise a real PivotControls hit target, not a synthetic dragging flag.
+  const handle = initialGizmos.handles.monitor[0];
+  const captureBeforeDrag = await debugPage.evaluate(() => window.__environment().captures);
+  await debugPage.mouse.move(handle.x * 1600, handle.y * 1000); await debugPage.mouse.down();
+  await debugPage.waitForFunction(() => window.__layout().dragging === 'monitor');
+  const duringDown = await debugPage.evaluate(() => window.__layout());
+  assert.equal(duringDown.orbitEnabled, false);
+  await debugPage.mouse.move(handle.x * 1600 + 28, handle.y * 1000, { steps: 3 });
+  await idleFrames(debugPage, 4);
+  const duringDrag = await debugPage.evaluate(() => ({ layout: window.__layout(), captures: window.__environment().captures }));
+  assert.equal(duringDrag.captures, captureBeforeDrag, 'A gizmo drag holds the environment capture until release');
+  assert.ok(Math.abs(duringDrag.layout.values.monitor.x - initialLayout.monitor.x) > 0.005);
+  await debugPage.mouse.up();
+  await debugPage.waitForFunction(n => window.__layout().orbitEnabled && !window.__layout().dragging && window.__environment().captures > n, captureBeforeDrag);
+  await idleFrames(debugPage, 5);
+  const afterDrag = await debugPage.evaluate(() => ({ layout: window.__layout(), captures: window.__environment().captures }));
+  assert.equal(afterDrag.captures, captureBeforeDrag + 1, 'One recapture after a completed drag');
+  checks.gizmoDrag = { status: 'passed', down: duringDown.orbitEnabled, during: duringDrag.layout.orbitEnabled, after: afterDrag.layout.orbitEnabled, beforeCaptures: captureBeforeDrag, duringCaptures: duringDrag.captures, afterCaptures: afterDrag.captures, from: initialLayout.monitor, to: afterDrag.layout.values.monitor };
+  const beforeLayoutMove = await debugPage.evaluate(() => ({ lighting: window.__lighting(), env: window.__environment(), layout: window.__layout() }));
+  await debugPage.evaluate(() => {
+    window.__layoutStore.set('monitor', { x: 0.10, z: -0.36, rotationY: 12 });
+    window.__layoutStore.set('headphones', { x: -0.44, z: -0.36, rotationY: -12 });
+    window.__layoutStore.set('streamdeck', { x: 0.59, z: -0.14, rotationY: -12 });
+  });
+  await debugPage.waitForFunction(() => Math.abs(window.__lighting().monitor.position[0] - 0.10) < 0.005 && window.__layout().values.streamdeck.y === 0.75);
+  await renderedPage(debugPage); await idleFrames(debugPage, 4);
+  const movedLayout = await debugPage.evaluate(() => ({ lighting: window.__lighting(), env: window.__environment(), layout: window.__layout(), props: window.__props() }));
+  const rigid = pose => {
+    const q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.rotationY * Math.PI / 180);
+    return new Matrix4().compose(new Vector3(pose.x, pose.y, pose.z), q, new Vector3(1, 1, 1));
+  };
+  const beforePose = beforeLayoutMove.layout.values.monitor, nextPose = movedLayout.layout.values.monitor;
+  const delta = rigid(nextPose).multiply(rigid(beforePose).invert());
+  for (const name of ['screen-rim', 'screen-wall-glow']) {
+    const before = beforeLayoutMove.lighting.lights.find(l => l.name === name), moved = movedLayout.lighting.lights.find(l => l.name === name);
+    nearArray(moved.position, new Vector3(...before.position).applyMatrix4(delta).toArray(), `${name}: rigidly follows the monitor`);
+    assert.equal(moved.intensity, before.intensity); assert.equal(moved.color, before.color);
+  }
+  nearArray(movedLayout.env.lightformers['reflection-screen'].position, movedLayout.lighting.monitor.position, 'Moved LCD Lightformer matches actual screen');
+  nearArray(movedLayout.env.lightformers['reflection-screen'].quaternion, movedLayout.lighting.monitor.quaternion, 'Moved LCD Lightformer orientation');
+  nearArray(movedLayout.layout.attachments.coatPositions[0], movedLayout.lighting.monitor.position, 'Existing desk coat screen uniforms follow');
+  nearArray(movedLayout.layout.attachments.coatPositions[1], movedLayout.env.lightformers['reflection-wall-glow'].position, 'Desk coat wall uniforms match projected wall return');
+  assert.ok(Math.abs(movedLayout.env.lightformers['reflection-wall-glow'].position[2] + 0.854) < 1e-9);
+  assert.notDeepEqual(movedLayout.env.lightformers['reflection-wall-glow'].position, beforeLayoutMove.env.lightformers['reflection-wall-glow'].position);
+  const beforeSpill = beforeLayoutMove.lighting.lights.find(l => l.name === 'streamdeck-spill');
+  const movedSpill = movedLayout.lighting.lights.find(l => l.name === 'streamdeck-spill');
+  const deckDelta = rigid(movedLayout.layout.values.streamdeck).multiply(rigid(beforeLayoutMove.layout.values.streamdeck).invert());
+  nearArray(movedSpill.position, new Vector3(...beforeSpill.position).applyMatrix4(deckDelta).toArray(), 'Deck spill follows the wedge and keys');
+  assert.ok(Math.abs(movedLayout.props.props['prop-streamdeck'].min[1] - 0.75) < 0.0005);
+  await debugPage.getByRole('button', { name: 'Copy layout values', exact: true }).click();
+  const copiedLayout = JSON.parse(await debugPage.evaluate(() => navigator.clipboard.readText()));
+  assert.deepEqual(copiedLayout, movedLayout.layout.values);
+  checks.layoutClipboard = { status: 'passed', defaults: initialLayout, moved: copiedLayout };
+  checks.layoutAttachments = { status: 'passed', before: beforeLayoutMove, moved: movedLayout };
+  await debugPage.evaluate(() => { window.__layoutStore.show(false); document.querySelector('.variant-picker').style.visibility = 'hidden'; document.getElementById('studio-controls').style.display = 'none'; });
+  await renderedPage(debugPage);
+  await debugPage.screenshot({ path: 'screenshots/layout-moved.png' }); console.log('screenshots/layout-moved.png');
+  // Exact numeric fields remain in two-way sync with gizmo/debug-store edits.
+  const input = debugPage.locator('[id="Layout.monitor.monitorPosition"]');
+  assert.ok(Math.abs(parseFloat(await input.inputValue()) - 0.10) < 0.001);
+  await debugPage.evaluate(() => { document.getElementById('studio-controls').style.display = ''; });
+  await input.fill('0.125'); await input.press('Enter');
+  await debugPage.waitForFunction(() => Math.abs(window.__layout().values.monitor.x - 0.125) < 0.0001);
+  await debugPage.evaluate(() => window.__layoutStore.set('streamdeck', { x: 99, z: 99 }));
+  await renderedPage(debugPage);
+  const clamped = await debugPage.evaluate(() => window.__props().props['prop-streamdeck']);
+  assert.ok(clamped.min[0] >= -0.8 && clamped.max[0] <= 0.8 && clamped.min[2] >= -0.56 && clamped.max[2] <= 0.19);
+  await debugPage.evaluate(() => window.__layoutStore.set('monitor', { rotationY: 170 }));
+  await debugPage.waitForFunction(() => window.__environment().lightformers['reflection-wall-glow'].radiance.every(c => c === 0));
+  assert.ok((await debugPage.evaluate(() => window.__layout().attachments.coatColors[1])).every(c => c === 0), 'A rear emitter aimed away from the wall cannot reflect a phantom wall wash');
+  checks.wallProjectionDirection = { status: 'passed', facingAwayRotationY: 170, wallRadiance: [0, 0, 0] };
+  checks.layoutConstraints = { status: 'passed', clamped, numericX: 0.125, onMat: initialLayout.streamdeck.y, offMat: copiedLayout.streamdeck.y };
   await debugContext.close();
   assert.deepEqual(errors, [], 'Browser must have no runtime or console errors');
   checks.browserErrors = errors;

@@ -25,10 +25,18 @@ export function DeskProps() {
       const finish = wood.material as import('three').MeshPhysicalMaterial;
       const sheenPoint = new Vector3(0.48, 0.75001, -0.045).project(camera);
       const bezels = scene.getObjectByName('streamdeck-bezels') as import('three').InstancedMesh;
+      const caps = scene.getObjectByName('streamdeck-keycaps') as import('three').InstancedMesh;
       const lcd = scene.getObjectByName('streamdeck-lcd-keys') as import('three').Mesh;
       bezels.geometry.computeBoundingBox(); lcd.geometry.computeBoundingBox();
-      const first = new Matrix4(); bezels.getMatrixAt(0, first);
-      const recess = bezels.geometry.boundingBox!.max.z + first.elements[14] - lcd.geometry.boundingBox!.max.z;
+      caps.geometry.computeBoundingBox();
+      const first = new Matrix4(); caps.getMatrixAt(0, first);
+      const plate = scene.getObjectByName('streamdeck-faceplate') as import('three').Mesh;
+      plate.geometry.computeBoundingBox();
+      const faceplateFront = plate.position.z + plate.geometry.boundingBox!.max.z;
+      const opening = ((bezels.geometry as import('three').ExtrudeGeometry).parameters.shapes as import('three').Shape).holes[0].getPoints();
+      const openingWidth = Math.max(...opening.map(p => p.x)) - Math.min(...opening.map(p => p.x));
+      const gapMm = (openingWidth - (caps.geometry.boundingBox!.max.x - caps.geometry.boundingBox!.min.x)) * 500;
+      const recess = caps.geometry.boundingBox!.max.z + first.elements[14] - lcd.geometry.boundingBox!.max.z;
       const localBounds = (name: string) => { const mesh = scene.getObjectByName(name) as import('three').Mesh; mesh.geometry.computeBoundingBox(); return mesh.geometry.boundingBox!.clone().applyMatrix4(mesh.matrix); };
       const headrestOverlap = localBounds('headphone-headrest').intersect(localBounds('headphone-upright')).getSize(new Vector3()).multiplyScalar(1000).toArray();
       const cups = [-1, 1].map(side => {
@@ -46,7 +54,7 @@ export function DeskProps() {
       const panel = scene.getObjectByName('monitor-screen')!;
       const screenSamples = [-0.22, -0.11, 0, 0.11, 0.22].flatMap(x => [-0.12, -0.06, 0, 0.06, 0.12].map(y => { const p = panel.localToWorld(new Vector3(x, y, 0)).project(camera); return [(p.x + 1) / 2, (1 - p.y) / 2]; }));
       const remote = new Vector3(0.70, 0.75001, -0.045).project(camera);
-      return { headphones, screenSamples, sheenRemoteSample: [(remote.x + 1) / 2, (1 - remote.y) / 2], matTop: mat.max.y, feetBottom: feet, bodyBottom, contactErrorMm: Math.max(...feet.map(y => Math.abs(y - mat.max.y))) * 1000, props, headrestOverlapMm: headrestOverlap, streamdeck: { keyCount: bezels.count, lcdRecessMm: recess * 1000 }, sheenSample: [(sheenPoint.x + 1) / 2, (1 - sheenPoint.y) / 2], wood: { type: finish.type, clearcoat: finish.clearcoat, clearcoatRoughness: finish.clearcoatRoughness, envMapIntensity: finish.envMapIntensity, explicitEnvironment: finish.envMap === scene.environment && Boolean(finish.envMap), roughnessMin: Number(finish.userData.grainMin.value), roughnessScale: Number(finish.userData.grainScale.value) } };
+      return { headphones, screenSamples, sheenRemoteSample: [(remote.x + 1) / 2, (1 - remote.y) / 2], matTop: mat.max.y, feetBottom: feet, bodyBottom, contactErrorMm: Math.max(...feet.map(y => Math.abs(y - mat.max.y))) * 1000, props, headrestOverlapMm: headrestOverlap, streamdeck: { keyCount: bezels.count, lcdRecessMm: recess * 1000, keyProtrusionMm: (caps.geometry.boundingBox!.max.z + first.elements[14] - faceplateFront) * 1000, openingGapMm: gapMm, emission: (lcd.material as import('three').MeshBasicMaterial).color.r, topRoughness: (caps.material as import('three').MeshPhysicalMaterial).roughness }, sheenSample: [(sheenPoint.x + 1) / 2, (1 - sheenPoint.y) / 2], wood: { type: finish.type, clearcoat: finish.clearcoat, clearcoatRoughness: finish.clearcoatRoughness, envMapIntensity: finish.envMapIntensity, explicitEnvironment: finish.envMap === scene.environment && Boolean(finish.envMap), roughnessMin: Number(finish.userData.grainMin.value), roughnessScale: Number(finish.userData.grainScale.value) } };
     };
     return () => { delete window.__props; };
   }, [scene, camera]);

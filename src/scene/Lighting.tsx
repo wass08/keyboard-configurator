@@ -1,5 +1,5 @@
 import { SoftShadows } from '@react-three/drei';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { DeskSettings } from './Desk';
 import { useThree } from '@react-three/fiber';
 import { Box3, Frustum, Matrix4, Object3D, Quaternion, Vector3 } from 'three';
@@ -10,23 +10,33 @@ import { lightingValues, useLightingControls, xyz } from './lightingControls';
 import { levaStore } from 'leva';
 import { RigEnvironment } from './RigEnvironment';
 import { areaOrientation } from './lightTransforms';
+import { monitorSettings, wallReflectionPosition, wallBounceVisible, screenOrientation as monitorOrientation } from './layoutTransforms';
+import { useLayoutStore } from '../state/layout';
+import { StudioWall } from './StudioWall';
+import { StudioPost } from './StudioPost';
 import { Monitor, RIM_BAND_HEIGHT, RIM_BAND_Y, SCREEN_WIDTH } from './PracticalFixtures';
 
 RectAreaLightUniformsLib.init();
 export function Lighting({ children }: { children: ReactNode }) {
-  const settings = useLightingControls();
+  const rawSettings = useLightingControls();
+  const monitorPose = useLayoutStore(state => state.poses.monitor);
+  const poses = useLayoutStore(state => state.poses);
+  const dragging = useLayoutStore(state => state.dragging);
+  const settings = useMemo(() => monitorSettings(rawSettings, monitorPose), [rawSettings, monitorPose]);
   const requestedSolo = new URLSearchParams(location.search).get('solo');
   const solo = ['key', 'softbox', 'spot', 'fill', 'rim', 'env'].includes(requestedSolo ?? '') ? requestedSolo : null;
   const softbox = !solo || solo === 'key' || solo === 'softbox';
   const spot = !solo || solo === 'key' || solo === 'spot';
   const fill = !solo || solo === 'fill', rim = !solo || solo === 'rim', env = !solo || solo === 'env';
+  const environmentSettings = useRef(settings);
+  if (!dragging) environmentSettings.current = settings;
   const target = useMemo(() => new Object3D(), []);
   const phase = useConfigurator(state => state.phase);
   const { gl, scene, camera } = useThree();
   const { keyPosition, keyAim, rimPosition, rimAim } = settings;
   const spotPosition = settings.linkSpot ? keyPosition : settings.spotPosition;
   const spotAim = settings.linkSpot ? keyAim : settings.spotAim;
-  const screenOrientation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(rimAim.x - rimPosition.x, rimAim.y - rimPosition.y, rimAim.z - rimPosition.z).normalize());
+  const screenOrientation = monitorOrientation(settings);
   const rimOrientation = screenOrientation.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI));
   const bandPosition = new Vector3(0, RIM_BAND_Y, 0.002).applyQuaternion(screenOrientation).add(new Vector3(...xyz(rimPosition)));
   const backPosition = new Vector3(0, 0, -0.06).applyQuaternion(screenOrientation).add(new Vector3(...xyz(rimPosition)));
@@ -37,6 +47,7 @@ export function Lighting({ children }: { children: ReactNode }) {
   }, [gl, phase, spotPosition.x, spotPosition.y, spotPosition.z, spotAim.x, spotAim.y, spotAim.z,
     settings.keyAngle, settings.keyPenumbra, settings.shadowSoftness, settings.shadowRadius,
     rimPosition.x, rimPosition.y, rimPosition.z, rimAim.x, rimAim.y, rimAim.z]);
+  useEffect(() => { gl.shadowMap.needsUpdate = true; }, [gl, poses]);
   useEffect(() => { gl.toneMappingExposure = settings.exposure; }, [gl, settings.exposure]);
   useEffect(() => {
     window.__lightingStore = { set: values => levaStore.set(values, false) };
@@ -64,22 +75,40 @@ export function Lighting({ children }: { children: ReactNode }) {
       const corners = [-0.075, 0.075].flatMap(x => [-0.14, -0.08].map(y => screen.localToWorld(new Vector3(x, y, 0)).project(camera)));
       const screenRegion = { minX: Math.min(...corners.map(p => (p.x + 1) / 2)), maxX: Math.max(...corners.map(p => (p.x + 1) / 2)), minY: Math.min(...corners.map(p => (1 - p.y) / 2)), maxY: Math.max(...corners.map(p => (1 - p.y) / 2)) };
       const panel = screen.material as import('three').MeshPhysicalMaterial;
-      return { solo, lights, keyFrustum, areaFrusta, values: lightingValues(settings), monitor: { screenOn: settings.screenOn, material: panel.type, hasWallpaper: Boolean(panel.map), color: panel.color.getHexString(), emissiveIntensity: panel.emissiveIntensity ?? 0, roughness: panel.roughness ?? 0, clearcoat: panel.clearcoat ?? 0, reflectionCaptures: Number(scene.getObjectByName('monitor-scene-reflection')?.userData.captures ?? 0), position: screen.getWorldPosition(new Vector3()).toArray(), quaternion: screen.getWorldQuaternion(new Quaternion()).toArray() }, screenRegion, environment: scene.environmentIntensity, exposure: gl.toneMappingExposure, shadowAutoUpdate: gl.shadowMap.autoUpdate };
+      return { solo, lights, keyFrustum, areaFrusta, values: lightingValues(rawSettings), monitor: { screenOn: settings.screenOn, material: panel.type, hasWallpaper: Boolean(panel.map), color: panel.color.getHexString(), emissiveIntensity: panel.emissiveIntensity ?? 0, roughness: panel.roughness ?? 0, clearcoat: panel.clearcoat ?? 0, reflectionCaptures: Number(scene.getObjectByName('monitor-scene-reflection')?.userData.captures ?? 0), position: screen.getWorldPosition(new Vector3()).toArray(), quaternion: screen.getWorldQuaternion(new Quaternion()).toArray() }, screenRegion, environment: scene.environmentIntensity, exposure: gl.toneMappingExposure, shadowAutoUpdate: gl.shadowMap.autoUpdate };
     };
     return () => { delete window.__lighting; delete window.__lightingStore; };
-  }, [gl, scene, camera, solo, settings]);
+  }, [gl, scene, camera, solo, settings, rawSettings]);
   return <DeskSettings.Provider value={settings}>
     <SoftShadows size={settings.shadowSoftness * settings.shadowRadius / 3} samples={24} />
-    <RigEnvironment settings={settings} enabled={env} />
-    <Monitor settings={settings} enabled={rim || env} />
+    <RigEnvironment settings={environmentSettings.current} enabled={env} />
+    <Monitor settings={rawSettings} enabled={rim || env} />
     <primitive object={target} />
     <rectAreaLight name="key-softbox" position={xyz(keyPosition)} quaternion={areaOrientation(keyPosition, keyAim)} width={settings.softboxWidth} height={settings.softboxHeight} intensity={softbox ? settings.softboxIntensity : 0} color={settings.keyColor} />
     <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot} shadow-radius={settings.shadowRadius} shadow-mapSize={[2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
     <rectAreaLight name="studio-fill" position={xyz(settings.fillPosition)} quaternion={areaOrientation(settings.fillPosition, settings.fillAim)} width={settings.fillWidth} height={settings.fillHeight} intensity={fill ? settings.fillIntensity : 0} color={settings.fillColor} />
     <rectAreaLight name="screen-rim" position={bandPosition} quaternion={rimOrientation} width={SCREEN_WIDTH} height={RIM_BAND_HEIGHT} intensity={rim && settings.screenOn ? settings.rimIntensity : 0} color={settings.rimColor} />
-    {/* Screen-motivated rear glow illuminates real plaster, not a backdrop
+    {/* Screen-motivated rear glow illuminates real painted wall, not a backdrop
         texture or emissive decal. It follows the monitor's transform. */}
     <rectAreaLight name="screen-wall-glow" position={backPosition} quaternion={screenOrientation} width={0.5} height={0.26} intensity={rim && settings.screenOn ? settings.wallGlow : 0} color={settings.rimColor} />
     {children}
+    <MonitorCoatSync settings={settings} />
+    <StudioWall settings={settings} />
+    <StudioPost settings={settings} />
   </DeskSettings.Provider>;
+}
+
+// The oak finish/shader stays untouched. Move only its existing panel uniforms.
+function MonitorCoatSync({ settings }: { settings: ReturnType<typeof useLightingControls> }) {
+  const scene = useThree(state => state.scene);
+  useEffect(() => {
+    const wood = scene.getObjectByName('desk-wood') as Mesh;
+    const panels = (wood.material as import('three').Material).userData.coatPanels;
+    const q = monitorOrientation(settings), p = settings.rimPosition;
+    panels.uCoatPositions.value[0].set(0, 0.003, 0.0001).applyQuaternion(q).add(new Vector3(p.x, p.y, p.z));
+    panels.uCoatU.value[0].set(1, 0, 0).applyQuaternion(q); panels.uCoatV.value[0].set(0, 1, 0).applyQuaternion(q);
+    panels.uCoatPositions.value[1].copy(wallReflectionPosition(settings));
+    panels.uCoatColors.value[1].multiplyScalar(wallBounceVisible(settings));
+  }, [scene, settings]);
+  return null;
 }
