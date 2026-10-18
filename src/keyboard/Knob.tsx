@@ -18,10 +18,13 @@ export const Knob = forwardRef<Group, { materials: KeyboardMaterials }>(function
     return geometry;
   }, []);
   useOwnedDisposal('Knob', [flutes]);
-  return <group ref={ref} position={KNOB_POSITION}>
+  // Assembly animates the outer group; user rotation/press lives on the inner one.
+  return <group ref={ref} position={KNOB_POSITION}><group name="knob-spin">
     <mesh position={[0, 0.002, 0]} material={materials.ring} castShadow><cylinderGeometry args={[0.0113, 0.0109, 0.003, 80]} /></mesh>
     <mesh geometry={flutes} material={materials.ring} castShadow />
     <mesh position={[0, 0.012, 0]} rotation={[Math.PI / 2, 0, 0]} material={materials.ring} castShadow><torusGeometry args={[0.0098, 0.00105, 24, 80]} /></mesh>
     <mesh position={[0, 0.012, 0]} material={materials.knob} castShadow><cylinderGeometry args={[0.0092, 0.0095, 0.0014, 80]} /></mesh>
-  </group>;
+    {/* Machined position line at 12 o'clock, so knob rotation reads. */}
+    <mesh name="knob-indicator" position={[0, 0.01274, -0.0062]} material={materials.ring}><boxGeometry args={[0.0006, 0.0001, 0.0032]} /></mesh>
+  </group></group>;
 });

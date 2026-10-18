@@ -234,6 +234,49 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
 - `scripts/performance.mjs`: separate native-GPU production timing while assembled
   and during a colorway change; records the renderer and measured frame times.
 
+## Interaction, typing and sound (spec 07c)
+
+- **Keys:** hovering a seated keycap sinks it 0.7 mm (only when `phase === 'assembled'`);
+  pointer down presses it to 3.6 mm full travel, stem included, and types its legend
+  (clicked Shift is a one-shot latch, clicked Caps Lock toggles). Physical keys press
+  the 3D key at the same *position* (`KeyboardEvent.code` → layout id,
+  `src/keyboard/keymap.ts`) and type `event.key`, so non-US layouts type correctly.
+  Auto-repeat types but never re-triggers the press. Keys are ignored while focus
+  is in an input or the Leva panel; a focused button/radio keeps Space, Enter,
+  arrows and Tab. Tab on the page indents; press Escape, then Tab, to reach the UI.
+- **Seam:** `src/keyboard/KeyInteraction.tsx` is an additive layer. `assembly.ts`
+  still owns each cap group and the knob group; interaction only offsets the cap
+  group's children, the instanced stems, and the knob's inner `knob-spin` group.
+  Springs run in `useFrame` over the few active keys; no React renders per key.
+  Hit testing is one raycast per pointer move (keyboard bounding-box pre-check,
+  then the cap meshes and knob). A capture-phase `pointerdown` on the Canvas
+  wrapper stops presses on keys/knob reaching OrbitControls.
+- **Monitor text:** `src/screen/ScreenText.tsx` is a transparent CanvasTexture
+  overlay on the powered screen at the wallpaper's 0.62 radiance, outside the
+  environment portal, so keystrokes never recapture reflections. The page is
+  bottom-anchored (typewriter scrolling) because the hero camera sees only the
+  lowest ~40 mm of the panel. It redraws on edits and on the ~1 Hz caret blink only.
+- **Knob:** drag horizontally (14 px per 15° detent, 24 per turn) with a magnetic
+  snap on release; each detent ticks and nudges the master volume by 4% with a
+  brief readout beside the speaker toggle. A click without a drag dips it 0.5 mm.
+- **Sound:** `src/audio/sfx.ts`, one AudioContext created in the first user
+  gesture. CC0 Kenney recordings (`public/audio/`, ~100 KB, ogg with mp3
+  fallback) are fetched on idle and decoded once on unlock; filters, pitch,
+  jitter and synthesized body layers are applied at runtime. 20-voice cap with
+  voice stealing, and a gentle limiter. The speaker toggle in the picker caption
+  is remembered in `localStorage` (`kc.sound`). `?debug` → **Sound** holds master
+  and per-category volumes. Replacement clicks are derived from the cap
+  transforms during a colorway change and thinned to at most 20 events.
+- **Intro hook (spec 07b):** `import { sfx } from './audio/sfx'` then
+  `sfx.play(name, { gain, rate, delay, pan, category })`. Names: `thud` (soft low
+  landing), `softClick`, `capSeat`, `capLift`, `knobSeat`, plus the typing/knob
+  sounds. Calls before a gesture are silently ignored.
+- Hooks: `window.__interaction.state()/keyPoint(id)/knobPoint()`, `window.__screen()`,
+  `window.__sfx()`. `npm run shots` adds `interaction-hover.png` (+`-detail`),
+  `interaction-press.png` (+`-detail`), `screen-typing.png`, `knob-rotate.png`,
+  `knob-rest-detail.png`/`knob-rotate-detail.png` and `checks-interaction.json`;
+  `npm run perf` adds a 15 keys/s typing measurement.
+
 ## Assets
 
 Poly Haven **Oak Veneer 01**, 2K diffuse, OpenGL normal, roughness and AO;
@@ -242,6 +285,7 @@ ambientCG **Fabric 034**, 2K color, OpenGL normal and roughness, for felt and
 cushions. All CC0 1.0. `npm run assets` requires the standard `unzip` utility
 for the ambientCG archive. Full names, source pages, exact download URLs,
 license links and the earlier evaluated wood set are in `public/CREDITS.md`.
+Sound effects are CC0 Kenney recordings (see `public/CREDITS.md`).
 No downloaded models, fonts, logos or images of keyboards/props are used in the app.
 The monitor geometry and screen wallpaper are procedural.
 
@@ -332,8 +376,8 @@ window.__lightingStore.set({ // same live Leva store used by the debug panel
   Render counts are recorded in `screenshots/checks.json`.
 - The Three.js runtime is a substantial vendor chunk; Vite reports its size.
   Separate vendor chunks keep the app's own bundle small and cacheable.
-- Later milestones (per-key editing, switch options, sound, case options and
-  export) are intentionally outside this milestone.
+- Later milestones (per-key editing, switch options, case options and export)
+  are intentionally outside this milestone.
 
 No commit was created. This milestone does not alter `docs/`, `references/` or
 `PROMPTS.md`; pre-existing working-tree changes are preserved.

@@ -7,6 +7,7 @@ import { DESK_TOP } from './dimensions';
 import { MovableProp } from './PropLayout';
 import type { LightingSettings } from './lightingControls';
 import { OffScreenReflection } from './OffScreenReflection';
+import { ScreenText } from '../screen/ScreenText';
 
 const graphite = '#303638';
 export const SCREEN_RADIANCE = 0.62;
@@ -76,6 +77,8 @@ export function Monitor({ settings, enabled }: { settings: LightingSettings; ena
           ? <meshBasicMaterial key="on" map={screen} color={new Color('#ffffff').multiplyScalar(SCREEN_RADIANCE)} />
           : <meshPhysicalMaterial key="off" color="#030405" emissiveIntensity={0} roughness={0.22} metalness={0.08} clearcoat={1} clearcoatRoughness={0.12} />}
       </mesh>
+      {/* Typed text: a transparent overlay above the wallpaper, outside the environment portal. */}
+      {powered && <ScreenText width={SCREEN_WIDTH} height={SCREEN_HEIGHT} radiance={SCREEN_RADIANCE} />}
       {!powered && <OffScreenReflection width={SCREEN_WIDTH} height={SCREEN_HEIGHT} revision={JSON.stringify(settings)} />}
       <mesh position={[0.28, -0.174, 0]}><sphereGeometry args={[0.0009, 8, 6]} /><meshBasicMaterial color={powered ? '#b9d8da' : '#050606'} /></mesh>
     </group>
