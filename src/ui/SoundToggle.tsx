@@ -1,18 +1,48 @@
 import { useEffect, useState } from 'react';
-import { folder, useControls } from 'leva';
+import { button, folder, useControls } from 'leva';
 import { useSound } from '../audio/soundStore';
 import type { SfxCategory } from '../audio/soundStore';
-import '../audio/sfx';
+import { sfx } from '../audio/sfx';
+import type { Character, SfxName } from '../audio/sfx';
 
 const READOUT_MS = 1200;
 const CATEGORY_LABELS: [SfxCategory, string][] = [['hover', 'Hover'], ['typing', 'Typing'], ['replacement', 'Replacement'], ['knob', 'Knob'], ['intro', 'Intro']];
+const PREVIEWS: [string, SfxName][] = [
+  ['Key press', 'keyDown'], ['Key release', 'keyUp'], ['Stab press', 'keyDownStab'], ['Stab release', 'keyUpStab'], ['Hover tick', 'hover'],
+  ['Cap lift', 'capLift'], ['Cap seat', 'capSeat'], ['Knob seat', 'knobSeat'], ['Knob tick', 'knobTick'], ['Knob click', 'knobClick'],
+  ['Frame thud', 'thud'], ['Soft click', 'softClick'], ['Mat unroll', 'matUnroll'],
+];
+const CHARACTER: [keyof Character, string, number, number][] = [['pitch', 'Body pitch', 0.7, 1.4], ['brightness', 'Brightness', 0, 1], ['decay', 'Decay', 0.5, 2], ['wire', 'Stab wire', 0, 1]];
 
-/** `?debug` → Sound: master and per-category volumes, two-way synced with the knob. */
+/** A preview click is itself the unlocking gesture; play() queues until the voice is rendered. */
+function preview(name: SfxName) { sfx.unlock(); sfx.play(name); }
+/** A short human-timed phrase: presses, releases, a stabilized Space. */
+function typingDemo() {
+  sfx.unlock();
+  let t = 0;
+  for (let i = 0; i < 12; i++) {
+    const stab = i === 5 || i === 11, dwell = 0.06 + Math.random() * 0.03;
+    const pan = (Math.random() - 0.5) * 0.4;
+    // Timers, not scheduled delays: the polyphony cap would steal future voices.
+    setTimeout(() => sfx.play(stab ? 'keyDownStab' : 'keyDown', { pan }), t * 1000);
+    setTimeout(() => sfx.play(stab ? 'keyUpStab' : 'keyUp', { pan }), (t + dwell) * 1000);
+    t += 0.1 + Math.random() * 0.07;
+  }
+}
+function knobSweep() { sfx.unlock(); for (let i = 0; i < 6; i++) sfx.play('knobTick', { delay: i * 0.07, pan: 0.33 }); }
+
+/** `?debug` → Sound: master and per-category volumes (two-way synced with the knob), synthesis character, previews. */
 function useSoundControls() {
   const [, set] = useControls(() => ({
     Sound: folder({
       masterVolume: { value: useSound.getState().master, min: 0, max: 1, step: 0.01, label: 'Master', onChange: (v: number) => useSound.getState().setMaster(v) },
       ...Object.fromEntries(CATEGORY_LABELS.map(([category, label]) => [`${category}Volume`, { value: useSound.getState().volumes[category], min: 0, max: 1.5, step: 0.01, label, onChange: (v: number) => useSound.getState().setVolume(category, v) }])),
+      Synthesis: folder(Object.fromEntries(CHARACTER.map(([key, label, min, max]) => [`synth${key[0].toUpperCase()}${key.slice(1)}`, { value: sfx.character[key], min, max, step: 0.01, label, onChange: (v: number) => sfx.setCharacter({ [key]: v }) }])), { collapsed: true }),
+      Preview: folder({
+        ...Object.fromEntries(PREVIEWS.map(([label, name]) => [label, button(() => preview(name))])),
+        'Typing phrase': button(typingDemo),
+        'Knob sweep': button(knobSweep),
+      }, { collapsed: true }),
     }, { collapsed: true, order: 100 }),
   }));
   useEffect(() => useSound.subscribe((state, previous) => { if (state.master !== previous.master) (set as (values: Record<string, unknown>) => void)({ masterVolume: state.master }); }), [set]);
