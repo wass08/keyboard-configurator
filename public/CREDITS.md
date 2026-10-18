@@ -47,27 +47,28 @@ Wood Table 001 (2K), https://polyhaven.com/a/wood_table_001, CC0 1.0. Replaced a
 
 Keyboard, desk and prop geometry, generic control-pad icon atlas, procedural satin-paint maps, wallpaper and UI are generated locally. No third-party logos or wordmarks are used. Reference photos in references/ were supplied by the project owner and are not redistributed as app assets.
 
-## Sound effects — Kenney "UI Audio" and "Interface Sounds" (CC0 1.0)
+## Sound effects
 
-Created/distributed by Kenney (www.kenney.nl). Both packs' bundled `License.txt`
-reads "License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/".
+### Recorded key presses (`audio/keys.ogg`, `audio/keys.m4a`, `audio/keys.json`)
 
-- UI Audio: https://kenney.nl/assets/ui-audio — archive https://kenney.nl/media/pages/assets/ui-audio/490d233f68-1677590494/kenney_ui-audio.zip
-- Interface Sounds: https://kenney.nl/assets/interface-sounds — archive https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip
+**Not CC-licensed. Personal/prototype use only.** The key press and release
+samples are cut from the YouTube ASMR recording
+**[Cozy ASMR ☁] typing on 9 different Keyboards (no mid-roll ads)**,
+downloaded and supplied by the project owner. Only the section 0:52–6:00
+(one keyboard) is used. The creator's name was not included with the file.
+The recording belongs to its creator: redistributing these samples or
+publishing the app with them requires the creator's permission. Replace them
+(re-run `scripts/extract-samples.mjs` on a licensed recording, or fall back to
+the synthesized keys) before any public release.
 
-The `.ogg` files are the archive members, unmodified and renamed. Each `.mp3` is a
-fallback encoded from that `.ogg` with ffmpeg/LAME (mono, 44.1 kHz, VBR q4).
-Trimming, filtering, pitch and the synthesized body layers happen at runtime.
+Processing (`scripts/extract-samples.mjs`): ffmpeg decode to 48 kHz, onset
+detection, press/release pairing, feature-based classes (alphas, spacebar,
+stabilized), per-class loudness levelling, a 35 Hz high-pass, 2.5 ms pre-roll
+and 0.5/8 ms fades. Encoded with ffmpeg (Opus 96 kbps in Ogg; AAC 128 kbps in
+MP4 as the fallback).
 
-- `audio/key-down-1` ← UI Audio `Audio/switch15.ogg`
-- `audio/key-down-2` ← UI Audio `Audio/switch17.ogg`
-- `audio/key-down-3` ← UI Audio `Audio/switch22.ogg`
-- `audio/key-down-4` ← UI Audio `Audio/switch16.ogg`
-- `audio/key-up-1` ← UI Audio `Audio/switch26.ogg`
-- `audio/key-up-2` ← UI Audio `Audio/switch28.ogg`
-- `audio/key-up-3` ← UI Audio `Audio/switch12.ogg`
-- `audio/cap-lift` ← UI Audio `Audio/switch13.ogg`
-- `audio/knob-click` ← UI Audio `Audio/switch10.ogg`
-- `audio/knob-tick` ← Interface Sounds `Audio/tick_001.ogg`
-- `audio/hover-tick` ← Interface Sounds `Audio/click_003.ogg`
-- `audio/soft-click` ← Interface Sounds `Audio/click_005.ogg`
+### Synthesized voices
+
+Hover, knob, replacement and intro sounds (and the fallback key sounds) are
+synthesized at runtime by hand-written code in `src/audio/synth.ts`; they use
+no recordings or third-party assets.

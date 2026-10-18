@@ -98,6 +98,7 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
       const visibleLines = lines.slice(first, first + state.promptLines); state.lines = visibleLines.map(line => text.slice(line.start, line.end));
       if (state.historyVersion !== typing.transcriptVersion || state.historyHeight !== state.promptHeight) {
         terminalBackground(ctx, canvas.width, canvas.height); ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'left';
         ctx.strokeStyle = '#764b3d'; ctx.lineWidth = 1.5;
         rounded(ctx, margin, 0.016 * px, 0.33 * px, 0.047 * px, 0.003 * px); ctx.stroke();
         ctx.font = `500 ${Math.round(0.0085 * px)}px ${TERMINAL_FONT}`; ctx.fillStyle = TERMINAL_ACCENT;
@@ -117,7 +118,9 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
         ctx.font = `400 ${Math.round(0.0062 * px)}px ${TERMINAL_FONT}`;
         for (const message of typing.transcript) for (const line of wrap(s => ctx.measureText(s).width, '> ' + message, canvas.width - 2 * margin)) transcript.push({ text: ('> ' + message).slice(line.start, line.end), color: TERMINAL_INK });
         const historyLineH = 0.011 * px, maxRows = Math.floor((boxY - 0.094 * px) / historyLineH), history = transcript.slice(-Math.max(0, maxRows));
-        history.forEach((line, i) => { ctx.fillStyle = line.color; ctx.fillText(line.text, margin, 0.105 * px + i * historyLineH); });
+        // Authored and submitted rows share exactly one physical left column.
+        const transcriptX = margin;
+        history.forEach((line, i) => { ctx.fillStyle = line.color; ctx.fillText(line.text, transcriptX, 0.105 * px + i * historyLineH); });
         state.historyVersion = typing.transcriptVersion; state.historyHeight = state.promptHeight; state.staticRedraws++;
         texture.needsUpdate = true;
       }

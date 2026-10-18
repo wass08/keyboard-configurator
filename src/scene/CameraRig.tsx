@@ -168,6 +168,9 @@ export function CameraRig() {
       if (orbit) {
         const damping = orbit.enableDamping;
         orbit.enableDamping = false; orbit.update(); orbit.enableDamping = damping;
+        // The LCD tilts slightly down. Its inspection preset needs to view
+        // along that actual normal; restore the normal orbit limit elsewhere.
+        orbit.maxPolarAngle = view === 'screen-terminal' ? Math.PI - 0.2 : 1.38;
       }
       const aspect = size.width / size.height;
       const portraitView = aspect < 0.75;
@@ -189,7 +192,14 @@ export function CameraRig() {
         syncLens();
       }
       if (view === 'case-corner') { camera.position.set(0.34, 0.92, 0.39); controls.current?.target.set(0.155, 0.769, 0.062); }
-      else if (view === 'screen-terminal') { camera.position.set(0.05, 1.14, 0.57); controls.current?.target.set(0, 1.025, -0.384); }
+      // Inspect the terminal square-on: a tilted perspective made lower rows
+      // appear indented despite their identical canvas/world-space columns.
+      else if (view === 'screen-terminal') {
+        const screen = scene.getObjectByName('monitor-screen')!;
+        screen.updateWorldMatrix(true, false);
+        camera.position.copy(screen.localToWorld(new Vector3(0, 0, 0.954)));
+        controls.current?.target.copy(screen.getWorldPosition(new Vector3()));
+      }
       else if (view === 'wall-paint') { camera.position.set(0.40, 1.20, 0.25); controls.current?.target.set(0, 1.15, -0.43); }
       else if (view === 'props-wide') { camera.position.set(-0.05, 1.24, 0.54); controls.current?.target.set(-0.025, 0.9, -0.12); }
       else if (view === 'props-streamdeck') {

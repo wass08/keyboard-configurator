@@ -3,6 +3,14 @@ import { PNG } from 'pngjs';
 
 export async function screenPolishChecks(browser, url, observeErrors) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
+  await context.addInitScript(() => {
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    window.__transcriptColumns = [];
+    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, ...args) {
+      if (this.canvas.width === 1920 && text.startsWith('> ')) window.__transcriptColumns.push({ text, x, y });
+      return fillText.call(this, text, x, y, ...args);
+    };
+  });
   const page = await context.newPage(); observeErrors(page);
   const frames = (n = 4) => page.evaluate(n => new Promise(resolve => { const tick = () => --n <= 0 ? resolve() : requestAnimationFrame(tick); requestAnimationFrame(tick); }), n);
   const shot = async name => { await frames(2); await page.waitForFunction(() => { const focus = window.__cameraStore.focusState(); return focus.distance === focus.target; }); const buffer = await page.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`); return buffer; };
@@ -21,8 +29,16 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     const typed = await read();
     assert.deepEqual(typed.transcript, ['Make the assembly feel a little softer.']);
     assert.equal(typed.text, 'Now polish the corner highlights'); assert.equal(typed.caretOn, true);
-    await page.evaluate(() => { window.__screenControl.freezeCaret(true); window.__kb.camera('screen-terminal'); });
+    // Inspect typography without the keyboard-focused optical blur. Production
+    // hero/OSD evidence and every other check retain the saved DoF default.
+    await page.evaluate(() => { window.__screenControl.freezeCaret(true); window.__cameraStore.set({ depthOfField: false }); window.__kb.camera('screen-terminal'); });
     await shot('screen-terminal-typing');
+    await page.evaluate(() => window.__cameraStore.set({ depthOfField: true }));
+    const transcriptColumns = await page.evaluate(() => {
+      const rows = window.__transcriptColumns;
+      return [rows.findLast(row => row.text === '> make the keycaps assemble with a stagger'), rows.findLast(row => row.text === '> Make the assembly feel a little softer.')];
+    });
+    assert.equal(transcriptColumns[0].x, transcriptColumns[1].x, 'Authored and submitted prompts share the same rendered column');
     await page.keyboard.down('Shift'); await page.keyboard.press('Enter'); await page.keyboard.up('Shift');
     await page.keyboard.type('Keep the groove crisp.'); await frames();
     assert.equal((await read()).text, 'Now polish the corner highlights\nKeep the groove crisp.');
@@ -106,6 +122,10 @@ export async function screenPolishChecks(browser, url, observeErrors) {
     }
     assert.ok(Math.abs(normals.body.max[0] - normals.body.min[0] - 0.344) < 1e-7);
     assert.ok(Math.abs(normals.body.max[2] - normals.body.min[2] - 0.153) < 1e-7);
-    return { status: 'passed', terminal: { submitted: typed.transcript, input: typed.text, wrappedLines: wrapped.promptLines, scrolledRows: wrapped.scroll, idleRedraws, idleSeconds: 2.1 }, practical: { status: 'passed', steadyIntensity: steady.practical.intensity, luminanceDelta, samples: deltas, flareIntensity: flare, settledIntensity: settled, environmentCaptures: captures }, volumeOSD: { status: 'passed', volume: osd.osd.volume, animationSamples: samplesOSD, settling95PercentMs: 150, hiddenAfterTimeout: true, holdMs: 1200, fadeMs: 300 }, corners: { status: 'passed', normals } };
+    assert.ok(normals.frame.topFaceTriangles > 16, 'Audit the actual triangulated bezel top');
+    assert.ok(normals.frame.maxTopNormalAngle < 0.0001, 'Every flat top-face vertex must have the same planar normal');
+    assert.ok(Math.abs(normals.frame.max[0] - normals.frame.min[0] - 0.3426) < 1e-7);
+    assert.ok(Math.abs(normals.frame.max[2] - normals.frame.min[2] - 0.1516) < 1e-7);
+    return { status: 'passed', terminal: { submitted: typed.transcript, input: typed.text, transcriptColumns, wrappedLines: wrapped.promptLines, scrolledRows: wrapped.scroll, idleRedraws, idleSeconds: 2.1 }, practical: { status: 'passed', steadyIntensity: steady.practical.intensity, luminanceDelta, samples: deltas, flareIntensity: flare, settledIntensity: settled, environmentCaptures: captures }, volumeOSD: { status: 'passed', volume: osd.osd.volume, animationSamples: samplesOSD, settling95PercentMs: 150, hiddenAfterTimeout: true, holdMs: 1200, fadeMs: 300 }, corners: { status: 'passed', normals } };
   } finally { await context.close(); }
 }
