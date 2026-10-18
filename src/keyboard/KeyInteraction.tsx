@@ -108,8 +108,9 @@ export function KeyInteraction({ caps, knob, root, assembly }: { caps: RefObject
     };
     const setCursor = (value: string) => { if (value !== cursor) { cursor = value; canvas.style.cursor = value; } };
 
-    const pressSound = (i: number) => sfx.play(STABILIZED.has(KEY_LAYOUT[i].id) ? 'keyDownStab' : 'keyDown', { pan: pan(i) });
-    const releaseSound = (i: number) => sfx.play(STABILIZED.has(KEY_LAYOUT[i].id) ? 'keyUpStab' : 'keyUp', { pan: pan(i) });
+    const voice = (i: number) => KEY_LAYOUT[i].id === 'space' ? 'Space' : STABILIZED.has(KEY_LAYOUT[i].id) ? 'Stab' : '';
+    const pressSound = (i: number) => sfx.play(`keyDown${voice(i)}`, { pan: pan(i) });
+    const releaseSound = (i: number) => sfx.play(`keyUp${voice(i)}`, { pan: pan(i) });
     const shiftHeld = () => physicalCodes.has('ShiftLeft') || physicalCodes.has('ShiftRight');
 
     function typeClicked(i: number) {
@@ -284,9 +285,14 @@ export function KeyInteraction({ caps, knob, root, assembly }: { caps: RefObject
         const dipTarget = knobState.pressed ? KNOB_DIP : 0;
         if (reduced) { knobState.angle = angleTarget; knobState.dip = dipTarget; }
         else {
+          // Substepped like step(): one explicit step per frame is unstable for
+          // the stiff drag spring at 60 Hz (2*zeta*omega*dt > 2) and diverged.
           const omega = drag ? 70 : 38, zeta = drag ? 1 : 0.62;
-          knobState.angleVelocity += (omega * omega * (angleTarget - knobState.angle) - 2 * zeta * omega * knobState.angleVelocity) * dt;
-          knobState.angle += knobState.angleVelocity * dt;
+          const substeps = Math.max(1, Math.ceil(dt / (1 / 480))), h = dt / substeps;
+          for (let s = 0; s < substeps; s++) {
+            knobState.angleVelocity += (omega * omega * (angleTarget - knobState.angle) - 2 * zeta * omega * knobState.angleVelocity) * h;
+            knobState.angle += knobState.angleVelocity * h;
+          }
           [knobState.dip, knobState.dipVelocity] = step(knobState.dip, knobState.dipVelocity, dipTarget, dt, false);
           knobState.dip = Math.max(0, knobState.dip);
         }

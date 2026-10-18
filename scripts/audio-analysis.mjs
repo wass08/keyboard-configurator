@@ -116,6 +116,27 @@ export async function exportVoices(voices, fs, dir = 'screenshots/audio') {
   return report;
 }
 
+/** Same per-voice stats for the recorded key slices (written under dir/samples). */
+export async function exportSampleVoices(voices, fs, dir = 'screenshots/audio/samples') {
+  await mkdir(dir, { recursive: true });
+  const report = {};
+  for (const [name, variants] of Object.entries(voices)) {
+    const stats = [];
+    for (let v = 0; v < variants.length; v++) { await writeFile(`${dir}/${name}-${v + 1}.wav`, wav(variants[v], fs)); stats.push(analyse(variants[v], fs)); }
+    const median = key => { const s = stats.map(x => x[key]).sort((a, b) => a - b); return s[s.length >> 1]; };
+    const spread = key => [Math.min(...stats.map(s => s[key])), Math.max(...stats.map(s => s[key]))];
+    const bands = Object.fromEntries(BANDS.map(([b]) => [b, round(stats.map(s => s.bandsPercent[b]).sort((x, y) => x - y)[stats.length >> 1], 1)]));
+    report[name] = { variants: variants.length, durationMs: median('durationMs'), peakDb: median('peakDb'), rmsDb: median('rmsDb'), attackMs: median('attackMs'), decay20Ms: median('decay20Ms'), decay40Ms: median('decay40Ms'), centroidHz: median('centroidHz'), bandsPercent: bands, above4kPeakDbRel: median('above4kPeakDbRel'), peak3to8kDb: median('peak3to8kDb'), spread: { centroidHz: spread('centroidHz'), peakDb: spread('peakDb'), rmsDb: spread('rmsDb'), durationMs: spread('durationMs') } };
+  }
+  report.relations = {
+    alphaReleaseVsPressDb: round(report['alpha-release'].rmsDb - report['alpha-press'].rmsDb, 2),
+    spaceReleaseVsPressDb: round(report['space-release'].rmsDb - report['space-press'].rmsDb, 2),
+    stabReleaseVsPressDb: round(report['stab-release'].rmsDb - report['stab-press'].rmsDb, 2),
+  };
+  await writeFile(`${dir}/analysis.json`, `${JSON.stringify({ sampleRate: fs, note: 'Median over the round-robin variants; spread = [min, max].', voices: report }, null, 2)}\n`);
+  return report;
+}
+
 export function table(report) {
   const rows = Object.entries(report).filter(([name]) => name !== 'relations').map(([name, s]) => [
     name, s.variants, s.durationMs, s.peakDb, s.rmsDb, s.attackMs, s.decay20Ms, s.decay40Ms, s.centroidHz,

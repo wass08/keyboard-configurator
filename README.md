@@ -285,22 +285,28 @@ dust on and off.
 - **Knob:** drag horizontally (14 px per 15° detent, 24 per turn) with a magnetic
   snap on release; each detent ticks and nudges the master volume by 4% with a
   brief readout beside the speaker toggle. A click without a drag dips it 0.5 mm.
-- **Sound:** fully synthesized, no audio files. `src/audio/synth.ts` renders each
-  voice sample by sample, layered like a close-miked press: a short band-passed
-  contact click, damped two-pole modal resonators for the cap/plate "clack"
-  body, a modest falling-pitch thock, noise grain and sparse 12-25 ms case/desk
-  reflections, with 1-6 seeded micro-variations per voice. `src/audio/sfx.ts` creates one AudioContext
-  in the first user gesture and renders all ~42 buffers right after it, in 4 ms
-  time slices (press/release first). Playback is one buffer source per sound with
-  ±3% pitch/gain jitter, a 20-voice cap with voice stealing, a -3 dB high shelf
-  at 6 kHz and a gentle limiter. Knob detents closer than the tick gap (45 ms)
-  coalesce into a regular ratchet; the visual detents and volume steps do not.
+- **Sound:** key presses and releases are recorded samples; everything else is
+  synthesized. `scripts/extract-samples.mjs` cuts round-robin sets (16 alpha, 7
+  spacebar and 5 stabilized keystrokes, each a press and its own release) from
+  the owner-supplied ASMR recording (0:52-6:00), into one Opus sprite (~145 KB,
+  AAC fallback) plus `public/audio/keys.json`. **Not CC-licensed: personal
+  /prototype use only, see CREDITS.md.** `src/audio/samples.ts` fetches the
+  sprite on idle (bytes only) and decodes it once after the unlocking gesture;
+  Space maps to the spacebar set, Backspace/Enter/Shift to the stabilized set,
+  every other key to the alphas, with ±2% pitch/gain jitter. `src/audio/synth.ts`
+  renders hover, knob, replacement and intro voices (and synthesized stand-in
+  keys, used until the samples decode) sample by sample: band-passed contact
+  clicks, damped two-pole modal resonators, short thumps, noise grain and sparse
+  case/desk reflections. One AudioContext, created in the first user gesture; a
+  20-voice cap with voice stealing, a -3 dB high shelf at 6 kHz and a gentle
+  limiter. Knob detents closer than the tick gap (45 ms) coalesce into a
+  regular ratchet; the visual detents and volume steps do not.
   The speaker toggle in the picker caption is remembered in `localStorage`
-  (`kc.sound`). `?debug` → **Sound** holds master and per-category volumes, the
-  knob tick gap,
+  (`kc.sound`). `?debug` → **Sound** holds master and per-category volumes,
+  **Recorded keys** (A/B against the synthesized keys), the knob tick gap,
   **Synthesis** (body pitch, brightness, decay, stabilizer wire; re-renders live)
-  and **Preview** (one button per voice, plus a typing phrase, a knob sweep and a
-  fast knob spin).
+  and **Preview** (one button per voice, Keystroke/Spacebar/Backspace, a typing
+  phrase, a knob sweep and a fast knob spin).
   Replacement clicks are derived from the cap transforms during a colorway change
   and thinned to at most 20 events.
 - **Intro hook (spec 07b):** `import { sfx } from './audio/sfx'` then
@@ -309,8 +315,9 @@ dust on and off.
   soft felt swoosh, not wired yet; stretch it with `rate`), plus the typing/knob
   sounds. Calls before a gesture are silently ignored.
 - Hooks: `window.__interaction.state()/keyPoint(id)/knobPoint()`, `window.__screen()`,
-  `window.__sfx()`, `window.__sfxDump()`. `node scripts/audio-analysis.mjs` renders every voice to
-  `screenshots/audio/*.wav` with a spectral analysis. `npm run shots` adds `interaction-hover.png` (+`-detail`),
+  `window.__sfx()`, `window.__sfxDump()`. `node scripts/audio-analysis.mjs` renders every synthesized voice
+  to `screenshots/audio/*.wav` with a spectral analysis; `npm run shots` also
+  writes the decoded key samples to `screenshots/audio/samples/`. `npm run shots` adds `interaction-hover.png` (+`-detail`),
   `interaction-press.png` (+`-detail`), `screen-typing.png`, `knob-rotate.png`,
   `knob-rest-detail.png`/`knob-rotate-detail.png` and `checks-interaction.json`;
   `npm run perf` adds a 15 keys/s typing measurement.

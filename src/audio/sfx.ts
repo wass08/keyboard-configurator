@@ -2,18 +2,21 @@ import { SFX_CATEGORIES, useSound } from './soundStore';
 import type { SfxCategory } from './soundStore';
 import { CHARACTER_VOICES, DEFAULT_CHARACTER, VARIANTS, VOICE_ORDER, renderVoice } from './synth';
 import type { Character, VoiceName } from './synth';
+import { decodeSamples, prefetchSamples, sampleStats } from './samples';
+import type { SampleBank, SampleClass, SampleKind } from './samples';
 
 /**
- * Small Web Audio engine, fully synthesized: no audio files are fetched.
- * One AudioContext, created inside the first user gesture (never before: no
- * autoplay warnings, no sound before interaction). On unlock every voice is
- * rendered by src/audio/synth.ts into a few AudioBuffer micro-variations, in
- * time-sliced chunks so no frame is blocked; playback is then one buffer
- * source per sound with ±3% pitch/gain jitter.
+ * Small Web Audio engine. One AudioContext, created inside the first user
+ * gesture (never before: no autoplay warnings, no sound before interaction).
+ * Key presses/releases are recorded samples (src/audio/samples.ts: fetched on
+ * idle, decoded once on unlock, round-robin per class). Everything else (hover,
+ * knob, replacement, intro) is synthesized by src/audio/synth.ts into a few
+ * AudioBuffer micro-variations on unlock, in time-sliced chunks so no frame is
+ * blocked; the synthesized key voices remain as a fallback.
  *
  * graph: buffer source -> voice gain -> (panner) -> category gain -> master gain -> high shelf -> limiter -> out
  */
-export type SfxName = VoiceName;
+export type SfxName = VoiceName | 'keyDownSpace' | 'keyUpSpace';
 export interface PlayOptions {
   /** Linear gain multiplier on the recipe (default 1). */
   gain?: number;
@@ -29,7 +32,7 @@ export interface PlayOptions {
 export type { SfxCategory, Character };
 
 interface Voice { output: GainNode; source: AudioBufferSourceNode; end: number }
-interface SfxEvent { name: SfxName; at: number; wall: number; rate: number; gain: number; category: SfxCategory }
+interface SfxEvent { name: SfxName; at: number; wall: number; rate: number; gain: number; category: SfxCategory; source: 'sample' | 'synth' }
 
 const MAX_VOICES = 20;
 const HOVER_INTERVAL = 0.06;
@@ -39,13 +42,23 @@ export const DEFAULT_TICK_GAP = 0.045;
 const SLICE_MS = 4;
 /** A queued play() (made before its buffers existed) is kept this long. */
 const PENDING_MS = 180;
+/** How long a key press waits for an in-flight sample decode before the synthesized stand-in plays. */
+const SAMPLE_WAIT_MS = 120;
 const CATEGORY: Record<SfxName, SfxCategory> = {
-  hover: 'hover', keyDown: 'typing', keyUp: 'typing', keyDownStab: 'typing', keyUpStab: 'typing',
+  hover: 'hover', keyDown: 'typing', keyUp: 'typing', keyDownStab: 'typing', keyUpStab: 'typing', keyDownSpace: 'typing', keyUpSpace: 'typing',
   capLift: 'replacement', capSeat: 'replacement', knobSeat: 'replacement', knobTick: 'knob', knobClick: 'knob',
   thud: 'intro', softClick: 'intro', matUnroll: 'intro',
 };
 // Natural variation: ±3% pitch and level. Detents and the intro stay more uniform.
 const JITTER: Partial<Record<SfxName, number>> = { knobTick: 0.012, thud: 0.02, matUnroll: 0.02 };
+/** Recorded samples need less: ±2%. */
+const SAMPLE_JITTER = 0.02;
+const SAMPLE_VOICE: Partial<Record<SfxName, [SampleClass, SampleKind]>> = {
+  keyDown: ['alpha', 'press'], keyUp: ['alpha', 'release'], keyDownStab: ['stab', 'press'], keyUpStab: ['stab', 'release'],
+  keyDownSpace: ['space', 'press'], keyUpSpace: ['space', 'release'],
+};
+/** Synthesized stand-ins while samples are unavailable (or disabled in ?debug). */
+const SYNTH_FALLBACK: Partial<Record<SfxName, VoiceName>> = { keyDownSpace: 'keyDownStab', keyUpSpace: 'keyUpStab' };
 
 const stats = {
   contexts: 0, unlocked: false, ready: false, suppressed: 0, muted: 0, dropped: 0, scheduled: 0, stolen: 0, coalesced: 0,
@@ -55,7 +68,8 @@ const stats = {
 let ctx: AudioContext | null = null;
 let master: GainNode, buses: Record<SfxCategory, GainNode>;
 let unlockedAt = 0;
-const buffers = new Map<SfxName, AudioBuffer[]>();
+const buffers = new Map<VoiceName, AudioBuffer[]>();
+let bank: SampleBank | null = null, recordedKeys = true, forceSynth = false;
 const voices: Voice[] = [];
 let pending: { name: SfxName; opts: PlayOptions; at: number }[] = [];
 let lastHover = -1, lastTick = -1, tickGap = DEFAULT_TICK_GAP;
@@ -69,11 +83,11 @@ const jitter = (amount: number) => 1 + (Math.random() * 2 - 1) * amount;
  * A voice is swapped in only once all its variants exist, so a re-render after
  * a Character change never leaves a gap.
  */
-function precompute(names: readonly SfxName[]) {
+function precompute(names: readonly VoiceName[]) {
   if (!ctx) return;
   const gen = ++generation, run = { ...character }, rate = ctx.sampleRate;
   const queue = names.flatMap(name => Array.from({ length: VARIANTS[name] }, (_, v) => [name, v] as const));
-  const staged = new Map<SfxName, AudioBuffer[]>();
+  const staged = new Map<VoiceName, AudioBuffer[]>();
   const started = performance.now();
   let work = 0, longest = 0, slices = 0, count = 0, samples = 0;
   stats.precompute.runs++;
@@ -110,7 +124,11 @@ function flush() {
   pending = [];
   for (const item of queued) {
     if (now - item.at >= PENDING_MS) continue;
-    if (buffers.has(item.name)) play(item.name, item.opts);
+    if (SAMPLE_VOICE[item.name] && sampleStats.status === 'decoding') {
+      if (now - item.at < SAMPLE_WAIT_MS) { pending.push(item); continue; }
+      forceSynth = true; play(item.name, item.opts); forceSynth = false; continue;
+    }
+    if (buffers.has(SYNTH_FALLBACK[item.name] ?? item.name as VoiceName) || (SAMPLE_VOICE[item.name] && sampleStats.status !== 'decoding')) play(item.name, item.opts);
     else pending.push(item);
   }
 }
@@ -143,6 +161,7 @@ function unlock() {
       buses = Object.fromEntries(SFX_CATEGORIES.map(category => { const bus = ctx!.createGain(); bus.connect(master); return [category, bus]; })) as Record<SfxCategory, GainNode>;
       applyVolumes();
       precompute(VOICE_ORDER);
+      void decodeSamples(ctx, message => stats.errors.push(message)).then(decoded => { bank = decoded; flush(); });
     }
     if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
     stats.unlocked = true;
@@ -167,8 +186,18 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
   const state = useSound.getState();
   if (!state.enabled) { stats.muted++; return false; }
   if (!ctx || !stats.unlocked) { stats.suppressed++; return false; }
-  const variants = buffers.get(name);
-  if (!variants) { if (pending.length < 32) pending.push({ name, opts, at: performance.now() }); return false; }
+  // Recorded keys: wait (briefly, via the pending queue) for an in-flight decode;
+  // otherwise fall back to the synthesized voice.
+  const sampled = recordedKeys && !forceSynth ? SAMPLE_VOICE[name] : undefined;
+  const slices = sampled && bank ? bank.slices[sampled[0]][sampled[1]] : undefined;
+  if (sampled && !slices && sampleStats.status === 'decoding') {
+    if (pending.length < 32) pending.push({ name, opts, at: performance.now() });
+    setTimeout(flush, SAMPLE_WAIT_MS + 5);
+    return false;
+  }
+  const synthName = SYNTH_FALLBACK[name] ?? (name as VoiceName);
+  const variants = slices ? undefined : buffers.get(synthName);
+  if (!slices && !variants) { if (pending.length < 32) pending.push({ name, opts, at: performance.now() }); return false; }
   if (ctx.state !== 'running') void ctx.resume().catch(() => {});
   const now = ctx.currentTime;
   if (name === 'hover') {
@@ -179,7 +208,7 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
     for (let i = voices.length - 1; i >= 0; i--) if (voices[i].end < now) voices.splice(i, 1);
     while (voices.length >= MAX_VOICES) { release(voices.shift()!, now); stats.stolen++; }
     const category = opts.category ?? CATEGORY[name];
-    const amount = JITTER[name] ?? 0.03;
+    const amount = slices ? SAMPLE_JITTER : JITTER[name] ?? 0.03;
     let rate = (opts.rate ?? 1) * jitter(amount), gain = (opts.gain ?? 1) * jitter(amount);
     let at = now + Math.max(0, opts.delay ?? 0) + 0.002;
     if (name === 'knobTick') {
@@ -192,7 +221,9 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
       lastTick = at;
     }
     const source = ctx.createBufferSource();
-    source.buffer = variants[pick(name, variants.length)];
+    let slice: { offset: number; duration: number } | null = null;
+    if (slices) { source.buffer = bank!.buffer; slice = slices[pick(name, slices.length)]; gain *= bank!.gain[sampled![0]]; }
+    else source.buffer = variants![pick(name, variants!.length)];
     source.playbackRate.value = rate;
     const output = ctx.createGain();
     output.gain.value = gain;
@@ -203,14 +234,14 @@ export function play(name: SfxName, opts: PlayOptions = {}): boolean {
       output.connect(panner); tail = panner;
     }
     tail.connect(buses[category]);
-    source.start(at);
-    const end = at + source.buffer!.duration / rate;
+    if (slice) source.start(at, slice.offset, slice.duration); else source.start(at);
+    const end = at + (slice ? slice.duration : source.buffer!.duration) / rate;
     voices.push({ output, source, end });
     // Disconnect the voice graph once it ends.
     source.onended = () => { try { source.disconnect(); output.disconnect(); if (tail !== output) tail.disconnect(); } catch { /* ok */ } };
     stats.scheduled++;
     stats.byName[name] = (stats.byName[name] ?? 0) + 1;
-    stats.events.push({ name, at, wall: performance.now(), rate, gain, category });
+    stats.events.push({ name, at, wall: performance.now(), rate, gain, category, source: slice ? 'sample' : 'synth' });
     if (stats.events.length > 200) stats.events.splice(0, stats.events.length - 200);
     return true;
   } catch (error) { stats.errors.push(`${name}: ${String(error)}`); return false; }
@@ -227,6 +258,9 @@ function setCharacter(patch: Partial<Character>) {
   recharacterTimer = window.setTimeout(() => precompute([...new Set([...CHARACTER_VOICES, ...VOICE_ORDER.filter(name => !buffers.has(name))])]), 120);
 }
 
+/** Recorded key samples on/off (debug A/B against the synthesized keys). */
+function setRecordedKeys(on: boolean) { recordedKeys = on; }
+
 /** Minimum spacing of knob detent ticks, in seconds (debug control). */
 function setTickGap(seconds: number) { tickGap = Math.max(0, seconds); }
 
@@ -236,6 +270,8 @@ export const sfx = {
   unlock,
   setCharacter,
   setTickGap,
+  setRecordedKeys,
+  get recordedKeys() { return recordedKeys; },
   get tickGap() { return tickGap; },
   get character(): Readonly<Character> { return character; },
   get ready() { return stats.ready; },
@@ -255,8 +291,22 @@ if (typeof window !== 'undefined') {
     state: ctx?.state ?? 'none', voices: voices.filter(v => !ctx || v.end >= ctx.currentTime).length, maxVoices: MAX_VOICES,
     enabled: useSound.getState().enabled, master: useSound.getState().master, sampleRate: ctx?.sampleRate ?? 0,
     buffers: Object.fromEntries([...buffers].map(([name, list]) => [name, list.length])), character: { ...character }, tickGap,
+    samples: { ...sampleStats, classes: { ...sampleStats.classes } }, recordedKeys,
   });
   window.__sfxPlay = (name: string, opts?: PlayOptions) => play(name as SfxName, opts);
   // Evidence/analysis hook: the exact samples that are played (scripts/audio-analysis.mjs).
-  window.__sfxDump = () => ({ sampleRate: ctx?.sampleRate ?? 0, voices: Object.fromEntries([...buffers].map(([name, list]) => [name, list.map(b => Array.from(b.getChannelData(0)))])) });
+  window.__sfxDump = () => ({
+    sampleRate: ctx?.sampleRate ?? 0,
+    voices: Object.fromEntries([...buffers].map(([name, list]) => [name, list.map(b => Array.from(b.getChannelData(0)))])),
+    samples: bank ? Object.fromEntries(Object.entries(bank.slices).map(([cls, kinds]) => [cls, Object.fromEntries(Object.entries(kinds).map(([kind, list]) => [kind, list.map(s => {
+      const data = bank!.buffer.getChannelData(0), fs = bank!.buffer.sampleRate;
+      return Array.from(data.subarray(Math.round(s.offset * fs), Math.round((s.offset + s.duration) * fs)));
+    })]))])) : null,
+    samplesRate: bank?.buffer.sampleRate ?? 0,
+  });
+  // Fetch (not decode) the recorded key samples once the scene has had a head start.
+  const idle = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+  const start = () => { void prefetchSamples(message => stats.errors.push(message)); };
+  const later = () => setTimeout(() => idle ? idle(start, { timeout: 3000 }) : start(), 1200);
+  if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
 }

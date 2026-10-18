@@ -49,7 +49,26 @@ Keyboard, desk and prop geometry, generic control-pad icon atlas, procedural sat
 
 ## Sound effects
 
-No sound effect is a recording or a third-party asset, and no audio files are
-shipped: every voice (key press/release, stabilizers, hover, cap lift/seat,
-knob detent/click, intro thud, mat unroll) is synthesized at runtime by
-hand-written code in `src/audio/synth.ts`.
+### Recorded key presses (`audio/keys.ogg`, `audio/keys.m4a`, `audio/keys.json`)
+
+**Not CC-licensed. Personal/prototype use only.** The key press and release
+samples are cut from an ASMR keyboard-typing recording (a YouTube video of
+typing on nine keyboards) that the project owner downloaded and supplied as
+`source.mp3`. Only the section 0:52-6:00 (one keyboard) is used. The video
+title and creator were not included with the file and are not recorded here.
+The recording belongs to its creator: redistributing these samples or
+publishing the app with them requires the creator's permission. Replace them
+(re-run `scripts/extract-samples.mjs` on a licensed recording, or fall back to
+the synthesized keys) before any public release.
+
+Processing (`scripts/extract-samples.mjs`): ffmpeg decode to 48 kHz, onset
+detection, press/release pairing, feature-based classes (alphas, spacebar,
+stabilized), per-class loudness levelling, a 35 Hz high-pass, 2.5 ms pre-roll
+and 0.5/8 ms fades. Encoded with ffmpeg (Opus 96 kbps in Ogg; AAC 128 kbps in
+MP4 as the fallback).
+
+### Synthesized voices
+
+Hover, knob, replacement and intro sounds (and the fallback key sounds) are
+synthesized at runtime by hand-written code in `src/audio/synth.ts`; they use
+no recordings or third-party assets.

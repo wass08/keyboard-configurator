@@ -8,7 +8,8 @@ import type { Character, SfxName } from '../audio/sfx';
 const READOUT_MS = 1200;
 const CATEGORY_LABELS: [SfxCategory, string][] = [['hover', 'Hover'], ['typing', 'Typing'], ['replacement', 'Replacement'], ['knob', 'Knob'], ['intro', 'Intro']];
 const PREVIEWS: [string, SfxName][] = [
-  ['Key press', 'keyDown'], ['Key release', 'keyUp'], ['Stab press', 'keyDownStab'], ['Stab release', 'keyUpStab'], ['Hover tick', 'hover'],
+  ['Key press', 'keyDown'], ['Key release', 'keyUp'], ['Stab press', 'keyDownStab'], ['Stab release', 'keyUpStab'],
+  ['Space press', 'keyDownSpace'], ['Space release', 'keyUpSpace'], ['Hover tick', 'hover'],
   ['Cap lift', 'capLift'], ['Cap seat', 'capSeat'], ['Knob seat', 'knobSeat'], ['Knob tick', 'knobTick'], ['Knob click', 'knobClick'],
   ['Frame thud', 'thud'], ['Soft click', 'softClick'], ['Mat unroll', 'matUnroll'],
 ];
@@ -16,16 +17,21 @@ const CHARACTER: [keyof Character, string, number, number][] = [['pitch', 'Body 
 
 /** A preview click is itself the unlocking gesture; play() queues until the voice is rendered. */
 function preview(name: SfxName) { sfx.unlock(); sfx.play(name); }
+/** A whole keystroke: press, then its release after a natural ~90 ms hold. */
+function keystroke(kind: '' | 'Stab' | 'Space') {
+  sfx.unlock(); sfx.play(`keyDown${kind}`);
+  setTimeout(() => sfx.play(`keyUp${kind}`), 85 + Math.random() * 25);
+}
 /** A short human-timed phrase: presses, releases, a stabilized Space. */
 function typingDemo() {
   sfx.unlock();
   let t = 0;
   for (let i = 0; i < 12; i++) {
-    const stab = i === 5 || i === 11, dwell = 0.06 + Math.random() * 0.03;
+    const kind = i === 4 || i === 9 ? 'Space' : i === 11 ? 'Stab' : '', dwell = 0.07 + Math.random() * 0.04;
     const pan = (Math.random() - 0.5) * 0.4;
     // Timers, not scheduled delays: the polyphony cap would steal future voices.
-    setTimeout(() => sfx.play(stab ? 'keyDownStab' : 'keyDown', { pan }), t * 1000);
-    setTimeout(() => sfx.play(stab ? 'keyUpStab' : 'keyUp', { pan }), (t + dwell) * 1000);
+    setTimeout(() => sfx.play(`keyDown${kind}`, { pan }), t * 1000);
+    setTimeout(() => sfx.play(`keyUp${kind}`, { pan }), (t + dwell) * 1000);
     t += 0.1 + Math.random() * 0.07;
   }
 }
@@ -39,10 +45,14 @@ function useSoundControls() {
     Sound: folder({
       masterVolume: { value: useSound.getState().master, min: 0, max: 1, step: 0.01, label: 'Master', onChange: (v: number) => useSound.getState().setMaster(v) },
       ...Object.fromEntries(CATEGORY_LABELS.map(([category, label]) => [`${category}Volume`, { value: useSound.getState().volumes[category], min: 0, max: 1.5, step: 0.01, label, onChange: (v: number) => useSound.getState().setVolume(category, v) }])),
+      recordedKeys: { value: sfx.recordedKeys, label: 'Recorded keys', onChange: (v: boolean) => sfx.setRecordedKeys(v) },
       tickGap: { value: sfx.tickGap * 1000, min: 0, max: 120, step: 1, label: 'Tick gap ms', onChange: (v: number) => sfx.setTickGap(v / 1000) },
       Synthesis: folder(Object.fromEntries(CHARACTER.map(([key, label, min, max]) => [`synth${key[0].toUpperCase()}${key.slice(1)}`, { value: sfx.character[key], min, max, step: 0.01, label, onChange: (v: number) => sfx.setCharacter({ [key]: v }) }])), { collapsed: true }),
       Preview: folder({
         ...Object.fromEntries(PREVIEWS.map(([label, name]) => [label, button(() => preview(name))])),
+        Keystroke: button(() => keystroke('')),
+        Spacebar: button(() => keystroke('Space')),
+        Backspace: button(() => keystroke('Stab')),
         'Typing phrase': button(typingDemo),
         'Knob sweep': button(knobSweep),
         'Fast knob spin': button(knobSpin),

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
-import { exportVoices, table as audioTable } from './audio-analysis.mjs';
+import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
 
 const port = Number(process.env.SHOTS_PORT ?? 4175);
 const url = `http://127.0.0.1:${port}`;
@@ -125,6 +125,9 @@ async function selectionDuringLoading(browser) {
 // Every synthesized voice and its micro-variation count (src/audio/synth.ts).
 const expectedVoices = { keyDown: 6, keyUp: 5, keyDownStab: 4, keyUpStab: 3, hover: 3, knobTick: 4, knobClick: 2, capLift: 3, capSeat: 4, knobSeat: 2, thud: 2, softClick: 3, matUnroll: 1 };
 const audioFile = /\.(mp3|ogg|oga|wav|m4a|aac|flac|opus|weba)(\?|$)|\/audio\//i;
+// Recorded key samples (08b follow-up): one manifest and one sprite per page load.
+const sampleClasses = { alpha: { press: 16, release: 16 }, space: { press: 7, release: 7 }, stab: { press: 5, release: 5 } };
+const audioName = url => new URL(url).pathname.split('/').pop();
 const expectedCodeMap = {
   Escape: 'esc', F1: 'f1', F2: 'f2', F3: 'f3', F4: 'f4', F5: 'f5', F6: 'f6', F7: 'f7', F8: 'f8', F9: 'f9', F10: 'f10', F11: 'f11', F12: 'f12',
   Backquote: 'num0', Digit1: 'num1', Digit2: 'num2', Digit3: 'num3', Digit4: 'num4', Digit5: 'num5', Digit6: 'num6', Digit7: 'num7', Digit8: 'num8', Digit9: 'num9', Digit0: 'num10', Minus: 'num11', Equal: 'num12', Backspace: 'backspace', Delete: 'delete',
@@ -149,9 +152,12 @@ async function interactionChecks(browser) {
     }
     window.__audioProbe = () => ({ contexts, starts });
   });
-  // Fully synthesized (spec 08b): not a single audio file may be requested.
-  const audioRequests = [];
-  context.on('request', request => { if (audioFile.test(request.url()) || request.resourceType() === 'media') audioRequests.push(request.url()); });
+  // Only the key-sample manifest and one sprite (Chromium: Opus) may be requested,
+  // lazily after load; never a media element, never the m4a fallback as well.
+  const audioRequests = [], audioFailures = [];
+  context.on('request', request => { if (audioFile.test(request.url()) || request.resourceType() === 'media') audioRequests.push({ file: audioName(request.url()), type: request.resourceType(), at: Date.now() }); });
+  context.on('requestfailed', request => { if (audioFile.test(request.url())) audioFailures.push(request.url()); });
+  context.on('response', response => { if (audioFile.test(response.url()) && !response.ok()) audioFailures.push(`${response.status()} ${response.url()}`); });
   const page = await context.newPage(); observeErrors(page);
   const result = {};
   const frames = (count = 6) => idleFrames(page, count);
@@ -192,6 +198,7 @@ async function interactionChecks(browser) {
     assert.ok(beforeGesture.suppressed >= 1, 'The pre-gesture hover was suppressed, silently');
     assert.equal(beforeGesture.precompute.runs, 0, 'Nothing is synthesized before a gesture');
     assert.deepEqual(beforeGesture.buffers, {}); assert.equal(beforeGesture.ready, false);
+    assert.ok(['idle', 'fetching', 'fetched'].includes(beforeGesture.samples.status), `Samples are not decoded before a gesture (${beforeGesture.samples.status})`);
     await shot('interaction-hover');
     await detail('interaction-hover-detail', 'G');
     await page.evaluate(() => window.__kb.camera('closeup')); await frames();
@@ -227,11 +234,28 @@ async function interactionChecks(browser) {
     assert.ok(synthesized.precompute.afterUnlockMs >= 0 && synthesized.precompute.afterUnlockMs < 50, 'Precompute starts on unlock');
     assert.ok(synthesized.precompute.workMs < 150, `Precompute work ${synthesized.precompute.workMs} ms must be < 150 ms`);
     assert.ok(synthesized.precompute.longestSliceMs < 16, `Longest precompute slice ${synthesized.precompute.longestSliceMs} ms must not block a frame`);
-    assert.deepEqual(audioRequests, [], 'No audio file requests');
+    // Recorded keys: fetched once on idle, decoded once after the unlock.
+    await page.waitForFunction(() => window.__sfx().samples.status === 'decoded', null, { timeout: 10000 });
+    const sampled = await sound();
+    assert.deepEqual(sampled.samples.classes, sampleClasses, 'Round-robin classes with their expected variant counts');
+    assert.equal(sampled.samples.format, 'ogg'); assert.ok(Math.abs(sampled.samples.codecShiftMs) < 25);
+    assert.deepEqual(audioRequests.map(r => r.file).sort(), ['keys.json', 'keys.ogg'], 'Manifest and one sprite only');
+    assert.ok(audioRequests.every(r => r.type === 'fetch')); assert.deepEqual(audioFailures, []);
+    assert.equal(sampled.probe.contexts, 1, 'Decoding uses the single AudioContext');
     // Objective evidence: the exact played samples, as WAV, with a spectral analysis.
     const dump = await page.evaluate(() => window.__sfxDump());
     const voiceStats = await exportVoices(dump.voices, dump.sampleRate);
     console.log(audioTable(voiceStats));
+    // The recorded slices as decoded and played (own report, own WAVs).
+    const sampleVoices = Object.fromEntries(Object.entries(dump.samples).flatMap(([cls, kinds]) => Object.entries(kinds).map(([kind, list]) => [`${cls}-${kind}`, list])));
+    const sampleStats = await exportSampleVoices(sampleVoices, dump.samplesRate);
+    console.log(audioTable(sampleStats));
+    for (const [name, v] of Object.entries(sampleStats)) {
+      if (name === 'relations') continue;
+      assert.ok(v.peakDb <= -1 && v.durationMs >= 40 && v.durationMs <= 230, `${name}: headroom, 40-230 ms`);
+      assert.ok(v.spread.peakDb[1] - v.spread.peakDb[0] <= 9, `${name}: round-robin levels are consistent`);
+    }
+    assert.ok(sampleStats['space-press'].centroidHz < sampleStats['alpha-press'].centroidHz && sampleStats['stab-press'].centroidHz < sampleStats['alpha-press'].centroidHz, 'Space and stabilized presses sit lower than alphas');
     for (const [name, v] of Object.entries(voiceStats)) {
       if (name === 'relations') continue;
       assert.ok(Number.isFinite(v.peakDb) && v.peakDb <= -1 && v.durationMs > 0, `${name}: finite, headroom`);
@@ -252,7 +276,8 @@ async function interactionChecks(browser) {
     assert.ok(tick.durationMs <= 40 && tick.centroidHz >= 1000 && tick.centroidHz <= 2000 && tick.bandsPercent.high < 20 && tick.above4kPeakDbRel <= -10, 'Detent tick: short, clicky, little 4-6 kHz');
     assert.ok(click.centroidHz >= 400 && click.centroidHz <= 1000 && click.bandsPercent.lowMid >= 40 && click.bandsPercent.high >= 1, 'Knob press: a grounded switch click');
     assert.ok(voiceStats.matUnroll.durationMs >= 1000 && voiceStats.matUnroll.attackMs >= 50 && voiceStats.matUnroll.centroidHz < 1000, 'Mat unroll is a slow, soft swoosh');
-    result.synthesis = { status: 'passed', sampleRate: dump.sampleRate, precompute: synthesized.precompute, buffers: synthesized.buffers, audioRequests, wavDir: 'screenshots/audio', voices: voiceStats };
+    result.synthesis = { status: 'passed', sampleRate: dump.sampleRate, precompute: synthesized.precompute, buffers: synthesized.buffers, wavDir: 'screenshots/audio', voices: voiceStats };
+    result.samples = { status: 'passed', ...sampled.samples, requests: audioRequests.map(r => r.file), wavDir: 'screenshots/audio/samples', voices: sampleStats };
     assert.equal(await page.evaluate(() => window.__screen().text), 'h', 'Clicking a key types its character');
     result.press = { status: 'passed', depth: press.offsets.H, stem: press.stemOffsets.H, cameraUnchanged: true, audio: afterPress.probe };
     await page.mouse.move(5, H / 2); await settle();
@@ -289,9 +314,13 @@ async function interactionChecks(browser) {
     const monitor = await page.evaluate(() => window.__lighting().monitor);
     assert.equal(monitor.material, 'MeshBasicMaterial'); assert.equal(monitor.hasWallpaper, true);
     const soundAfterTyping = await sound();
-    const downs = (soundAfterTyping.byName.keyDown ?? 0) + (soundAfterTyping.byName.keyDownStab ?? 0) - (soundBeforeTyping.byName.keyDown ?? 0) - (soundBeforeTyping.byName.keyDownStab ?? 0);
+    const pressNames = ['keyDown', 'keyDownStab', 'keyDownSpace'], count = (s, names) => names.reduce((n, name) => n + (s.byName[name] ?? 0), 0);
+    const downs = count(soundAfterTyping, pressNames) - count(soundBeforeTyping, pressNames);
     assert.ok(downs >= 40, 'Every physical key down schedules a press sound');
-    assert.ok((soundAfterTyping.byName.keyDownStab ?? 0) >= 5, 'Space, Shift and Backspace use the stabilized variant');
+    assert.ok(count(soundAfterTyping, ['keyDownSpace']) - count(soundBeforeTyping, ['keyDownSpace']) >= 6, 'Space uses the spacebar samples');
+    assert.ok(count(soundAfterTyping, ['keyDownStab']) - count(soundBeforeTyping, ['keyDownStab']) >= 4, 'Shift and Backspace use the stabilized samples');
+    const typedEvents = soundAfterTyping.events.slice(-(soundAfterTyping.scheduled - soundBeforeTyping.scheduled)).filter(e => e.category === 'typing');
+    assert.ok(typedEvents.length >= 40 && typedEvents.every(e => e.source === 'sample'), 'Typing plays recorded samples');
     assert.equal(soundAfterTyping.probe.contexts, 1);
     const rates = soundAfterTyping.events.filter(e => e.name === 'keyDown').map(e => e.rate);
     assert.ok(new Set(rates.map(r => r.toFixed(4))).size > 5 && rates.every(r => r > 0.95 && r < 1.05), 'Pitch jitter within ±4%');
@@ -365,9 +394,26 @@ async function interactionChecks(browser) {
     await knobDetail('knob-rest-detail', knobPoint);
     await page.mouse.move(kx, ky); await frames(3);
     assert.equal((await state()).cursor, 'grab');
-    const masterBefore = (await sound()).master, ticksBefore = (await sound()).byName.knobTick ?? 0;
-    const cameraKnob = await page.evaluate(() => window.__camera());
     const detentPx = await page.evaluate(() => window.__interaction.constants.detentPx);
+    // Regression (knob spun wildly on 5181): the drag spring was integrated with
+    // one explicit step per frame and diverged at 60 Hz. A 100 px drag held still
+    // must sit at its 7 detents (+ the 30% residual pull) on every frame.
+    await page.mouse.move(kx, ky); await page.mouse.down(); await page.mouse.move(kx + 100, ky, { steps: 8 });
+    const heldAngles = [];
+    for (let i = 0; i < 45; i++) { heldAngles.push(await page.evaluate(() => window.__interaction.state().knob.angleDeg)); await frames(1); }
+    const heldKnob = await state();
+    const expectedHold = -(7 + (100 / detentPx - 7) * 0.3) * 15;
+    assert.equal(heldKnob.knob.detents, 7, 'A 100 px drag is 7 detents');
+    assert.ok(heldAngles.slice(15).every(a => Math.abs(a - expectedHold) < 0.5), `Holding still: no rotation (${heldAngles.slice(15, 18).map(a => a.toFixed(2))} vs ${expectedHold.toFixed(2)})`);
+    assert.ok(heldAngles.every(a => Math.abs(a) < Math.abs(expectedHold) + 20), 'No overshoot spin while dragging');
+    await page.mouse.move(kx, ky, { steps: 8 }); await page.mouse.up();
+    await page.waitForFunction(() => Math.abs(window.__interaction.state().knob.angleDeg) < 0.01, null, { timeout: 5000 });
+    const regression = { dragPx: 100, detents: heldKnob.knob.detents, heldAngleDeg: +heldAngles.at(-1).toFixed(3), expectedDeg: +expectedHold.toFixed(3), maxAbsDeg: +Math.max(...heldAngles.map(Math.abs)).toFixed(3) };
+
+    const masterBefore = (await sound()).master, ticksBefore = (await sound()).byName.knobTick ?? 0;
+    const coalescedBefore = (await sound()).coalesced;
+    const knobTicksBefore = (await state()).knob.ticks;
+    const cameraKnob = await page.evaluate(() => window.__camera());
     await page.mouse.down();
     await page.mouse.move(kx + detentPx * 5 + 3, ky, { steps: 12 });
     await frames(3);
@@ -377,13 +423,13 @@ async function interactionChecks(browser) {
     await page.waitForFunction(() => Math.abs(window.__interaction.state().knob.angleDeg + 75) < 0.01, null, { timeout: 5000 });
     const knob = await state();
     const knobSound = await sound();
-    assert.equal(knob.knob.detents, 5); assert.equal(knob.knob.ticks, 5);
+    assert.equal(knob.knob.detents, 5); assert.equal(knob.knob.ticks - knobTicksBefore, 5);
     // A fast drag delivers detents a few ms apart: they coalesce into a ratchet
     // spaced by the minimum tick gap (the visual detents above are all there).
     const fastTicks = knobSound.events.filter(e => e.name === 'knobTick').slice(-((knobSound.byName.knobTick ?? 0) - ticksBefore));
     const tickGap = knobSound.tickGap;
     assert.ok(fastTicks.length >= 1 && fastTicks.length <= 5, `Fast drag ticks ${fastTicks.length}`);
-    assert.equal(fastTicks.length + knobSound.coalesced, 5, 'Every detent either ticks or is coalesced');
+    assert.equal(fastTicks.length + knobSound.coalesced - coalescedBefore, 5, 'Every detent either ticks or is coalesced');
     assert.ok(fastTicks.slice(1).every((e, i) => e.at - fastTicks[i].at >= tickGap - 1e-6), 'Ticks respect the minimum gap');
     // A flick: 24 detents 10 ms apart through the engine (as the caller staggers them).
     const flick = await page.evaluate(() => {
@@ -418,7 +464,7 @@ async function interactionChecks(browser) {
     assert.equal((slowAfter.byName.knobTick ?? 0) - (slowBefore.byName.knobTick ?? 0), 5, 'A slow turn ticks once per detent');
     assert.equal(slowAfter.coalesced, slowBefore.coalesced);
     assert.ok(Math.abs((await sound()).master - masterBefore) < 1e-9, 'Counter-clockwise restores the volume');
-    result.knob = { status: 'passed', detents: knob.knob.detents, angleDeg: knob.knob.angleDeg, ticks: knob.knob.ticks, dipMm: dip * 1000, master: [masterBefore, knobSound.master], tickGapMs: tickGap * 1000, fastDragTicks: fastTicks.length, coalesced: knobSound.coalesced, flick: { detents: 24, ticks: flick.scheduled, coalesced: flick.coalesced, minGapMs: Math.min(...flick.gaps) * 1000 }, slowTurnTicks: 5 };
+    result.knob = { status: 'passed', detents: knob.knob.detents, angleDeg: knob.knob.angleDeg, ticks: knob.knob.ticks, dipMm: dip * 1000, master: [masterBefore, knobSound.master], tickGapMs: tickGap * 1000, fastDragTicks: fastTicks.length, coalesced: knobSound.coalesced - coalescedBefore, spinRegression: regression, flick: { detents: 24, ticks: flick.scheduled, coalesced: flick.coalesced, minGapMs: Math.min(...flick.gaps) * 1000 }, slowTurnTicks: 5 };
     await page.mouse.move(5, H / 2);
     await page.evaluate(() => window.__kb.camera('default'));
 
@@ -529,8 +575,10 @@ async function interactionChecks(browser) {
     assert.equal(owners.interaction, false); assert.equal(owners.screen, false); assert.equal(owners.screenControl, false);
     const audioErrors = await page.evaluate(() => window.__sfx().errors);
     assert.deepEqual(audioErrors, [], 'The audio engine records no errors');
-    assert.deepEqual(audioRequests, [], 'No audio file was requested at any point (reload included)');
-    result.disposal = { status: 'passed', ...owners, audioErrors, audioRequests };
+    const files = audioRequests.map(r => r.file);
+    assert.equal(files.filter(f => f === 'keys.json').length, 2); assert.equal(files.filter(f => f === 'keys.ogg').length, 2);
+    assert.equal(files.length, 4, 'One manifest and one sprite per page load (reload included), no fallback format'); assert.deepEqual(audioFailures, []);
+    result.disposal = { status: 'passed', ...owners, audioErrors, audioRequests: files };
     result.status = 'passed';
     return result;
   } finally {
@@ -1560,8 +1608,12 @@ try {
     await debugPage.getByRole('button', { name, exact: true }).click();
   }
   await debugPage.waitForFunction(() => window.__sfx().ready);
+  for (const name of ['Spacebar', 'Backspace']) await debugPage.getByRole('button', { name, exact: true }).click();
+  await debugPage.waitForTimeout(250);
+  const keystrokes = await debugPage.evaluate(() => window.__sfx());
+  for (const voice of ['keyDownSpace', 'keyUpSpace', 'keyUpStab']) assert.ok((keystrokes.byName[voice] ?? 0) - (previewBefore[voice] ?? 0) >= 1, `Preview plays ${voice}`);
   const previewAfter = await debugPage.evaluate(() => window.__sfx());
-  for (const voice of ['keyDown', 'keyDownStab', 'knobTick', 'thud', 'matUnroll']) assert.equal((previewAfter.byName[voice] ?? 0) - (previewBefore[voice] ?? 0), 1, `Preview plays ${voice}`);
+  for (const voice of ['keyDown', 'knobTick', 'thud', 'matUnroll']) assert.equal((previewAfter.byName[voice] ?? 0) - (previewBefore[voice] ?? 0), 1, `Preview plays ${voice}`);
   await debugPage.getByText('Synthesis', { exact: true }).and(debugPage.locator('div')).click();
   const runsBefore = previewAfter.precompute.runs;
   const pitchInput = debugPage.locator('[id="Sound.Synthesis.synthPitch"]');
