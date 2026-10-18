@@ -237,3 +237,16 @@ Attached: Stream Deck reference, saved as `references/props-stream-deck-lit.png`
 
 > what did you use for the sfx?
 > yes you can clean the worktrees and branches
+
+---
+
+## 23 — Synth SFX, subtler dust, Claude Code terminal screen, intro delay, smooth corners, volume OSD (2026-10-18)
+
+> - I'm not a big fan of the sfx we have. can we try a fully synthesized version? either with highly rated github audio ui feedback libraries or doing it yourself.
+> - dust is nice but too prominent. make it smaller, less visible, really dust like, super subtle
+> - turn the screen into a dark mode terminal with claude code (dark background / bright/white text). the top part can be fake prompt text, and the bottom a prompt box with blinking cursor, so it feels natural we type in the bottom of the screen. make the typed text a practical light. (subtle)
+> - start the animation a bit delayed so we have the time to see the unroll of the mat
+> - fix the corners (shade smooth) of the keyboard
+> - I noticed the knobs is adjusting the audio level, it's super nice. maybe on the bottom right of the screen we could show the audio level adjusted by this. it doesn't stay always on screen. only when adjusted.
+
+Attached: case corner faceting, saved as `references/issue-case-corner-faceting.png`.
