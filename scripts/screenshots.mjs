@@ -119,6 +119,301 @@ async function selectionDuringLoading(browser) {
   }
   return { status: 'passed', cases };
 }
+// --- interaction & sfx (spec 07c) ---
+// Every physical code the configurator maps, written out independently of src/keyboard/keymap.ts.
+const expectedCodeMap = {
+  Escape: 'esc', F1: 'f1', F2: 'f2', F3: 'f3', F4: 'f4', F5: 'f5', F6: 'f6', F7: 'f7', F8: 'f8', F9: 'f9', F10: 'f10', F11: 'f11', F12: 'f12',
+  Backquote: 'num0', Digit1: 'num1', Digit2: 'num2', Digit3: 'num3', Digit4: 'num4', Digit5: 'num5', Digit6: 'num6', Digit7: 'num7', Digit8: 'num8', Digit9: 'num9', Digit0: 'num10', Minus: 'num11', Equal: 'num12', Backspace: 'backspace', Delete: 'delete',
+  Tab: 'tab', KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y', KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P', BracketLeft: '[', BracketRight: ']', Backslash: 'backslash', PageUp: 'pageup',
+  CapsLock: 'caps', KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L', Semicolon: ';', Quote: "'", Enter: 'enter', NumpadEnter: 'enter', PageDown: 'pagedown',
+  ShiftLeft: 'shiftleft', KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M', Comma: ',', Period: '.', Slash: '/', ShiftRight: 'shiftright', ArrowUp: 'up', End: 'end',
+  ControlLeft: 'ctrlleft', MetaLeft: 'win', OSLeft: 'win', AltLeft: 'alt', Space: 'space', AltRight: 'alt', MetaRight: 'win', OSRight: 'win', ContextMenu: 'fn', Fn: 'fn', ControlRight: 'ctrlright',
+  ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right', IntlBackslash: 'backslash',
+};
+async function interactionChecks(browser) {
+  const W = 1600, H = 1000;
+  const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1.5 });
+  // Count real AudioContext constructions and real source starts (headless has
+  // no audible output, so scheduling calls are the evidence).
+  await context.addInitScript(() => {
+    const Native = window.AudioContext; let contexts = 0, starts = 0;
+    window.AudioContext = class extends Native { constructor(...args) { super(...args); contexts++; } };
+    // AudioBufferSourceNode overrides start(); oscillators use the base class.
+    for (const proto of [AudioScheduledSourceNode.prototype, AudioBufferSourceNode.prototype]) {
+      const start = proto.start;
+      proto.start = function (...args) { starts++; return start.apply(this, args); };
+    }
+    window.__audioProbe = () => ({ contexts, starts });
+  });
+  const page = await context.newPage(); observeErrors(page);
+  const result = {};
+  const frames = (count = 6) => idleFrames(page, count);
+  const state = () => page.evaluate(() => window.__interaction.state());
+  const sound = () => page.evaluate(() => ({ ...window.__sfx(), probe: window.__audioProbe() }));
+  const at = async id => { const p = await page.evaluate(id => window.__interaction.keyPoint(id), id); assert.ok(p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1, `${id} must be in frame`); return [p.x * W, p.y * H]; };
+  const settle = async () => { await page.waitForFunction(() => window.__interaction.state().active === 0, null, { timeout: 5000 }); await frames(2); };
+  const finishPage = async () => { await page.evaluate(() => window.__kb.finish()); await page.waitForFunction(() => window.__kb.finished); await frames(3); };
+  try {
+    await page.goto(`${url}/?capture=1`);
+    await page.waitForFunction(() => window.__kb?.ready && window.__kb.generation > 0 && window.__interaction);
+    // 1. Hover is ignored mid-assembly, and nothing makes a sound before a gesture.
+    await page.evaluate(() => window.__kb.camera('closeup'));
+    await page.evaluate(() => window.__kb.seek(0.95));
+    await frames();
+    await page.mouse.move(...await at('G'));
+    await frames();
+    const midHover = await state();
+    assert.equal(midHover.hovered, null, 'Hover must be ignored while the keys animate');
+    assert.deepEqual(midHover.offsets, {}, 'No interaction offset during assembly');
+    await finishPage();
+    // A low profile view shows the 0.7 mm sink best; the cap has seated since.
+    await page.evaluate(() => window.__kb.camera('profile')); await frames();
+    await page.mouse.move(...await at('G'));
+    await settle();
+    const hover = await state();
+    assert.equal(hover.hovered, 'G'); assert.equal(hover.cursor, 'pointer');
+    assert.deepEqual(Object.keys(hover.offsets), ['G'], 'Only the hovered key sinks');
+    assert.ok(Math.abs(hover.offsets.G - 0.0007) < 1e-6 && hover.offsets.G >= 0.0006 && hover.offsets.G <= 0.0008, 'Hover sinks 0.6-0.8 mm');
+    assert.equal((await page.evaluate(() => window.__kb.inspect())).capOffsets.every(y => y === 0), true, 'Assembly transforms stay untouched (additive layer)');
+    const beforeGesture = await sound();
+    assert.equal(beforeGesture.probe.contexts, 0, 'No AudioContext before a user gesture');
+    assert.equal(beforeGesture.probe.starts, 0); assert.equal(beforeGesture.scheduled, 0);
+    assert.ok(beforeGesture.suppressed >= 1, 'The pre-gesture hover was suppressed, silently');
+    await shot('interaction-hover');
+    await detail('interaction-hover-detail', 'G');
+    await page.evaluate(() => window.__kb.camera('closeup')); await frames();
+    result.hover = { status: 'passed', midAssembly: midHover, assembled: hover, silentBeforeGesture: beforeGesture.probe };
+
+    // 2. Pointer press: full travel, stem follows, types, does not orbit, unlocks audio.
+    const camera0 = await page.evaluate(() => window.__camera());
+    const [hx, hy] = await at('H');
+    await page.mouse.move(hx, hy); await page.mouse.down();
+    await page.mouse.move(hx + 60, hy + 25, { steps: 6 });
+    await settle();
+    const press = await state();
+    assert.deepEqual(press.pressed, ['H']);
+    assert.ok(press.offsets.H >= 0.0035 && press.offsets.H <= 0.004, `Press depth ${press.offsets.H} must be 3.5-4 mm`);
+    assert.ok(Math.abs(press.stemOffsets.H - press.offsets.H) < 1e-6, 'The switch stem travels with the cap');
+    const camera1 = await page.evaluate(() => window.__camera());
+    nearArray(camera1.position, camera0.position, 'A drag that starts on a key must not orbit');
+    await page.mouse.move(hx, hy);
+    await shot('interaction-press');
+    await detail('interaction-press-detail', 'H');
+    await page.mouse.up(); await settle();
+    const released = await state();
+    assert.equal(released.offsets.H, 0.0007, 'Back to hover depth under the pointer after release');
+    const afterPress = await sound();
+    assert.equal(afterPress.probe.contexts, 1); assert.equal(afterPress.contexts, 1);
+    assert.equal(afterPress.byName.keyDown, 1); assert.equal(afterPress.byName.keyUp, 1);
+    assert.ok(afterPress.probe.starts >= 2, 'Press and release scheduled real sources');
+    assert.equal(await page.evaluate(() => window.__screen().text), 'h', 'Clicking a key types its character');
+    result.press = { status: 'passed', depth: press.offsets.H, stem: press.stemOffsets.H, cameraUnchanged: true, audio: afterPress.probe };
+    await page.mouse.move(5, H / 2); await settle();
+
+    // 3. Physical typing to the monitor, including Shift and Backspace.
+    await page.evaluate(() => window.__kb.camera('default'));
+    await frames();
+    const environmentBefore = await page.evaluate(() => window.__environment().captures);
+    const soundBeforeTyping = await sound();
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type('Hello, desk. Typing on the screen', { delay: 25 });
+    await page.keyboard.down('Shift'); await page.keyboard.press('KeyQ'); await page.keyboard.press('Digit1'); await page.keyboard.up('Shift');
+    await page.keyboard.press('Backspace'); await page.keyboard.press('Backspace');
+    await page.keyboard.type('!', { delay: 25 });
+    // Click 3D Shift (one-shot latch), then a 3D letter.
+    await page.keyboard.press('Space');
+    for (const id of ['shiftleft', 'K']) { await page.mouse.click(...await at(id)); }
+    await page.mouse.move(5, H / 2);
+    await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft'); await page.keyboard.type('o'); await page.keyboard.press('End');
+    const typed = await page.evaluate(() => window.__screen());
+    assert.equal(typed.text, 'Hello, desk. Typing on the screen!o K', 'Typed text, Shift, Backspace, 3D Shift latch and caret movement');
+    assert.equal(typed.caret, typed.text.length);
+    // Hold matching keys for the evidence shot.
+    await page.keyboard.down('KeyT'); await page.keyboard.down('KeyY');
+    await settle();
+    const held = await state();
+    assert.deepEqual(held.pressed.sort(), ['T', 'Y']);
+    assert.ok(held.offsets.T >= 0.0035 && held.offsets.Y >= 0.0035);
+    await shot('screen-typing');
+    await page.keyboard.up('KeyT'); await page.keyboard.up('KeyY');
+    await settle();
+    const environmentAfter = await page.evaluate(() => window.__environment().captures);
+    assert.equal(environmentAfter, environmentBefore, 'Keystrokes never re-capture the environment');
+    const monitor = await page.evaluate(() => window.__lighting().monitor);
+    assert.equal(monitor.material, 'MeshBasicMaterial'); assert.equal(monitor.hasWallpaper, true);
+    const soundAfterTyping = await sound();
+    const downs = (soundAfterTyping.byName.keyDown ?? 0) + (soundAfterTyping.byName.keyDownStab ?? 0) - (soundBeforeTyping.byName.keyDown ?? 0) - (soundBeforeTyping.byName.keyDownStab ?? 0);
+    assert.ok(downs >= 40, 'Every physical key down schedules a press sound');
+    assert.ok((soundAfterTyping.byName.keyDownStab ?? 0) >= 5, 'Space, Shift and Backspace use the stabilized variant');
+    assert.equal(soundAfterTyping.probe.contexts, 1);
+    const rates = soundAfterTyping.events.filter(e => e.name === 'keyDown').map(e => e.rate);
+    assert.ok(new Set(rates.map(r => r.toFixed(4))).size > 5 && rates.every(r => r > 0.95 && r < 1.05), 'Pitch jitter within ±4%');
+    result.typing = { status: 'passed', text: typed.text, lines: typed.lines, fontPx: typed.fontPx, pressedDuringShot: held.pressed, environmentCaptures: [environmentBefore, environmentAfter], pressSounds: downs };
+
+    // 4. Idle: only the caret blink redraws the CanvasTexture.
+    const idleStart = await page.evaluate(() => window.__screen().redraws);
+    await page.waitForTimeout(3000);
+    const idleEnd = await page.evaluate(() => window.__screen().redraws);
+    assert.ok(idleEnd - idleStart <= 7, `Idle redraws ${idleEnd - idleStart} in 3 s must be <= 7`);
+    assert.ok(idleEnd - idleStart >= 3, 'The caret blinks');
+    assert.equal(await page.evaluate(() => window.__environment().captures), environmentBefore);
+    result.idleRedraws = { status: 'passed', seconds: 3, redraws: idleEnd - idleStart };
+
+    // 5. The full physical map, end to end through the real listener.
+    const hookMap = await page.evaluate(() => window.__interaction.codeMap);
+    assert.deepEqual(hookMap, expectedCodeMap, 'Code map must match the independent table');
+    const layoutIds = Object.keys((await page.evaluate(() => window.__kb.inspect())).keys);
+    assert.deepEqual([...new Set(Object.values(expectedCodeMap))].sort(), [...layoutIds].sort(), 'All 80 layout keys are reachable from a physical code');
+    const mapped = await page.evaluate(map => {
+      const out = {};
+      for (const code of Object.keys(map)) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code, key: 'Unidentified', bubbles: true }));
+        out[code] = window.__interaction.state().pressed;
+        window.dispatchEvent(new KeyboardEvent('keyup', { code, key: 'Unidentified', bubbles: true }));
+      }
+      return out;
+    }, expectedCodeMap);
+    for (const [code, id] of Object.entries(expectedCodeMap)) assert.deepEqual(mapped[code], [id], `${code} presses ${id}`);
+    const repeat = await page.evaluate(() => {
+      const before = window.__sfx().byName.keyDown ?? 0;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', key: 'Unidentified' }));
+      for (let i = 0; i < 5; i++) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', key: 'Unidentified', repeat: true }));
+      const held = window.__interaction.state().pressed;
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyR', key: 'Unidentified' }));
+      return { presses: (window.__sfx().byName.keyDown ?? 0) - before, held, after: window.__interaction.state().pressed };
+    });
+    assert.equal(repeat.presses, 1, 'Auto-repeat does not re-trigger the press'); assert.deepEqual(repeat.held, ['R']); assert.deepEqual(repeat.after, []);
+    await settle();
+    result.codeMap = { status: 'passed', codes: Object.keys(expectedCodeMap).length, layoutIds: layoutIds.length, autoRepeat: repeat };
+
+    // 6. Polyphony cap.
+    const poly = await page.evaluate(() => {
+      for (const code of ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM']) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code, key: 'Unidentified' }));
+        window.dispatchEvent(new KeyboardEvent('keyup', { code, key: 'Unidentified' }));
+      }
+      return window.__sfx();
+    });
+    assert.ok(poly.voices <= poly.maxVoices && poly.stolen > 0, 'Voice stealing keeps polyphony capped');
+    result.polyphony = { status: 'passed', voices: poly.voices, maxVoices: poly.maxVoices, stolen: poly.stolen };
+    await settle();
+
+    // 7. Hover tick rate limit while sweeping across a row.
+    await page.evaluate(() => window.__kb.camera('closeup'));
+    await frames();
+    const hoverBefore = (await sound()).events.filter(e => e.name === 'hover').length;
+    const [ax, ay] = await at('A'), [lx, ly] = await at('L');
+    await page.mouse.move(ax, ay);
+    await page.mouse.move(lx, ly, { steps: 24 });
+    await frames(4);
+    const hoverEvents = (await sound()).events.filter(e => e.name === 'hover');
+    const gaps = hoverEvents.slice(1).map((e, i) => e.at - hoverEvents[i].at);
+    assert.ok(hoverEvents.length > hoverBefore, 'Hover ticks after the gesture');
+    assert.ok(gaps.every(gap => gap >= 0.0599), 'Hover ticks are at most one per 60 ms');
+    result.hoverRateLimit = { status: 'passed', ticks: hoverEvents.length - hoverBefore, minGapMs: Math.min(...gaps) * 1000 };
+
+    // 8. Knob: drag detents with ticks, magnetic snap, click without drag, no orbit.
+    const knobPoint = await page.evaluate(() => window.__interaction.knobPoint());
+    const [kx, ky] = [knobPoint.x * W, knobPoint.y * H];
+    await knobDetail('knob-rest-detail', knobPoint);
+    await page.mouse.move(kx, ky); await frames(3);
+    assert.equal((await state()).cursor, 'grab');
+    const masterBefore = (await sound()).master, ticksBefore = (await sound()).byName.knobTick ?? 0;
+    const cameraKnob = await page.evaluate(() => window.__camera());
+    const detentPx = await page.evaluate(() => window.__interaction.constants.detentPx);
+    await page.mouse.down();
+    await page.mouse.move(kx + detentPx * 5 + 3, ky, { steps: 12 });
+    await frames(3);
+    const dragging = await state();
+    assert.equal(dragging.knob.detents, 5); assert.equal(dragging.knob.dragging, true);
+    await page.mouse.up();
+    await page.waitForFunction(() => Math.abs(window.__interaction.state().knob.angleDeg + 75) < 0.01, null, { timeout: 5000 });
+    const knob = await state();
+    const knobSound = await sound();
+    assert.equal(knob.knob.detents, 5); assert.equal(knob.knob.ticks, 5);
+    assert.equal((knobSound.byName.knobTick ?? 0) - ticksBefore, 5, 'One tick per detent');
+    assert.ok(Math.abs(knobSound.master - Math.min(1, masterBefore + 0.2)) < 1e-9, 'Clockwise detents raise the master volume');
+    nearArray((await page.evaluate(() => window.__camera())).position, cameraKnob.position, 'Knob drags never orbit');
+    assert.ok(await page.locator('.sound-level.visible').count() === 1, 'Transient volume readout');
+    await shot('knob-rotate');
+    await knobDetail('knob-rotate-detail', knobPoint);
+    await page.mouse.move(kx, ky); await page.mouse.down(); await frames(20);
+    const dip = (await state()).knob.dip;
+    assert.ok(Math.abs(dip - 0.0005) < 2e-5, `Knob press dips 0.5 mm (${dip})`);
+    await page.mouse.up(); await frames(3);
+    assert.equal((await state()).knob.clicks, 1); assert.equal((await sound()).byName.knobClick, 1);
+    await page.mouse.move(kx - detentPx * 5 - 3, ky, { steps: 12 }); // no button: nothing happens
+    assert.equal((await state()).knob.detents, 5);
+    await page.mouse.move(kx, ky); await page.mouse.down(); await page.mouse.move(kx - detentPx * 5 - 3, ky, { steps: 12 }); await page.mouse.up();
+    await page.waitForFunction(() => Math.abs(window.__interaction.state().knob.angleDeg) < 0.01, null, { timeout: 5000 });
+    assert.ok(Math.abs((await sound()).master - masterBefore) < 1e-9, 'Counter-clockwise restores the volume');
+    result.knob = { status: 'passed', detents: knob.knob.detents, angleDeg: knob.knob.angleDeg, ticks: knob.knob.ticks, dipMm: dip * 1000, master: [masterBefore, knobSound.master] };
+    await page.mouse.move(5, H / 2);
+    await page.evaluate(() => window.__kb.camera('default'));
+
+    // 9. Replacement wave: thinned, spread-out, quieter clicks in real playback.
+    const waveBefore = (await sound()).events.length;
+    const scheduledBefore = (await sound()).scheduled;
+    const generation = await page.evaluate(() => window.__kb.generation);
+    await page.evaluate(() => window.__kb.setVariant('cool-black'));
+    await page.waitForFunction(g => window.__kb.generation > g, generation);
+    await page.evaluate(() => window.__kb.play());
+    await page.waitForFunction(() => window.__kb.finished, null, { timeout: 20000 });
+    const waveSound = await sound();
+    const waveEvents = waveSound.events.slice(-(waveSound.scheduled - scheduledBefore)).filter(e => e.category === 'replacement');
+    assert.ok(waveEvents.length >= 8 && waveEvents.length <= 20, `Replacement events ${waveEvents.length} must be thinned to <= 20`);
+    assert.ok(waveEvents.some(e => e.name === 'capLift') && waveEvents.some(e => e.name === 'capSeat'));
+    const span = waveEvents.at(-1).at - waveEvents[0].at;
+    assert.ok(span > 1.2, 'Spread across the wave, in sync with the stagger');
+    result.replacement = { status: 'passed', events: waveEvents.length, byName: waveEvents.reduce((m, e) => ({ ...m, [e.name]: (m[e.name] ?? 0) + 1 }), {}), spanSeconds: span, ignoredEarlierEvents: waveBefore };
+    await page.evaluate(() => window.__kb.setVariant('glacial-blue')); await page.waitForFunction(() => window.__kb.selectedId === 'glacial-blue');
+    await finishPage();
+
+    // 10. Sound toggle: accessible, mutes scheduling, persists across reloads.
+    const toggle = page.getByRole('button', { name: 'Sound', exact: true });
+    assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+    await toggle.focus(); await page.keyboard.press('Enter');
+    assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+    const muted = await page.evaluate(() => { const before = window.__sfx(); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'Unidentified' })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA', key: 'Unidentified' })); const after = window.__sfx(); return { scheduled: after.scheduled - before.scheduled, muted: after.muted - before.muted, stored: localStorage.getItem('kc.sound') }; });
+    assert.deepEqual(muted, { scheduled: 0, muted: 2, stored: 'off' });
+    await page.reload();
+    await page.waitForFunction(() => window.__kb?.ready && window.__sfx);
+    assert.equal(await page.getByRole('button', { name: 'Sound', exact: true }).getAttribute('aria-pressed'), 'false', 'Off persists across reloads');
+    assert.equal(await page.evaluate(() => window.__sfx().enabled), false);
+    await page.getByRole('button', { name: 'Sound', exact: true }).click();
+    assert.equal(await page.evaluate(() => localStorage.getItem('kc.sound')), 'on');
+    const unlockedByToggle = await sound();
+    assert.equal(unlockedByToggle.probe.contexts, 1, 'The toggle click is the unlocking gesture; still one context');
+    result.toggle = { status: 'passed', muted, persisted: 'off -> reload -> off', contextsAfterReload: unlockedByToggle.probe.contexts };
+
+    // 11. Disposal: the screen overlay and listeners leave with the Canvas.
+    await page.evaluate(() => window.__kb.finish());
+    await page.waitForFunction(() => window.__kb.finished);
+    await page.evaluate(() => window.__app.setMounted(false));
+    await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
+    const owners = await page.evaluate(() => ({ typing: window.__app.resources()['Monitor.Typing'], interaction: Boolean(window.__interaction), screen: Boolean(window.__screen) }));
+    assert.ok(owners.typing.registered > 0 && owners.typing.registered === owners.typing.disposed, 'Typing texture/material/geometry disposed');
+    assert.equal(owners.interaction, false); assert.equal(owners.screen, false);
+    const audioErrors = await page.evaluate(() => window.__sfx().errors);
+    assert.deepEqual(audioErrors, [], 'The audio engine records no errors');
+    result.disposal = { status: 'passed', ...owners, audioErrors };
+    result.status = 'passed';
+    return result;
+  } finally {
+    await writeFile('screenshots/checks-interaction.json', `${JSON.stringify(result, null, 2)}\n`);
+    await context.close();
+  }
+
+  async function knobDetail(name, point) {
+    await renderedPage(page); await page.screenshot({ path: `screenshots/${name}.png`, clip: { x: point.x * W - 90, y: point.y * H - 70, width: 180, height: 140 } }); console.log(`screenshots/${name}.png`);
+  }
+  async function detail(name, id) {
+    const [x, y] = await at(id);
+    await renderedPage(page); await page.screenshot({ path: `screenshots/${name}.png`, clip: { x: x - 250, y: y - 150, width: 500, height: 300 } }); console.log(`screenshots/${name}.png`);
+  }
+  async function shot(name) { await renderedPage(page); await page.screenshot({ path: `screenshots/${name}.png` }); console.log(`screenshots/${name}.png`); }
+}
+// --- end interaction & sfx (spec 07c) ---
 try {
   await mkdir('screenshots', { recursive: true });
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -589,6 +884,10 @@ try {
   }
   checks.resourceDisposal = { status: 'passed', unmounts: 2, owners: lifecycles.at(-1) };
   await context.close();
+
+  // --- interaction & sfx (spec 07c) ---
+  checks.interaction = await interactionChecks(browser);
+  // --- end interaction & sfx (spec 07c) ---
 
   checks.soloLights = {};
   for (const role of ['key', 'softbox', 'spot', 'fill', 'rim', 'env']) {

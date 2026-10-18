@@ -53,8 +53,8 @@ export function Switches() {
     <instancedMesh ref={bottom} args={[resources.bottom, resources.base, KEY_LAYOUT.length]} castShadow receiveShadow />
     <instancedMesh ref={housing} args={[resources.housing, resources.shell, KEY_LAYOUT.length]} receiveShadow />
     <instancedMesh ref={latches} args={[resources.latch, resources.base, KEY_LAYOUT.length * 2]} castShadow />
-    <instancedMesh ref={stemA} args={[resources.crossA, resources.stem, KEY_LAYOUT.length]} castShadow />
-    <instancedMesh ref={stemB} args={[resources.crossB, resources.stem, KEY_LAYOUT.length]} castShadow />
+    <instancedMesh name="switch-stem-a" ref={stemA} args={[resources.crossA, resources.stem, KEY_LAYOUT.length]} castShadow />
+    <instancedMesh name="switch-stem-b" ref={stemB} args={[resources.crossB, resources.stem, KEY_LAYOUT.length]} castShadow />
     {KEY_LAYOUT.filter(k => k.w >= 2).map(key => {
       const [x, , z] = keyPosition(key);
       const offset = key.w * 0.01905 / 2 - 0.006;

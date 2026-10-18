@@ -10,6 +10,7 @@ import { Case } from './Case';
 import { Switches } from './Switches';
 import { Keycap } from './Keycap';
 import { Knob } from './Knob';
+import { KeyInteraction } from './KeyInteraction';
 import { createAssembly } from './assembly';
 import type { AssemblyHandle } from './assembly';
 import { useConfigurator } from '../state/store';
@@ -143,5 +144,6 @@ export function Keyboard() {
       {KEY_LAYOUT.map((definition, i) => <Keycap key={definition.id} definition={definition} group={colorGroupFor(definition, variant)} materials={materials} ref={element => { if (element) caps.current[i] = element; }} />)}
       <Knob ref={knob} materials={materials} />
     </group>
+    <KeyInteraction caps={caps} knob={knob} root={root} />
   </group>;
 }

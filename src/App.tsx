@@ -15,6 +15,6 @@ export default function App() {
     <SceneBoundary><Stage /></SceneBoundary>
     <VariantPicker />
     <div id="studio-controls"><Leva theme={{ sizes: { rootWidth: '338px', controlWidth: '178px', numberInputMinWidth: '56px' } }} hidden={!new URLSearchParams(location.search).has('debug')} titleBar={{ title: 'Studio · camera & lighting' }} /></div>
-    <div className="sr-only">Drag to orbit the keyboard. Scroll or pinch to zoom. Use arrow keys in the colorway picker to explore seven finishes.</div>
+    <div className="sr-only">Drag to orbit the keyboard. Scroll or pinch to zoom. Use arrow keys in the colorway picker to explore seven finishes. Type on your keyboard to write on the monitor; press Escape, then Tab, to move focus to the controls.</div>
   </main>;
 }

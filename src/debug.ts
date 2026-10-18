@@ -39,5 +39,14 @@ declare global { interface Window {
   __environment?: () => { captures: number; frames: number; probeOrigin: number[]; hdriIntensity: number; hdriRotation: number; lightformers: Record<string, { position: number[]; size: number[]; quaternion: number[]; color: string; radiance: number[] }> };
   __lightingStore?: { set: (values: Record<string, unknown>) => void };
   __lighting?: () => { solo: string | null; lights: { name: string; type: string; intensity: number; color: string; castShadow: boolean; position: number[]; quaternion: number[]; size?: number[] }[]; keyFrustum: { outside: boolean; position: number[]; ndc: number[] }; areaFrusta: Record<string, { outside: boolean; position: number[]; corners: number[][] }>; values: LightingValues; monitor: { screenOn: boolean; material: string; hasWallpaper: boolean; color: string; emissiveIntensity: number; roughness: number; clearcoat: number; reflectionCaptures: number; position: number[]; quaternion: number[] }; screenRegion: { minX: number; maxX: number; minY: number; maxY: number }; environment: number; exposure: number; shadowAutoUpdate: boolean };
+  __sfx?: () => { contexts: number; unlocked: boolean; ready: boolean; suppressed: number; muted: number; dropped: number; scheduled: number; stolen: number; byName: Record<string, number>; events: { name: string; at: number; wall: number; rate: number; gain: number; category: string }[]; errors: string[]; state: string; voices: number; maxVoices: number; enabled: boolean; master: number; sampleRate: number; clips: string[] };
+  __screen?: () => { redraws: number; text: string; caret: number; lines: string[]; canvas: number[]; fontPx: number };
+  __interaction?: {
+    state: () => { hovered: string | null; overKnob: boolean; cursor: string; pressed: string[]; active: number; offsets: Record<string, number>; stemOffsets: Record<string, number>; shiftLatch: boolean; capsLatch: boolean; knob: { detents: number; ticks: number; clicks: number; angleDeg: number; dip: number; dragging: boolean } };
+    keyPoint: (id: string) => { x: number; y: number };
+    knobPoint: () => { x: number; y: number };
+    constants: { hoverDepth: number; pressDepth: number; knobDip: number; detentDeg: number; detentPx: number };
+    codeMap: Record<string, string>;
+  };
   __app?: { setMounted: (mounted: boolean) => void; resources: () => Record<string, ResourceCount> };
 } }

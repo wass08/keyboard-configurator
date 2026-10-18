@@ -19,6 +19,8 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
   await page.waitForFunction(() => window.__kb?.finished);
+  // A real click on empty desk unlocks the audio engine, so typing is measured with sound.
+  await page.mouse.click(8, 450);
   const result = await page.evaluate(async () => {
     const gl = document.querySelector('canvas').getContext('webgl2');
     const debug = gl.getExtension('WEBGL_debug_renderer_info');
@@ -59,6 +61,21 @@ try {
     const dustOn = await measure(180, 30);
     const dust = { on: dustOn, off: dustOff, calls: { on: window.__kb.inspect().calls, off: dustOffCalls }, count: window.__dust?.().count };
     // --- end dust motes (spec 07a) ---
+    // Fast typing: ~15 keys/s through the real keydown/keyup listener (3D press,
+    // sound scheduling, and a monitor CanvasTexture redraw per keystroke).
+    const sentence = 'the quick brown fox jumps over the lazy dog ';
+    const redrawsBefore = window.__screen().redraws, soundsBefore = window.__sfx().scheduled;
+    let typed = 0;
+    const typist = setInterval(() => {
+      const ch = sentence[typed++ % sentence.length];
+      const code = ch === ' ' ? 'Space' : `Key${ch.toUpperCase()}`;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code, key: ch, bubbles: true }));
+      setTimeout(() => window.dispatchEvent(new KeyboardEvent('keyup', { code, key: ch, bubbles: true })), 45);
+    }, 1000 / 15);
+    const typingFrames = await measure(240, 20);
+    clearInterval(typist);
+    const typing = { ...typingFrames, keystrokes: typed, keysPerSecond: 15, screenRedraws: window.__screen().redraws - redrawsBefore, soundsScheduled: window.__sfx().scheduled - soundsBefore, audioContexts: window.__sfx().contexts, audioState: window.__sfx().state };
+    await new Promise(resolve => setTimeout(resolve, 300));
     window.__kb.setVariant('cool-black');
     const variantChange = await measure(210, 0);
     const render = window.__kb.inspect();
@@ -68,7 +85,7 @@ try {
     const depthOfFieldRender = window.__kb.inspect();
     const lens = window.__camera().lens;
     window.__cameraStore.set({ depthOfField: false });
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, intro, dust, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, assembled, intro, dust, typing, variantChange, depthOfField, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');
