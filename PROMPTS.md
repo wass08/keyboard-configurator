@@ -287,3 +287,24 @@ Attached: case corner faceting, saved as `references/issue-case-corner-faceting.
 > I also noticed an issue on the knob, when adjusting its value it's doing tons of rotation like crazy on 5181 (don't know if it's the right port too look at it, but just notifying you in case)
 
 Attached: `[Cozy ASMR ☁] typing on 9 different Keyboards (no mid-roll ads).mp3` (kept outside the repo).
+
+---
+
+## 27 — Restart dev server (2026-10-18)
+
+> can you restart it?
+
+---
+
+## 28 — Knob press sound, spacebar samples, monitor rim values, headphone fix, anamorphic, tone mapping, dust visibility (2026-10-18)
+
+> awesome, a few remarks:
+> - the sound when pressing the knob is too synthetic. doesn't feel realistic.
+> - the extraction of the typing is absolutely lovely, one adjustment would be needed for the spacebar. It seems the samples contains too much background noise/air. If ever you find others in the audio, or use the same as the backspace
+> - use the following settings for monitor rim: *(full "Copy lighting values" JSON — monitor rim intensity 7.1 / #8f77ff, wall glow 27.2 / #8f77ff, screen text light 12 / flare 0.32, other values unchanged; dust intensity 0.06)*
+> - a small adjustment is needed on the airpod max. the wood of the stand is going throught the metal rounded top of the headphone (image attached)
+> - can you add an anamorphic pass: https://github.com/mrdoob/three.js/blob/master/examples/webgpu_postprocessing_anamorphic.html for a more film aesthetic
+> - can you add color grading / tone mapping settings in the controls? at least aces / agx
+> - even with all the settings on max I can't see dust at all. did we go too far with the subtltety?
+
+Attached: headphone stand intersection, saved as `references/issue-headphone-stand-intersection.png`.
