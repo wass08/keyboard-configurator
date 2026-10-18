@@ -88,6 +88,15 @@ and `lens-dof.png`. `npm run perf` reports DoF off and on separately.
   charcoal visible in the dim studio while the physical softbox and rear
   monitor glow supply the falloff and sheen. The background is
   black, without fog. A dark floor grounds the desk in wide views.
+  The Wall folder's light mask defaults on, with elliptical radii **1.6 × 0.8 m**
+  and feather **0.35** (fraction of radius). It follows the monitor's projected
+  wall-glow position, including gizmo yaw. `onBeforeCompile` multiplies the
+  complete outgoing linear radiance just before output: direct light, IBL,
+  specular and emission all fall to black outside the ellipse. The interior
+  remains unchanged, retaining the purple halo and paint response. Its support
+  ends above the physical wall bottom, hiding the edge from any viewing angle.
+  Copy lighting values includes `wall.mask`; `wall-mask-right.png` and the
+  halo/on-off pixel checks cover the rightmost, low-elevation orbit.
   `Lighting.tsx` saves the user-tuned rig: **44 × 68 cm**
   softbox at **(-0.67, 1.75, 0.80)** m, aimed at **(0, 0.79, -0.02)**,
   intensity **0.75**, **#fff7f0**; linked spot **6.235**, angle **0.21 rad**,
@@ -303,6 +312,9 @@ speed, then records asynchronous whole-frame GPU timer queries with each effect
 disabled in turn. This avoids ANGLE/Metal assigning the entire command-buffer
 duration to every pass. Per-pass CPU submission times are also recorded;
 queries are disabled during normal viewing and FPS sampling.
+The report records 1/5/15-minute machine load averages before and after the run.
+Whole-frame GPU A/B deltas can be noisy under shared machine load; a negative
+delta means the cost is within measurement noise, not a negative rendering cost.
 
 ## Interaction, typing and sound (spec 07c)
 

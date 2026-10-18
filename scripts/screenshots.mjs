@@ -6,6 +6,7 @@ import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
 import { screenPolishChecks } from './screen-polish.mjs';
 import { filmChecks } from './film-checks.mjs';
+import { wallChecks } from './wall-checks.mjs';
 import { highlightChecks } from './highlight-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
@@ -655,6 +656,7 @@ try {
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   checks.film = await filmChecks(browser, url, observeErrors);
+  checks.wallMask = await wallChecks(browser, url, observeErrors);
   checks.highlightControl = await highlightChecks(browser, url, observeErrors, expectedPalettes);
   checks.colorFidelity = checks.highlightControl.keyLightColorFidelity;
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
@@ -893,7 +895,7 @@ try {
   checks.wallGlowReflection = { status: 'passed', bounceGain: 0.035, ...environment.lightformers['reflection-wall-glow'] };
   checks.rigMatchedEnvironment = { status: 'passed', defaults: expectedEnvironment, ...environment };
   assert.deepEqual(lighting.values.streamDeck, { emissiveIntensity: 2.4, bloomStrength: 0.16, bloomThreshold: 2, spillIntensity: 0.8 });
-  assert.deepEqual(lighting.values.wall, { color: '#2a2b2e', roughness: 0.55, normalStrength: 0.035 });
+  assert.deepEqual(lighting.values.wall, { color: '#2a2b2e', roughness: 0.55, normalStrength: 0.035, mask: { enabled: true, radiusX: 1.6, radiusY: 0.8, feather: 0.35 } });
   assert.deepEqual(lighting.values.screen, { textLightEnabled: true, textIntensity: 12, textFlare: 0.32 });
   checks.studioLighting = { status: 'passed', ...lighting };
 

@@ -201,6 +201,11 @@ export function CameraRig() {
         controls.current?.target.copy(screen.getWorldPosition(new Vector3()));
       }
       else if (view === 'wall-paint') { camera.position.set(0.40, 1.20, 0.25); controls.current?.target.set(0, 1.15, -0.43); }
+      else if (view === 'wall-mask-right' || view === 'wall-mask-left') {
+        // Actual allowed orbit extremes, at the lowest elevation.
+        camera.position.setFromSphericalCoords(DEFAULT_MAX, 1.38, view === 'wall-mask-right' ? 1.15 : -1.15).add(new Vector3(...HERO_TARGET));
+        controls.current?.target.set(...HERO_TARGET);
+      }
       else if (view === 'props-wide') { camera.position.set(-0.05, 1.24, 0.54); controls.current?.target.set(-0.025, 0.9, -0.12); }
       else if (view === 'props-streamdeck') {
         const pose = useLayoutStore.getState().poses.streamdeck, y = supportHeight('streamdeck', pose);

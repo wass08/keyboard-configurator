@@ -72,6 +72,10 @@ export function useLightingControls() {
       wallColor: { value: '#2a2b2e', label: 'Paint color' },
       wallRoughness: { value: 0.55, min: 0.3, max: 0.9, step: 0.01, label: 'Roughness' },
       wallNormal: { value: 0.035, min: 0, max: 0.2, step: 0.005, label: 'Normal strength' },
+      wallMaskEnabled: { value: true, label: 'Light mask' },
+      wallMaskRadiusX: { value: 1.6, min: 0.1, max: 4, step: 0.01, label: 'Mask radius X (m)' },
+      wallMaskRadiusY: { value: 0.8, min: 0.1, max: 3, step: 0.01, label: 'Mask radius Y (m)' },
+      wallMaskFeather: { value: 0.35, min: 0.01, max: 1, step: 0.01, label: 'Mask feather' },
     }, { collapsed: true, order: 5.6 }),
     Dust: folder({
       dustEnabled: { value: true, label: 'Show dust' },
@@ -119,7 +123,8 @@ export function lightingValues(s: LightingSettings) {
     desk: { clearcoat: s.deskClearcoat, clearcoatRoughness: s.deskClearcoatRoughness, roughnessMin: s.deskRoughnessMin, roughnessScale: s.deskRoughnessScale, normalStrength: s.deskNormalStrength, coatNormalStrength: s.deskCoatNormalStrength, coatRoughnessInfluence: s.deskCoatRoughnessInfluence, envMapIntensity: s.deskEnvMapIntensity },
     streamDeck: { emissiveIntensity: s.deckEmissive, bloomStrength: s.bloomStrength, bloomThreshold: s.bloomThreshold, spillIntensity: s.deckSpill },
     screen: { textLightEnabled: s.textLightEnabled, textIntensity: s.textIntensity, textFlare: s.textFlare },
-    wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal },
+    wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal,
+      mask: { enabled: s.wallMaskEnabled, radiusX: s.wallMaskRadiusX, radiusY: s.wallMaskRadiusY, feather: s.wallMaskFeather } },
     rendering: { exposure: s.exposure },
     film: {
       toneMapping: s.toneOperator, exposure: s.exposure,

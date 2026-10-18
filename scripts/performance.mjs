@@ -2,10 +2,12 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { loadavg } from 'node:os';
 
 const url = `http://127.0.0.1:${process.env.PERF_PORT ?? 4176}`;
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(process.env.PERF_PORT ?? 4176), '--strictPort'], { stdio: 'ignore' });
 let browser;
+const loadBefore = loadavg();
 try {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (server.exitCode !== null) throw new Error(`Performance preview could not start on port ${process.env.PERF_PORT ?? 4176}`);
@@ -118,6 +120,7 @@ try {
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');
   await mkdir('screenshots', { recursive: true });
+  result.machineLoad = { before: loadBefore, after: loadavg(), windowsMinutes: [1, 5, 15] };
   await writeFile('screenshots/performance.json', `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify({ ...result, render: { calls: result.render.calls, triangles: result.render.triangles } }, null, 2));
 } finally {

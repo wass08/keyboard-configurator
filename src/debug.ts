@@ -5,7 +5,7 @@ import type { ColorGroup } from './keyboard/layout';
 import type { ResourceCount } from './resources/ownership';
 import type { LensValues } from './scene/lens';
 import type { IntroPhase, IntroState } from './scene/intro/sequence';
-export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup' | 'props-wide' | 'props-streamdeck' | 'props-airpods' | 'deskmat-closeup' | 'desk-sheen' | 'desk-sheen-closeup' | 'wall-paint' | 'case-corner' | 'screen-terminal';
+export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup' | 'props-wide' | 'props-streamdeck' | 'props-airpods' | 'deskmat-closeup' | 'desk-sheen' | 'desk-sheen-closeup' | 'wall-paint' | 'wall-mask-right' | 'wall-mask-left' | 'case-corner' | 'screen-terminal';
 
 export interface CameraValues {
   minDistance: number; maxDistance: number; distance: number; polarDeg: number; azimuthDeg: number; position: number[]; target: number[];
