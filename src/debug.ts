@@ -5,7 +5,7 @@ import type { ColorGroup } from './keyboard/layout';
 import type { ResourceCount } from './resources/ownership';
 import type { LensValues } from './scene/lens';
 import type { IntroPhase, IntroState } from './scene/intro/sequence';
-export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup' | 'props-wide' | 'props-streamdeck' | 'props-airpods' | 'deskmat-closeup' | 'desk-sheen' | 'desk-sheen-closeup' | 'wall-paint';
+export type CameraView = 'default' | 'closeup' | 'desk' | 'desk-frame' | 'profile' | 'lighting-wide' | 'lighting-closeup' | 'props-wide' | 'props-streamdeck' | 'props-airpods' | 'deskmat-closeup' | 'desk-sheen' | 'desk-sheen-closeup' | 'wall-paint' | 'case-corner' | 'screen-terminal';
 
 export interface CameraValues {
   minDistance: number; maxDistance: number; distance: number; polarDeg: number; azimuthDeg: number; position: number[]; target: number[];
@@ -27,7 +27,7 @@ export interface KeyboardHook {
   readonly duration: number;
   readonly introPhase: IntroPhase;
   readonly introTimings: IntroState['timings'] | null;
-  inspect: () => { intro: { phase: IntroPhase; mat: { progress: number; vertices: number; maxRestError: number; minY: number; maxY: number; normalError: number; thickness: number }; frameOffset: number; frameVisible: boolean; keysVisible: boolean }; capOffsets: number[]; knobOffset: number; meshes: number; geometries: number; calls: number; triangles: number; palette: Record<string, string>; keys: Record<string, { group: ColorGroup; cap: string; legend: string | null; labels: string[] }>; colorSamples: { key: string; group: ColorGroup; x: number; y: number }[]; framing: { keyboardWidthRatio: number; deskFrontEdgeNdcY: number; keyboardCenterFromEdge: number } };
+  inspect: () => { intro: { phase: IntroPhase; preparation: { ready: boolean; compiled: boolean; firstFrameRendered: boolean; textures: number }; mat: { progress: number; vertices: number; maxRestError: number; minY: number; maxY: number; normalError: number; thickness: number }; frameOffset: number; frameVisible: boolean; keysVisible: boolean }; capOffsets: number[]; knobOffset: number; meshes: number; geometries: number; calls: number; triangles: number; palette: Record<string, string>; keys: Record<string, { group: ColorGroup; cap: string; legend: string | null; labels: string[] }>; lightSamples: { key: string; x: number; y: number }[]; colorSamples: { key: string; group: ColorGroup; x: number; y: number }[]; framing: { keyboardWidthRatio: number; deskFrontEdgeNdcY: number; keyboardCenterFromEdge: number } };
 }
 declare global { interface Window {
   __layoutStore?: { set: (id: PropId, patch: Partial<PropPose>) => void; show: (value: boolean) => void };
@@ -40,8 +40,9 @@ declare global { interface Window {
   __lightingStore?: { set: (values: Record<string, unknown>) => void };
   __lighting?: () => { solo: string | null; lights: { name: string; type: string; intensity: number; color: string; castShadow: boolean; position: number[]; quaternion: number[]; size?: number[] }[]; keyFrustum: { outside: boolean; position: number[]; ndc: number[] }; areaFrusta: Record<string, { outside: boolean; position: number[]; corners: number[][] }>; values: LightingValues; monitor: { screenOn: boolean; material: string; hasWallpaper: boolean; color: string; emissiveIntensity: number; roughness: number; clearcoat: number; reflectionCaptures: number; position: number[]; quaternion: number[] }; screenRegion: { minX: number; maxX: number; minY: number; maxY: number }; environment: number; exposure: number; shadowAutoUpdate: boolean };
   __sfx?: () => { contexts: number; unlocked: boolean; ready: boolean; suppressed: number; muted: number; dropped: number; scheduled: number; stolen: number; byName: Record<string, number>; events: { name: string; at: number; wall: number; rate: number; gain: number; category: string }[]; errors: string[]; state: string; voices: number; maxVoices: number; enabled: boolean; master: number; sampleRate: number; clips: string[] };
-  __screen?: () => { redraws: number; text: string; caret: number; lines: string[]; canvas: number[]; fontPx: number };
-  __screenControl?: { freezeCaret: (freeze: boolean) => void };
+  __screen?: () => { redraws: number; staticRedraws: number; dynamicCanvas: number[]; text: string; transcript: string[]; caret: number; lines: string[]; canvas: number[]; fontPx: number; promptLines: number; scroll: number; caretOn: boolean; osd: { visible: boolean; alpha: number; volume: number }; practical: { intensity: number; coverage: number } };
+  __case?: () => Record<string, { sideFaces: number; adjacentPairs: number; maxFaceAngle: number; maxNormalSeam: number; min: number[]; max: number[] }>;
+  __screenControl?: { freezeCaret: (freeze: boolean) => void; clear: () => void };
   __interaction?: {
     state: () => { hovered: string | null; overKnob: boolean; cursor: string; pressed: string[]; active: number; offsets: Record<string, number>; stemOffsets: Record<string, number>; shiftLatch: boolean; capsLatch: boolean; knob: { detents: number; ticks: number; clicks: number; angleDeg: number; dip: number; dragging: boolean } };
     keyPoint: (id: string) => { x: number; y: number };

@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { folder, useControls } from 'leva';
 import { useSound } from '../audio/soundStore';
 import type { SfxCategory } from '../audio/soundStore';
 import '../audio/sfx';
 
-const READOUT_MS = 1200;
 const CATEGORY_LABELS: [SfxCategory, string][] = [['hover', 'Hover'], ['typing', 'Typing'], ['replacement', 'Replacement'], ['knob', 'Knob'], ['intro', 'Intro']];
 
 /** `?debug` → Sound: master and per-category volumes, two-way synced with the knob. */
@@ -30,17 +29,7 @@ function Speaker({ on }: { on: boolean }) {
 export function SoundToggle() {
   useSoundControls();
   const enabled = useSound(state => state.enabled);
-  const master = useSound(state => state.master);
-  const changedAt = useSound(state => state.levelChangedAt);
-  const [showLevel, setShowLevel] = useState(false);
-  useEffect(() => {
-    if (!changedAt) return;
-    setShowLevel(true);
-    const timer = setTimeout(() => setShowLevel(false), READOUT_MS);
-    return () => clearTimeout(timer);
-  }, [changedAt]);
   return <div className="sound-control">
-    <span className={`sound-level${showLevel ? ' visible' : ''}`} aria-hidden={!showLevel}>{Math.round(master * 100)}%</span>
     <button type="button" className="sound-toggle" aria-pressed={enabled} aria-label="Sound" title={enabled ? 'Sound on' : 'Sound off'} onClick={() => useSound.getState().setEnabled(!enabled)}>
       <Speaker on={enabled} />
     </button>

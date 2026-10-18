@@ -41,6 +41,11 @@ export function useLightingControls() {
       rimAim: { value: { x: 0, y: 0.99, z: 0 }, step: 0.01, label: 'Aim' },
       wallGlow: { value: 23.3, min: 0, max: 60, step: 0.05, label: 'Wall glow' },
     }, { collapsed: true, order: 3 }),
+    Screen: folder({
+      textLightEnabled: { value: true, label: 'Text practical light' },
+      textIntensity: { value: 12, min: 0, max: 60, step: 0.1, label: 'Text intensity' },
+      textFlare: { value: 0.32, min: 0, max: 2, step: 0.01, label: 'Keystroke flare' },
+    }, { collapsed: true, order: 3.5 }),
     Desk: folder({
       deskClearcoat: { value: 0.24, min: 0, max: 1, step: 0.01, label: 'Clearcoat' },
       deskClearcoatRoughness: { value: 0.22, min: 0.05, max: 1, step: 0.01, label: 'Coat roughness' },
@@ -69,9 +74,9 @@ export function useLightingControls() {
     }, { collapsed: true, order: 5.6 }),
     Dust: folder({
       dustEnabled: { value: true, label: 'Show dust' },
-      dustCount: { value: 240, min: 0, max: 600, step: 1, label: 'Count' },
-      dustSize: { value: 0.9, min: 0.2, max: 2, step: 0.01, label: 'Size (mm)' },
-      dustIntensity: { value: 0.5, min: 0, max: 2, step: 0.005, label: 'Intensity' },
+      dustCount: { value: 120, min: 0, max: 600, step: 1, label: 'Count' },
+      dustSize: { value: 0.4, min: 0.1, max: 2, step: 0.01, label: 'Size (mm)' },
+      dustIntensity: { value: 0.06, min: 0, max: 2, step: 0.005, label: 'Intensity' },
       dustSpeed: { value: 1, min: 0, max: 5, step: 0.05, label: 'Speed' },
       dustPadding: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Volume padding (m)' },
     }, { collapsed: true, order: 5.7 }),
@@ -100,6 +105,7 @@ export function lightingValues(s: LightingSettings) {
     environment: { lightformerIntensity: s.lightformerIntensity, hdriIntensity: s.hdriIntensity, rotation: s.environmentRotation },
     desk: { clearcoat: s.deskClearcoat, clearcoatRoughness: s.deskClearcoatRoughness, roughnessMin: s.deskRoughnessMin, roughnessScale: s.deskRoughnessScale, normalStrength: s.deskNormalStrength, coatNormalStrength: s.deskCoatNormalStrength, coatRoughnessInfluence: s.deskCoatRoughnessInfluence, envMapIntensity: s.deskEnvMapIntensity },
     streamDeck: { emissiveIntensity: s.deckEmissive, bloomStrength: s.bloomStrength, bloomThreshold: s.bloomThreshold, spillIntensity: s.deckSpill },
+    screen: { textLightEnabled: s.textLightEnabled, textIntensity: s.textIntensity, textFlare: s.textFlare },
     wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal },
     rendering: { exposure: s.exposure },
     dust: { enabled: s.dustEnabled, count: s.dustCount, size: s.dustSize, intensity: s.dustIntensity, speed: s.dustSpeed, padding: s.dustPadding },

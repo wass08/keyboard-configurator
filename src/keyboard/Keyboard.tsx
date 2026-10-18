@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { Group, Mesh, MeshStandardMaterial } from 'three';
-import { Box3, Vector3 } from 'three';
+import { Box3, HalfFloatType, Vector3, WebGLRenderTarget } from 'three';
 import { KEY_LAYOUT, TILT } from './layout';
 import { colorGroupFor, getVariant } from './variants';
 import { applyKeyboardPalette, createKeyboardMaterials } from './materials';
@@ -30,6 +30,9 @@ export function Keyboard() {
   const lastSelected = useRef(useConfigurator.getState().selectedId);
   const started = useRef(false);
   const generation = useRef(0);
+  const preparation = useRef({ ready: false, compiled: false, firstFrameRendered: false, textures: 0 });
+  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: HalfFloatType }), []);
+  useOwnedDisposal('Keyboard.Precompile', [precompileTarget]);
   // One material set per mount; variant transitions mutate its colors.
   const materials = useMemo(() => createKeyboardMaterials(getVariant(useConfigurator.getState().selectedId)), []);
   useOwnedDisposal('Keyboard', [materials.body, materials.frame, materials.knob, materials.ring, ...Object.values(materials.caps), ...Object.values(materials.legends)]);
@@ -40,6 +43,7 @@ export function Keyboard() {
   const displayedId = useConfigurator(state => state.displayedId);
   const variant = getVariant(started.current ? displayedId : selectedId);
   const durations = useControls(() => ({ Intro: folder({
+    startDelay: { value: INTRO_DURATIONS.startDelay, min: 0, max: 3, step: 0.05, label: 'Start delay (s)' },
     mat: { value: INTRO_DURATIONS.mat, min: 0.8, max: 4, step: 0.05, label: 'Mat duration (s)' },
     frame: { value: INTRO_DURATIONS.frame, min: 0.35, max: 2, step: 0.05, label: 'Frame duration (s)' },
     keys: { value: INTRO_DURATIONS.keys, min: 1, max: 4, step: 0.05, label: 'Keys duration (s)' },
@@ -55,7 +59,7 @@ export function Keyboard() {
 
   useEffect(() => {
     const hook: KeyboardHook = {
-      ready: true,
+      get ready() { return preparation.current.ready; },
       generation: 0,
       setVariant: useConfigurator.getState().setVariant,
       seek: seconds => { handle.current?.timeline.pause().time(seconds, false); },
@@ -76,7 +80,7 @@ export function Keyboard() {
         const corners = [bounds.min.x, bounds.max.x].flatMap(x => [bounds.min.y, bounds.max.y].flatMap(y => [bounds.min.z, bounds.max.z].map(z => new Vector3(x, y, z).project(camera))));
         const keyboardWidthRatio = (Math.max(...corners.map(c => c.x)) - Math.min(...corners.map(c => c.x))) / 2;
         return { capOffsets: caps.current.map(cap => cap.position.y), knobOffset: knob.current!.position.y, meshes, geometries: gl.info.memory.geometries, calls: gl.info.render.calls, triangles: gl.info.render.triangles,
-          intro: { phase: handle.current?.intro?.phase ?? 'done', mat: scene.getObjectByName('desk-mat')!.userData.inspect(), frameOffset: root.current!.position.y - KEYBOARD_Y, frameVisible: root.current!.visible, keysVisible: keys.current!.visible },
+          intro: { phase: handle.current?.intro?.phase ?? 'done', preparation: { ...preparation.current }, mat: scene.getObjectByName('desk-mat')!.userData.inspect(), frameOffset: root.current!.position.y - KEYBOARD_Y, frameVisible: root.current!.visible, keysVisible: keys.current!.visible },
           framing: { keyboardWidthRatio, deskFrontEdgeNdcY: new Vector3(0, DESK_TOP, DESK_FRONT_Z).project(camera).y, keyboardCenterFromEdge: DESK_FRONT_Z },
           palette: {
             body: materials.body.color.getHexString(), frame: materials.frame.color.getHexString(), knob: materials.knob.color.getHexString(), ring: materials.ring.color.getHexString(),
@@ -91,6 +95,13 @@ export function Keyboard() {
           })),
           // Blank top-face locations, projected through the actual mesh and
           // active camera. The capture script samples pixels, not materials.
+          lightSamples: ['f2', 'f4', 'f6', 'f8', 'f10', 'f12'].map(id => {
+            const i = KEY_LAYOUT.findIndex(key => key.id === id), key = KEY_LAYOUT[i];
+            // The row's front top edge faces the screen; the dished rear
+            // section's normal tilts away from it and receives no direct spill.
+            const point = caps.current[i].children[0].localToWorld(new Vector3(0.004, capHeight(key.row, 0.0055), 0.0055)).project(camera);
+            return { key: id, x: (point.x + 1) / 2, y: (1 - point.y) / 2 };
+          }),
           colorSamples: ['H', 'caps', 'enter'].map(id => {
             const index = KEY_LAYOUT.findIndex(key => key.id === id), key = KEY_LAYOUT[index];
             const mesh = caps.current[index].children[0] as Mesh;
@@ -106,19 +117,65 @@ export function Keyboard() {
 
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const capture = new URLSearchParams(location.search).has('capture');
+    let cancelled = false, firstFrame = 0, afterCompile = 0;
     replay.current = () => {
       handle.current?.timeline.kill();
       const id = useConfigurator.getState().selectedId;
       lastSelected.current = id;
       handle.current = createIntro(root.current!, keys.current!, scene.getObjectByName('desk-mat')!, caps.current, knob.current!, materials, id, reduced, durationValues.current);
+      if (!preparation.current.ready || capture) handle.current.timeline.pause(0);
       started.current = true;
       generation.current++;
       if (window.__kb) window.__kb.generation = generation.current;
     };
     replay.current();
-    if (new URLSearchParams(location.search).has('capture')) handle.current!.timeline.pause(0);
-    return () => { handle.current?.timeline.kill(); replay.current = () => {}; };
-  }, [materials, scene]);
+    // Suspense has resolved asset loading. Upload decoded textures and compile
+    // the hidden frame/caps after the visible desk's first render. The hold
+    // belongs to the timeline, so it starts in full only after preparation.
+    const initialRenderFrame = gl.info.render.frame;
+    const prepare = () => {
+      if (cancelled) return;
+      if (gl.info.render.frame <= initialRenderFrame) { firstFrame = requestAnimationFrame(prepare); return; }
+      const textures = new Set<import('three').Texture>();
+      scene.traverse(object => {
+        const mesh = object as Mesh;
+        for (const material of mesh.material ? Array.isArray(mesh.material) ? mesh.material : [mesh.material] : [])
+          for (const value of Object.values(material)) if (value && typeof value === 'object' && 'isTexture' in value) textures.add(value as import('three').Texture);
+      });
+      for (const texture of textures) gl.initTexture(texture);
+      preparation.current.textures = textures.size;
+      const visible = [root.current!.visible, keys.current!.visible];
+      root.current!.visible = keys.current!.visible = true;
+      const textLight = scene.getObjectByName('screen-text-light'), textLightVisible = textLight?.visible;
+      // Prepare both area-light counts: the dark prompt omits its emitter,
+      // while typing enables it. First input must not compile a new variant.
+      if (textLight) textLight.visible = true;
+      const previousTarget = gl.getRenderTarget();
+      // Match the composer's linear HDR target; compiling to the canvas would
+      // prepare a different tone-mapping/output shader variant.
+      gl.setRenderTarget(precompileTarget);
+      const compiled = gl.compileAsync(scene, camera);
+      gl.setRenderTarget(previousTarget);
+      if (textLight) textLight.visible = textLightVisible!;
+      [root.current!.visible, keys.current!.visible] = visible;
+      void compiled.then(() => {
+        if (cancelled) return;
+        const visible = [root.current!.visible, keys.current!.visible], previousTarget = gl.getRenderTarget();
+        root.current!.visible = keys.current!.visible = true;
+        try { gl.setRenderTarget(precompileTarget); gl.render(scene, camera); }
+        finally { gl.setRenderTarget(previousTarget); [root.current!.visible, keys.current!.visible] = visible; }
+        preparation.current.compiled = true;
+        afterCompile = requestAnimationFrame(() => {
+          if (cancelled) return;
+          preparation.current.firstFrameRendered = true; preparation.current.ready = true;
+          if (!capture) handle.current?.timeline.play(0);
+        });
+      });
+    };
+    firstFrame = requestAnimationFrame(prepare);
+    return () => { cancelled = true; cancelAnimationFrame(firstFrame); cancelAnimationFrame(afterCompile); preparation.current.ready = false; handle.current?.timeline.kill(); replay.current = () => {}; };
+  }, [materials, scene, gl, camera, precompileTarget]);
 
   useEffect(() => {
     if (lastSelected.current === selectedId) return;

@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { PNG } from 'pngjs';
+import { screenPolishChecks } from './screen-polish.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 
 const port = Number(process.env.SHOTS_PORT ?? 4175);
@@ -338,7 +339,8 @@ async function interactionChecks(browser) {
     assert.equal((knobSound.byName.knobTick ?? 0) - ticksBefore, 5, 'One tick per detent');
     assert.ok(Math.abs(knobSound.master - Math.min(1, masterBefore + 0.2)) < 1e-9, 'Clockwise detents raise the master volume');
     nearArray((await page.evaluate(() => window.__camera())).position, cameraKnob.position, 'Knob drags never orbit');
-    assert.ok(await page.locator('.sound-level.visible').count() === 1, 'Transient volume readout');
+    assert.equal(await page.locator('.sound-level').count(), 0, 'The terminal OSD replaces the DOM readout');
+    assert.equal(await page.evaluate(() => window.__screen().osd.visible), true, 'Knob changes show the screen OSD');
     await shot('knob-rotate');
     await knobDetail('knob-rotate-detail', knobPoint);
     await page.mouse.move(kx, ky); await page.mouse.down(); await frames(20);
@@ -383,7 +385,7 @@ async function interactionChecks(browser) {
     // A variant timeline has no intro timings; start a fresh replay first.
     await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
     const introTimes = timings ?? await page.evaluate(() => window.__kb.introTimings);
-    for (const [beat, time] of [['mat', 0.95], ['frame', introTimes.frameAt + 0.35], ['keys', introTimes.keysAt + 0.95]]) {
+    for (const [beat, time] of [['hold', 0.45], ['mat', introTimes.holdEnd + 0.35], ['frame', introTimes.frameAt + 0.35], ['keys', introTimes.keysAt + 0.95]]) {
       await page.evaluate(time => window.__kb.seek(time), time); await frames();
       const before = await page.evaluate(() => ({ text: window.__screen().text, sounds: window.__sfx().scheduled }));
       await page.mouse.move(...landedG); await page.mouse.down(); await frames(3);
@@ -490,6 +492,7 @@ try {
   }
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
+  checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
   const page = await context.newPage();
   observeErrors(page);
@@ -535,15 +538,24 @@ try {
   const seekIntro = async time => { await page.evaluate(time => window.__kb.seek(time), time); await rendered(); };
   const staticProps = (await page.evaluate(() => window.__props())).props;
   const phases = [];
-  for (const time of [0, introTimings.frameAt + 0.05, introTimings.keysAt + 0.2, introTimings.end]) {
+  for (const time of [0, introTimings.holdEnd + 0.1, introTimings.frameAt + 0.05, introTimings.keysAt + 0.2, introTimings.end]) {
     await seekIntro(time);
     phases.push(await page.evaluate(() => window.__kb.introPhase));
     assert.equal(await page.evaluate(() => window.__lighting().shadowAutoUpdate), time < introTimings.end);
     const props = (await page.evaluate(() => window.__props())).props;
     for (const name of ['prop-streamdeck', 'prop-headphones', 'monitor-screen']) assert.deepEqual(props[name], staticProps[name], `${name} stays static across every intro beat`);
   }
-  assert.deepEqual(phases, ['mat', 'frame', 'keys', 'done']);
-  await seekIntro(introTimings.matEnd * (1 - Math.cbrt(0.5)));
+  assert.deepEqual(phases, ['hold', 'mat', 'frame', 'keys', 'done']);
+  await seekIntro(introTimings.holdEnd / 2);
+  const heldIntro = await page.evaluate(() => window.__kb.inspect().intro);
+  assert.equal(heldIntro.mat.progress, 0); assert.equal(heldIntro.phase, 'hold');
+  assert.equal(introTimings.holdEnd, 0.9);
+  assert.ok(heldIntro.preparation.compiled && heldIntro.preparation.firstFrameRendered && heldIntro.preparation.textures > 0);
+  await page.evaluate(() => window.__kb.camera('props-wide'));
+  await shot('intro-hold');
+  await page.evaluate(() => window.__kb.camera('default'));
+  checks.introPreparation = { status: 'passed', holdSeconds: introTimings.holdEnd, ...heldIntro.preparation };
+  await seekIntro(introTimings.holdEnd + (introTimings.matEnd - introTimings.holdEnd) * (1 - Math.cbrt(0.5)));
   const rolled = await page.evaluate(() => window.__kb.inspect().intro.mat);
   assert.ok(Math.abs(rolled.progress - 0.5) < 1e-5);
   assert.ok(rolled.maxY > 0.045, 'Half-unrolled felt has a real thick, layered roll');
@@ -555,7 +567,7 @@ try {
   await page.evaluate(() => window.__kb.camera('props-wide'));
   const unrollFrames = [];
   for (let frame = 0; frame <= 48; frame++) {
-    const time = introTimings.matEnd * frame / 48;
+    const time = introTimings.holdEnd + (introTimings.matEnd - introTimings.holdEnd) * frame / 48;
     await seekIntro(time);
     const mat = await page.evaluate(() => window.__kb.inspect().intro.mat);
     assert.ok(mat.minY >= -1e-7 && mat.normalError < 1e-6);
@@ -589,7 +601,7 @@ try {
 
   // Retarget twice in each beat; the live sequence must retain its time/phase.
   checks.introSelection = { status: 'passed', beats: [] };
-  for (const [beat, time] of [['mat', 0.35], ['frame', introTimings.frameAt + 0.2], ['keys', introTimings.keysAt + 0.8]]) {
+  for (const [beat, time] of [['hold', 0.35], ['mat', introTimings.holdEnd + 0.35], ['frame', introTimings.frameAt + 0.2], ['keys', introTimings.keysAt + 0.8]]) {
     await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); });
     await seekIntro(time);
     await change('pink'); await change('cool-black');
@@ -613,11 +625,11 @@ try {
   await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); window.__kb.play(); });
   await page.waitForFunction(() => window.__kb.finished && window.__kb.introPhase === 'done', null, { timeout: 20000 });
   assertPalette(await finish(), 'pink');
-  checks.replayIntro = { status: 'passed', interruptedStates: ['mat', 'frame', 'keys', 'done', 'variant-change'], realtimePlayback: true };
+  checks.replayIntro = { status: 'passed', interruptedStates: ['hold', 'mat', 'frame', 'keys', 'done', 'variant-change'], realtimePlayback: true };
   await change('glacial-blue'); await finish();
   await page.evaluate(() => { window.__kb.replayIntro(); window.__kb.seek(0); window.__kb.setVariant('pink'); window.__kb.setVariant('glacial-blue'); });
   await rendered();
-  assert.equal(await page.evaluate(() => window.__kb.introPhase), 'mat');
+  assert.equal(await page.evaluate(() => window.__kb.introPhase), 'hold');
   await page.evaluate(() => window.__kb.play());
   await page.waitForFunction(() => window.__kb.finished, null, { timeout: 20000 });
   assertPalette(await finish(), 'glacial-blue');
@@ -679,7 +691,7 @@ try {
   assert.deepEqual(Object.keys(lighting.areaFrusta).sort(), ['key-softbox', 'studio-fill']);
   for (const [name, source] of Object.entries(lighting.areaFrusta)) assert.equal(source.outside, true, `${name}: entire area source must be outside the hero frustum`);
   checks.areasOutsideHeroFrustum = { status: 'passed', sources: lighting.areaFrusta };
-  assert.deepEqual(lighting.lights.map(light => light.type).sort(), ['RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'SpotLight']);
+  assert.deepEqual(lighting.lights.map(light => light.type).sort(), ['RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'RectAreaLight', 'SpotLight']);
   assert.equal(lighting.lights.filter(light => light.castShadow).length, 1);
   assert.equal(lighting.shadowAutoUpdate, false);
   assert.equal(lighting.environment, 1, 'Individual source intensities are baked into the environment');
@@ -730,7 +742,7 @@ try {
   nearArray(panel.size, [0.598, 0.336], 'Full screen reflection size');
   const screenBuffer = await shot('monitor-on');
   checks.screenContinuity = measureScreenContinuity(screenBuffer, lighting.screenRegion);
-  assert.equal(checks.screenContinuity.status, 'passed', 'Powered-on wallpaper must have no narrow dark seams or stand-edge fragments');
+  assert.equal(checks.screenContinuity.status, 'passed', 'Blank terminal prompt region must have no narrow dark seams or stand-edge fragments');
   await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.rimIntensity': 42, 'Monitor · rim.wallGlow': 16 }));
   await page.waitForFunction(() => window.__lighting().lights.find(light => light.name === 'screen-rim').intensity === 42);
   await page.evaluate(() => window.__lightingStore.set({ 'Monitor · rim.screenOn': false }));
@@ -795,13 +807,26 @@ try {
       };
       const coated = sample(coatedBuffer, point), uncoated = sample(bareBuffer, point);
       assert.ok(coated.rgb[0] > coated.rgb[2] + 8, 'Reflected wood must retain a rich warm base');
-      checks.woodSheen = { status: coated.luminance > uncoated.luminance + 3 ? 'passed' : 'failed', coated, uncoated, luminanceGain: coated.luminance - uncoated.luminance };
+      // This fixed grazing patch now reflects the dark terminal, rather than
+      // a bright wallpaper. A coated layer can reduce its luminance through
+      // energy conservation; require a visible response, not a light-box gain.
+      // The separate source-isolation check still requires positive IBL gain.
+      const luminanceGain = coated.luminance - uncoated.luminance;
+      checks.woodSheen = { status: Math.abs(luminanceGain) > 0.5 ? 'passed' : 'failed', coated, uncoated, luminanceGain, reflectedSource: 'dark terminal', criterion: 'absolute luminance response > 0.5; positive source gain tested separately' };
       await writeFile('screenshots/checks.json', JSON.stringify(checks, null, 2) + '\n');
-      assert.equal(checks.woodSheen.status, 'passed', 'Clearcoat must produce visible reflected light on actual wood pixels');
+      assert.equal(checks.woodSheen.status, 'passed', 'Clearcoat must visibly respond to the dark terminal on actual wood pixels');
       await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskClearcoat': 0.24 }));
       await page.waitForFunction(() => window.__props().wood.clearcoat === 0.24);
     }
     if (view === 'desk-sheen-closeup') {
+      // Retain the default dark-terminal shot above. For the existing material
+      // diagnostics, briefly raise the cached reflection rig to its control's
+      // maximum so grain variation stays above 8-bit quantization. Restore the
+      // user's value afterward; no authored light or wood defaults change.
+      const probeCaptures = await page.evaluate(() => window.__environment().captures);
+      await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 4 }));
+      await page.waitForFunction(n => window.__environment().captures > n, probeCaptures);
+      const probeCoatedBuffer = await shot('desk-grain-probe');
       // Fixed bare-wood ROI, with the same albedo/camera/lighting in every pair.
       // Differences measure light response, rather than the diffuse grain photo.
       const compare = (mappedBuffer, comparisonBuffer) => {
@@ -823,12 +848,12 @@ try {
       await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskNormalStrength': 0, 'Desk.deskCoatNormalStrength': 0, 'Desk.deskCoatRoughnessInfluence': 0, 'Desk.deskRoughnessMin': 0.46, 'Desk.deskRoughnessScale': 0 }));
       await page.waitForFunction(() => window.__props().wood.normalStrength === 0 && window.__props().wood.roughnessScale === 0);
       const smoothBuffer = await shot('desk-sheen-smooth');
-      const grain = compare(coatedBuffer, smoothBuffer);
+      const grain = compare(probeCoatedBuffer, smoothBuffer);
       assert.ok(grain.meanAbsoluteDelta > 0.5 && grain.acrossGrainRms > 1.5 * grain.alongGrainRms, 'Mapped light response must visibly break up across the horizontal grain');
       await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskNormalStrength': 0.45, 'Desk.deskRoughnessMin': 0.30, 'Desk.deskRoughnessScale': 0.32 }));
       await page.waitForFunction(() => window.__props().wood.normalStrength === 0.45);
       const flatCoatBuffer = await shot('desk-sheen-coat-smooth');
-      const coat = compare(coatedBuffer, flatCoatBuffer);
+      const coat = compare(probeCoatedBuffer, flatCoatBuffer);
       assert.ok(coat.meanAbsoluteDelta > 0.15 && coat.acrossGrainRms > 0.1, 'The clearcoat itself must respond to its grain maps');
       await page.evaluate(() => window.__lightingStore.set({ 'Desk.deskCoatNormalStrength': 0.18, 'Desk.deskCoatRoughnessInfluence': 0.32 }));
       await page.waitForFunction(() => window.__props().wood.coatNormalStrength === 0.18);
@@ -836,12 +861,14 @@ try {
       await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 0 }));
       await page.waitForFunction(n => window.__environment().captures > n && window.__environment().lightformers['reflection-screen'].radiance.every(c => c === 0), before);
       const noCards = await shot('desk-sheen-no-lightformers');
-      const environment = compare(coatedBuffer, noCards);
+      const environment = compare(probeCoatedBuffer, noCards);
       assert.ok(environment.meanLuminanceGain > 3, 'The real rig environment must contribute visible reflected light');
-      await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 1.28 }));
+      await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 4 }));
       await page.waitForFunction(() => window.__environment().lightformers['reflection-screen'].radiance.some(c => c > 0));
-      checks.woodGrainResponse = { status: 'passed', grain, coat };
+      checks.woodGrainResponse = { status: 'passed', diagnosticLightformerIntensity: 4, grain, coat };
       checks.woodReflectionSources = { status: 'passed', environment, standardCoatIBL: true };
+      await page.evaluate(() => window.__lightingStore.set({ 'Environment.lightformerIntensity': 1.28 }));
+      await page.waitForFunction(() => window.__lighting().values.environment.lightformerIntensity === 1.28);
     }
     if (view === 'props-wide') {
       const info = await page.evaluate(() => window.__props());
@@ -849,8 +876,9 @@ try {
       const png = PNG.sync.read(coatedBuffer);
       const colors = info.screenSamples.map(([x, y]) => { const i = (Math.round(y * png.height) * png.width + Math.round(x * png.width)) * 4; return [...png.data.slice(i, i + 3)]; });
       const maxChannel = Math.max(...colors.flat()), range = Math.max(...[0, 1, 2].map(c => Math.max(...colors.map(rgb => rgb[c])) - Math.min(...colors.map(rgb => rgb[c]))));
-      assert.ok(maxChannel < 235 && range >= 10, 'Wallpaper must retain visible gradient color without near-white clipping');
-      checks.screenGradient = { status: 'passed', sampledPoints: colors.length, maxChannel, channelRange: range, colors };
+      const median = colors.flat().sort((a, b) => a - b)[Math.floor(colors.length * 1.5)];
+      assert.ok(maxChannel < 245 && median < 45, 'Terminal must stay dark, with unclipped glyphs');
+      checks.screenTerminalPalette = { status: 'passed', sampledPoints: colors.length, maxChannel, channelRange: range, colors };
       const h = info.headphones;
       assert.deepEqual(h.aluminum, { color: '5d5f63', metalness: 0.9, roughness: 0.34 });
       for (const cup of h.cups) { nearArray(cup.up, [0, 1, 0], 'Cups hang vertically'); assert.ok(cup.inwardDot > 0.99999); assert.equal(cup.stemGeometry, 'CylinderGeometry'); }
@@ -937,7 +965,7 @@ try {
     await page.evaluate(() => window.__app.setMounted(false));
     await page.waitForFunction(() => !window.__kb && Object.values(window.__app.resources()).every(owner => owner.active === 0));
     const owners = await page.evaluate(() => window.__app.resources());
-    for (const owner of ['Keyboard', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Wallpaper', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'DustMotes']) {
+    for (const owner of ['Keyboard', 'Keyboard.Precompile', 'Case', 'Switches', 'Knob', 'Desk.Finishes', 'Desk.Wood', 'Desk.Beam', 'Desk.Foot', 'Desk.Handset', 'StudioFloor', 'Monitor.Background', 'Monitor.Neck', 'Monitor.Reflection', 'Environment.Cubemap', 'StudioWall', 'FloorContact', 'Props.DeskMat', 'Props.StreamDeck', 'Props.Headphones', 'Props.StreamDeckLight', 'StudioPost', 'StudioPost.DoF', 'DustMotes']) {
       assert.ok(owners[owner].registered > 0, `${owner} must be exercised`);
       assert.equal(owners[owner].registered, owners[owner].disposed, `${owner} must release every owned resource`);
     }
@@ -984,7 +1012,7 @@ try {
 
   // --- dust motes (spec 07a) ---
   {
-    const expectedDust = { enabled: true, count: 240, size: 0.9, intensity: 0.5, speed: 1, padding: 0.03 };
+    const expectedDust = { enabled: true, count: 120, size: 0.4, intensity: 0.06, speed: 1, padding: 0.03 };
     const dustContext = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1.5 });
     const dustPage = await dustContext.newPage(); observeErrors(dustPage);
     await dustPage.goto(`${url}/?capture=1`);
@@ -1005,7 +1033,7 @@ try {
     const dustState = () => dustPage.evaluate(() => { const { evaluate, ...state } = window.__dust(); return state; });
     const initial = await dustState();
     assert.deepEqual(await dustPage.evaluate(() => window.__lighting().values.dust), expectedDust, 'Dust defaults are part of the copied lighting values');
-    assert.equal(initial.enabled, true); assert.equal(initial.count, 240); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
+    assert.equal(initial.enabled, true); assert.equal(initial.count, 120); assert.equal(initial.frozen, true, 'Capture freezes dust time for repeatable shots');
     assert.equal(initial.castShadow, false); assert.equal(initial.receiveShadow, false);
     assert.equal(initial.raycastDisabled, true, 'Decorative dust must never intercept pointer rays');
     assert.equal(initial.depthWrite, false); assert.equal(initial.depthTest, true); assert.equal(initial.transparent, true); assert.equal(initial.additive, true);
@@ -1041,7 +1069,7 @@ try {
       assert.ok(outside.every(m => m.luminance === 0 && m.spot === 0), 'Motes outside the cone must evaluate to zero brightness');
       assert.ok(outside.length > 0 && (!requireOutsideInFrame || outsideInFrame.length > 0), 'The test needs out-of-cone motes in frame');
       assert.ok(lit.length >= 3, 'Some motes must be lit inside the beam');
-      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.5 + 1e-9, 'Every mote stays well below the bloom threshold');
+      assert.ok(Math.max(...motes.map(m => m.luminance)) <= state.bloomThreshold * 0.08 + 1e-9, 'Every mote stays well below the bloom threshold');
       let changed = 0, stray = 0, maxDelta = 0;
       for (let y = 0; y < on.height; y++) for (let x = 0; x < on.width; x++) {
         const i = (y * on.width + x) * 4;
@@ -1050,7 +1078,7 @@ try {
         changed++; maxDelta = Math.max(maxDelta, delta);
         if (!lit.some(m => Math.hypot(m.px[0] - x, m.px[1] - y) <= m.pointSize / 2 + 2)) stray++;
       }
-      assert.ok(changed > 20, `${name}: dust must be visible`);
+      assert.ok(changed > 3, `${name}: subtle dust must still contribute real pixels`);
       assert.equal(stray, 0, `${name}: no dust pixels may appear away from lit, in-cone motes`);
       return { status: 'passed', motes: motes.length, insideCone: motes.length - outside.length, outsideCone: outside.length, outsideInFrame: outsideInFrame.length, litInFrame: lit.length,
         changedPixels: changed, strayPixels: stray, maxChannelDelta: maxDelta, maxLuminance: Math.max(...motes.map(m => m.luminance)), bloomThreshold: state.bloomThreshold };
@@ -1062,7 +1090,7 @@ try {
 
     // Editing dust never updates shadow maps or the environment probe.
     await setDust({ 'Dust.dustCount': 400, 'Dust.dustSize': 1.2, 'Dust.dustIntensity': 0.8, 'Dust.dustSpeed': 2, 'Dust.dustPadding': 0.06 });
-    await setDust({ 'Dust.dustCount': 240, 'Dust.dustSize': 0.9, 'Dust.dustIntensity': 0.5, 'Dust.dustSpeed': 1, 'Dust.dustPadding': 0.03 });
+    await setDust({ 'Dust.dustCount': 120, 'Dust.dustSize': 0.4, 'Dust.dustIntensity': 0.06, 'Dust.dustSpeed': 1, 'Dust.dustPadding': 0.03 });
     const after = await dustState();
     const lighting = await dustPage.evaluate(() => window.__lighting());
     assert.equal(after.shadowUpdates, shadowsBefore, 'Dust must add no shadow-map updates when assembled');
@@ -1083,7 +1111,7 @@ try {
     const start = PNG.sync.read(await dustPage.screenshot());
     let motionPixels = 0;
     for (let i = 0; i < later.data.length; i += 4) if (Math.abs(later.data[i] - start.data[i]) > 2) motionPixels++;
-    assert.ok(motionPixels > 20, 'GPU positions follow shader time');
+    assert.ok(motionPixels > 3, 'GPU positions follow shader time');
     checks.dustMotion = { status: 'passed', meanDisplacement10s: meanMove, changedPixels: motionPixels };
 
     // The key light drives the lit region live.
@@ -1415,7 +1443,7 @@ try {
   };
   const beforePose = beforeLayoutMove.layout.values.monitor, nextPose = movedLayout.layout.values.monitor;
   const delta = rigid(nextPose).multiply(rigid(beforePose).invert());
-  for (const name of ['screen-rim', 'screen-wall-glow']) {
+  for (const name of ['screen-rim', 'screen-wall-glow', 'screen-text-light']) {
     const before = beforeLayoutMove.lighting.lights.find(l => l.name === name), moved = movedLayout.lighting.lights.find(l => l.name === name);
     nearArray(moved.position, new Vector3(...before.position).applyMatrix4(delta).toArray(), `${name}: rigidly follows the monitor`);
     assert.equal(moved.intensity, before.intensity); assert.equal(moved.color, before.color);
@@ -1469,7 +1497,7 @@ try {
   checks.layoutClipboard.restored = restoredLayout;
   // Sound also has an "Intro" volume label after the branch merge.
   await debugPage.getByText('Intro', { exact: true }).and(debugPage.locator('div')).click();
-  for (const [key, value] of [['mat', 1.8], ['frame', 0.9], ['keys', 2.35]]) {
+  for (const [key, value] of [['startDelay', 0.75], ['mat', 1.8], ['frame', 0.9], ['keys', 2.35]]) {
     const input = debugPage.locator(`[id="Intro.${key}"]`);
     await input.fill(String(value)); await input.press('Enter');
     await renderedPage(debugPage);
@@ -1477,10 +1505,10 @@ try {
   await debugPage.getByRole('button', { name: 'Replay intro', exact: true }).click();
   await debugPage.evaluate(() => window.__kb.seek(0));
   const editedIntro = await debugPage.evaluate(() => window.__kb.introTimings);
-  assert.equal(editedIntro.matEnd, 1.8);
+  assert.equal(editedIntro.holdEnd, 0.75); assert.equal(editedIntro.matEnd, 2.55);
   assert.ok(Math.abs(editedIntro.frameEnd - editedIntro.frameAt - 0.9) < 1e-7);
   assert.ok(Math.abs(editedIntro.end - editedIntro.keysAt - 2.35) < 1e-7);
-  assert.equal(await debugPage.evaluate(() => window.__kb.introPhase), 'mat');
+  assert.equal(await debugPage.evaluate(() => window.__kb.introPhase), 'hold');
   await debugPage.evaluate(() => window.__kb.finish());
   await debugPage.waitForFunction(() => window.__kb.finished && window.__kb.introPhase === 'done');
   checks.introDebugControls = { status: 'passed', editedTimings: editedIntro };

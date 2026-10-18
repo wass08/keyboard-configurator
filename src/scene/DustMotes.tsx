@@ -114,7 +114,7 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
     const height = state.gl.getDrawingBufferSize(scratch.buffer).y;
     u.uScale.value = height * state.camera.projectionMatrix.elements[5] / 2;
     const dpr = state.gl.getPixelRatio();
-    (u.uPointRange.value as Vector2).set(1.25 * dpr, 9 * dpr);
+    (u.uPointRange.value as Vector2).set(0.55 * dpr, 4 * dpr);
     (u.uNearFade.value as Vector2).set(state.camera.near + 0.02, state.camera.near + 0.1);
     // Focus on the lit product: the camera's distance to the key light's aim.
     u.uFocus.value = state.camera.position.distanceTo(aim);

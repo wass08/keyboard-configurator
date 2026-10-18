@@ -7,7 +7,9 @@ export function createKeyboardMaterials(variant: Variant) {
   const caps = {} as Record<ColorGroup, MeshPhysicalMaterial>;
   const legends = {} as Record<ColorGroup, MeshStandardMaterial>;
   for (const group of ['alpha', 'mod', 'accent'] as const) {
-    caps[group] = new MeshPhysicalMaterial({ color: variant.groups[group].cap, roughness: 0.6, ior: 1.54, specularIntensity: 1, sheen: 0.12, sheenRoughness: 0.8, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 1.45 });
+    // Keep dark plastic legible under the terminal's much dimmer screen card.
+    // The neutral studio reflections preserve chroma through Neutral's toe.
+    caps[group] = new MeshPhysicalMaterial({ color: variant.groups[group].cap, roughness: 0.6, ior: 1.54, specularIntensity: 1, sheen: 0.12, sheenRoughness: 0.8, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 3.6 });
     legends[group] = new MeshStandardMaterial({ color: variant.groups[group].legend, map: getLegendAtlas(), transparent: true, depthWrite: false, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 });
   }
   const body = new MeshPhysicalMaterial({ color: variant.caseBody, roughness: 0.45, clearcoat: 0.18, clearcoatRoughness: 0.45 });

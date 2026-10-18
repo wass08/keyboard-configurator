@@ -39,7 +39,7 @@ try {
     }
     const assembled = await measure(180, 30);
     window.__kb.replayIntro();
-    const beats = { mat: [], frame: [], keys: [] };
+    const beats = { hold: [], mat: [], frame: [], keys: [] };
     let last = performance.now(), previousPhase = window.__kb.introPhase;
     await new Promise((resolve, reject) => {
       const frame = time => {
@@ -64,6 +64,7 @@ try {
     // Fast typing: ~15 keys/s through the real keydown/keyup listener (3D press,
     // sound scheduling, and a monitor CanvasTexture redraw per keystroke).
     const sentence = 'the quick brown fox jumps over the lazy dog ';
+    const staticBefore = window.__screen().staticRedraws;
     const redrawsBefore = window.__screen().redraws, soundsBefore = window.__sfx().scheduled;
     let typed = 0;
     const typist = setInterval(() => {
@@ -74,7 +75,7 @@ try {
     }, 1000 / 15);
     const typingFrames = await measure(240, 20);
     clearInterval(typist);
-    const typing = { ...typingFrames, keystrokes: typed, keysPerSecond: 15, screenRedraws: window.__screen().redraws - redrawsBefore, soundsScheduled: window.__sfx().scheduled - soundsBefore, audioContexts: window.__sfx().contexts, audioState: window.__sfx().state };
+    const typing = { ...typingFrames, keystrokes: typed, keysPerSecond: 15, screenRedraws: window.__screen().redraws - redrawsBefore, staticRedraws: window.__screen().staticRedraws - staticBefore, dynamicCanvas: window.__screen().dynamicCanvas, soundsScheduled: window.__sfx().scheduled - soundsBefore, audioContexts: window.__sfx().contexts, audioState: window.__sfx().state };
     await new Promise(resolve => setTimeout(resolve, 300));
     window.__kb.setVariant('cool-black');
     const variantChange = await measure(210, 0);

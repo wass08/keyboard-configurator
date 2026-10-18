@@ -11,10 +11,10 @@ export const DUST_WANDER = 0.006;
 /** Henyey–Greenstein asymmetry: dust scatters slightly forward. */
 export const DUST_SCATTER_G = 0.25;
 /** Defocus blur, in CSS pixels, of a mote halfway between the lens and the focus plane. */
-export const DUST_DEFOCUS = 7;
+export const DUST_DEFOCUS = 3;
 export const REDUCED_MOTION_SCALE = 0.2;
 /** Keep a single mote, and a couple of overlapping ones, under the bloom threshold. */
-export const DUST_BLOOM_HEADROOM = 0.5;
+export const DUST_BLOOM_HEADROOM = 0.08;
 
 export interface DustUniformValues {
   time: number; boxCenter: number[]; boxBasis: number[]; drift: number[]; wander: number;
@@ -66,13 +66,13 @@ void main() {
   vec3 L = toMote / d;
   float spot = smoothstep(uConeCos, uPenumbraCos, dot(L, uLightDir));
   // Squared, so dust gathers in the core of the soft cone and reads as a beam.
-  float beam = spot * spot;
+  float beam = spot * spot * spot;
   float falloff = 1.0 / max(pow(d, uDecay), 0.01);
   if (uCutoff > 0.0) falloff *= pow2(saturate(1.0 - pow4(d / uCutoff)));
   float g = uScatterG;
   float scatter = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * dot(L, normalize(cameraPosition - world)), 1.5);
-  float s = 0.5 + 0.5 * sin(uTime * (0.7 + 1.3 * aRandom.w) + 6.2831853 * aRandom.x);
-  float twinkle = 0.6 + 0.4 * s * s * s;
+  float s = 0.5 + 0.5 * sin(uTime * (0.16 + 0.22 * aRandom.w) + 6.2831853 * aRandom.x);
+  float twinkle = 0.86 + 0.14 * s;
 
   vec4 mv = viewMatrix * vec4(world, 1.0);
   float depth = -mv.z;
@@ -131,12 +131,12 @@ export function evaluateMote(seed: number[], r: number[], u: DustUniformValues, 
   const len = Math.hypot(...toCamera);
   const g = u.scatterG;
   const scatter = (1 - g * g) / (1 + g * g - 2 * g * dot(L, toCamera.map(v => v / len))) ** 1.5;
-  const s = 0.5 + 0.5 * Math.sin(t * (0.7 + 1.3 * r[3]) + 2 * Math.PI * r[0]);
-  const twinkle = 0.6 + 0.4 * s ** 3;
+  const s = 0.5 + 0.5 * Math.sin(t * (0.16 + 0.22 * r[3]) + 2 * Math.PI * r[0]);
+  const twinkle = 0.86 + 0.14 * s;
   // view is a column-major view matrix.
   const depth = -(view[2] * world[0] + view[6] * world[1] + view[10] * world[2] + view[14]);
   const nearFade = smoothstep(u.nearFade[0], u.nearFade[1], depth);
-  let color = u.lightColor.map(c => c * u.intensity * spot * spot * falloff * scatter * twinkle * edgeFade * nearFade * r[2]);
+  let color = u.lightColor.map(c => c * u.intensity * spot * spot * spot * falloff * scatter * twinkle * edgeFade * nearFade * r[2]);
   const px = u.scale * u.size * (0.4 + 1.3 * r[1] * r[1] * r[1]) * 2.5 / Math.max(depth, 1e-4);
   const coc = u.defocus * Math.abs(depth - u.focus) / Math.max(depth, 1e-4);
   const size = Math.min(u.pointRange[1], Math.max(u.pointRange[0], Math.hypot(px, coc)));

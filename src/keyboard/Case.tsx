@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { bodyGeometry, frameGeometry, grooveGeometry, plateGeometry } from './geometry/case';
+import { useEffect, useMemo } from 'react';
+import { bodyGeometry, frameGeometry, grooveGeometry, plateGeometry, caseNormalAudit } from './geometry/case';
 import type { KeyboardMaterials } from './materials';
 import { KNOB_POSITION } from './layout';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -8,6 +8,10 @@ import { useOwnedDisposal } from '../resources/ownership';
 
 export function Case({ materials }: { materials: KeyboardMaterials }) {
   const geometries = useMemo(() => ({ body: bodyGeometry(), frame: frameGeometry(), groove: grooveGeometry(), plate: plateGeometry() }), []);
+  useEffect(() => {
+    window.__case = () => Object.fromEntries(Object.entries(geometries).map(([name, geometry]) => [name, caseNormalAudit(geometry)]));
+    return () => { delete window.__case; };
+  }, [geometries]);
   const separators = useMemo(() => [
     { x: 0, z: -0.0381, geometry: new RoundedBoxGeometry(0.312, 0.004, 0.0032, 2, 0.0006) },
     ...[1.375, 6.0625, 10.6875].map((x, i) => ({ x: (x - 8.125) * 0.01905, z: -0.05, geometry: new RoundedBoxGeometry(i === 0 ? 0.012 : 0.0095, 0.004, 0.020, 2, 0.0006) })),
@@ -15,7 +19,7 @@ export function Case({ materials }: { materials: KeyboardMaterials }) {
   useOwnedDisposal('Case', [...Object.values(geometries), ...separators.map(separator => separator.geometry)]);
   return <group>
     <mesh name="keyboard-case-body" geometry={geometries.body} material={materials.body} castShadow receiveShadow />
-    <mesh geometry={geometries.frame} material={materials.frame} castShadow receiveShadow />
+    <mesh name="keyboard-case-frame" geometry={geometries.frame} material={materials.frame} castShadow receiveShadow />
     {separators.map((separator, i) => <mesh key={i} position={[separator.x, -0.001, separator.z]} geometry={separator.geometry} material={materials.frame} castShadow receiveShadow />)}
     <mesh geometry={geometries.groove}><meshStandardMaterial color="#45494a" roughness={0.65} /></mesh>
     <mesh geometry={geometries.plate} receiveShadow><meshStandardMaterial color="#41464a" roughness={0.65} metalness={0.25} /></mesh>

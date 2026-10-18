@@ -118,7 +118,7 @@ export function KeyInteraction({ caps, knob, root, assembly }: { caps: RefObject
       if (key.id === 'caps') { capsLatch = !capsLatch; return; }
       const character = characterFor(key, shiftLatch || shiftHeld(), capsLatch);
       if (character !== null) { typing.insert(character); shiftLatch = false; return; }
-      if (EDITING[key.id]) applyEditingKey(EDITING[key.id]);
+      if (EDITING[key.id]) { applyEditingKey(EDITING[key.id], shiftLatch || shiftHeld()); shiftLatch = false; }
     }
 
     // --- pointer ------------------------------------------------------------

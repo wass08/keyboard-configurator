@@ -6,33 +6,34 @@ import type { KeyboardMaterials } from '../../keyboard/materials';
 import { useConfigurator } from '../../state/store';
 import { sfx } from '../../audio/sfx';
 
-export type IntroPhase = 'mat' | 'frame' | 'keys' | 'done';
-export interface IntroDurations { mat: number; frame: number; keys: number }
-export const INTRO_DURATIONS: IntroDurations = { mat: 2, frame: 0.8, keys: 2.15 };
+export type IntroPhase = 'hold' | 'mat' | 'frame' | 'keys' | 'done';
+export interface IntroDurations { startDelay: number; mat: number; frame: number; keys: number }
+export const INTRO_DURATIONS: IntroDurations = { startDelay: 0.9, mat: 2, frame: 0.8, keys: 2.15 };
 export interface IntroState {
   phase: IntroPhase;
-  timings: { matEnd: number; frameAt: number; frameEnd: number; keysAt: number; end: number };
+  timings: { holdEnd: number; matEnd: number; frameAt: number; frameEnd: number; keysAt: number; end: number };
   reduced: boolean;
 }
 
 export function createIntro(root: Group, keys: Group, mat: Object3D, caps: Group[], knob: Group, materials: KeyboardMaterials, id: string, reduced: boolean, durations: IntroDurations): AssemblyHandle {
   const assembly = createAssembly(caps, knob, materials, id, true, reduced);
   assembly.timeline.pause();
-  const matEnd = reduced ? 0 : durations.mat;
+  const holdEnd = reduced ? 0 : durations.startDelay;
+  const matEnd = reduced ? 0 : holdEnd + durations.mat;
   // The roll is already past the keyboard footprint before the case appears.
-  const frameAt = reduced ? 0 : matEnd * 0.94;
+  const frameAt = reduced ? 0 : holdEnd + durations.mat * 0.94;
   const frameEnd = frameAt + (reduced ? 0 : durations.frame);
   const keysAt = reduced ? 0 : frameAt + durations.frame * 0.81;
   if (!reduced) assembly.timeline.timeScale(assembly.timeline.duration() / durations.keys);
   const end = keysAt + assembly.timeline.totalDuration() / assembly.timeline.timeScale();
-  const intro: IntroState = { phase: reduced ? 'keys' : 'mat', timings: { matEnd, frameAt, frameEnd, keysAt, end }, reduced };
+  const intro: IntroState = { phase: reduced ? 'keys' : holdEnd > 0 ? 'hold' : 'mat', timings: { holdEnd, matEnd, frameAt, frameEnd, keysAt, end }, reduced };
   const roll = { progress: reduced ? 1 : 0 };
   // Animate an offset rather than an absolute world height: GSAP rounds tween
   // values to micrometers, which could otherwise put the feet below the felt.
   const drop = { y: reduced ? 0 : 0.065 };
   const update = () => {
     const time = timeline.time();
-    intro.phase = time >= end - 1e-7 ? 'done' : time >= keysAt ? 'keys' : time >= frameAt ? 'frame' : 'mat';
+    intro.phase = time >= end - 1e-7 ? 'done' : time >= keysAt ? 'keys' : time >= frameAt ? 'frame' : time >= holdEnd ? 'mat' : 'hold';
     root.visible = reduced || time >= frameAt;
     root.position.y = KEYBOARD_Y + Math.max(0, drop.y);
     keys.visible = reduced || time >= keysAt;
@@ -43,7 +44,7 @@ export function createIntro(root: Group, keys: Group, mat: Object3D, caps: Group
   };
   const timeline = gsap.timeline({ onUpdate: update });
   if (!reduced) {
-    timeline.to(roll, { progress: 1, duration: matEnd, ease: 'power2.out' }, 0);
+    timeline.to(roll, { progress: 1, duration: durations.mat, ease: 'power2.out' }, holdEnd);
     const landing = durations.frame * 0.81;
     timeline.to(drop, { y: 0, duration: landing, ease: 'power2.in' }, frameAt);
     timeline.to(drop, { y: 0.0008, duration: durations.frame * 0.07, ease: 'power2.out' }, frameAt + landing);

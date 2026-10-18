@@ -73,7 +73,8 @@ export function Lighting({ children }: { children: ReactNode }) {
         return [name, { outside: !frustum.intersectsBox(new Box3().setFromPoints(corners)), position: light.getWorldPosition(new Vector3()).toArray(), corners: corners.map(p => p.toArray()) }];
       }));
       const screen = scene.getObjectByName('monitor-screen') as Mesh;
-      const corners = [-0.075, 0.075].flatMap(x => [-0.14, -0.08].map(y => screen.localToWorld(new Vector3(x, y, 0)).project(camera)));
+      // Blank right-hand prompt patch, away from text/borders and the OSD.
+      const corners = [0.21, 0.23].flatMap(x => [-0.153, -0.147].map(y => screen.localToWorld(new Vector3(x, y, 0)).project(camera)));
       const screenRegion = { minX: Math.min(...corners.map(p => (p.x + 1) / 2)), maxX: Math.max(...corners.map(p => (p.x + 1) / 2)), minY: Math.min(...corners.map(p => (1 - p.y) / 2)), maxY: Math.max(...corners.map(p => (1 - p.y) / 2)) };
       const panel = screen.material as import('three').MeshPhysicalMaterial;
       return { solo, lights, keyFrustum, areaFrusta, values: lightingValues(rawSettings), monitor: { screenOn: settings.screenOn, material: panel.type, hasWallpaper: Boolean(panel.map), color: panel.color.getHexString(), emissiveIntensity: panel.emissiveIntensity ?? 0, roughness: panel.roughness ?? 0, clearcoat: panel.clearcoat ?? 0, reflectionCaptures: Number(scene.getObjectByName('monitor-scene-reflection')?.userData.captures ?? 0), position: screen.getWorldPosition(new Vector3()).toArray(), quaternion: screen.getWorldQuaternion(new Quaternion()).toArray() }, screenRegion, environment: scene.environmentIntensity, exposure: gl.toneMappingExposure, shadowAutoUpdate: gl.shadowMap.autoUpdate };
@@ -83,7 +84,7 @@ export function Lighting({ children }: { children: ReactNode }) {
   return <DeskSettings.Provider value={settings}>
     <SoftShadows size={settings.shadowSoftness * settings.shadowRadius / 3} samples={24} />
     <RigEnvironment settings={environmentSettings.current} enabled={env} />
-    <Monitor settings={rawSettings} enabled={rim || env} />
+    <Monitor settings={rawSettings} enabled={rim || env} lightEnabled={rim} />
     <primitive object={target} />
     <rectAreaLight name="key-softbox" position={xyz(keyPosition)} quaternion={areaOrientation(keyPosition, keyAim)} width={settings.softboxWidth} height={settings.softboxHeight} intensity={softbox ? settings.softboxIntensity : 0} color={settings.keyColor} />
     <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot} shadow-radius={settings.shadowRadius} shadow-mapSize={[2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
