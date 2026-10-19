@@ -1356,7 +1356,7 @@ try {
   await mobilePage.evaluate(() => document.fonts.ready);
   const mobileOpening = await mobilePage.evaluate(() => ({ introHeld: window.__kb.introPhase !== 'done' && !window.__kb.finished, gateOpen: window.__opening().gateOpen, sceneTransform: getComputedStyle(document.querySelector('.scene-layer')).transform, scrollWidth: document.documentElement.scrollWidth, width: innerWidth }));
   assert.deepEqual(mobileOpening, { introHeld: true, gateOpen: false, sceneTransform: 'none', scrollWidth: 390, width: 390 }, 'Reduced motion: no scene zoom; no horizontal overflow');
-  const mobileCta = mobilePage.getByRole('button', { name: 'Configure my keyboard', exact: true });
+  const mobileCta = mobilePage.getByRole('button', { name: 'Build mine', exact: true });
   const ctaBox = await mobileCta.boundingBox();
   assert.ok(ctaBox.x >= 0 && ctaBox.x + ctaBox.width <= 390 && ctaBox.y + ctaBox.height <= 844 && ctaBox.height >= 44, 'The keycap CTA fits a portrait phone');
   await mobilePage.screenshot({ path: 'screenshots/opening-screen-mobile.png' });

@@ -43,7 +43,7 @@ function useSceneProgress(sceneReady: boolean) {
 }
 
 /**
- * The opening screen ("Hear it before you build it."), over the live canvas.
+ * The opening screen ("Know it before you buy it."), over the live canvas.
  * It doubles as the loading screen; entering opens the intro gate (the 3D intro
  * starts then), and the entering gesture also unlocks audio.
  */
@@ -171,8 +171,8 @@ export function OpeningScreen() {
       <div className="opening-main">
         <div className="opening-col">
           <p className="opening-eyebrow">Keyboard configurator</p>
-          <h1 className="opening-headline" id="opening-title">Hear it <em>before</em> you build it.</h1>
-          <p className="opening-lede">This studio is built to be heard. Turn your sound up, then step inside.</p>
+          <h1 className="opening-headline" id="opening-title">Know it <em>before</em> you buy it.</h1>
+          <p className="opening-lede">Real lighting, real desk, real sound. Pick your colorway, then make it yours.</p>
 
           <div className="cap-stage">
             <div className="cap-glow" aria-hidden="true" />
@@ -188,7 +188,7 @@ export function OpeningScreen() {
                 <span className="cap-body">
                   <span className="cap-dish">
                     <span className="cap-legend" aria-hidden="true">{legend}</span>
-                    <span className="cap-label">Configure my keyboard</span>
+                    <span className="cap-label">Build mine</span>
                   </span>
                   <span className="cap-underlight" aria-hidden="true" />
                 </span>

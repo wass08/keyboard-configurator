@@ -1,4 +1,4 @@
-// Opening screen ("Hear it before you build it.") and the intro gate.
+// Opening screen ("Know it before you buy it.") and the intro gate.
 // These pages load without ?capture: the opening screen is the real first view.
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +40,48 @@ function assertLive(s, label) {
   assert.equal(s.active, 'main', `${label}: focus moves to the studio`);
 }
 
+/** Exercise the real focused-studio keyboard path, not a typing debug hook. */
+async function submitAfterOpening(page, path) {
+  assert.equal(await page.evaluate(() => document.activeElement.tagName), 'MAIN');
+  const before = await page.evaluate(() => ({ screen: window.__screen(), captures: window.__environment().captures }));
+  await page.keyboard.type('hello'); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => window.__screen().transcript.includes('hello') && window.__screen().text === '' && window.__screen().history.rows.at(-1)?.text === '> hello');
+  const submitted = await page.evaluate(() => window.__screen());
+  const row = submitted.history.rows.at(-1), gap = submitted.history.promptTop - row.y;
+  assert.ok(gap > 0 && gap <= submitted.history.lineHeight, 'Submitted prompt lands directly above the input');
+  assert.equal(submitted.history.scrolledRows, before.screen.history.scrolledRows + 1);
+  assert.equal(await page.evaluate(() => window.__environment().captures), before.captures, 'Typing/submitting never recaptures the environment');
+  await page.evaluate(() => { window.__kb.camera('screen-terminal'); window.__cameraStore.set({ depthOfField: false }); window.__screenControl.freezeCaret(true); });
+  await frames(page);
+  await page.screenshot({ path: `screenshots/opening-terminal-${path}.png` }); console.log(`screenshots/opening-terminal-${path}.png`);
+  await page.evaluate(() => { window.__cameraStore.reset(); window.__screenControl.freezeCaret(false); });
+  // Space and arrow keys were also swallowed by the old tabindex classifier.
+  await page.keyboard.type('hello world'); await page.keyboard.press('ArrowLeft'); await page.keyboard.press('Backspace');
+  assert.equal(await page.evaluate(() => window.__screen().text), 'hello word');
+  const count = submitted.transcript.length;
+  const swatch = page.getByRole('radio', { name: 'Glacial Blue', exact: true });
+  await swatch.focus(); await page.keyboard.press('Enter'); await frames(page);
+  assert.equal(await page.evaluate(() => window.__screen().transcript.length), count, 'Focused real controls still own Enter');
+  assert.equal(await page.evaluate(() => window.__screen().text), 'hello word');
+  await page.locator('main').focus(); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => window.__screen().transcript.at(-1) === 'hello word' && window.__screen().text === '');
+  return { status: 'passed', submitted: row.text, gapPx: gap, lineHeightPx: submitted.history.lineHeight, historyScrolled: 1, spaceAndArrowEditing: true, focusedControlOwnsEnter: true, environmentRecaptures: 0 };
+}
+
+async function inspectBrand(page) {
+  return page.evaluate(async () => {
+    const img = document.querySelector('.brand img'); await img.decode();
+    const markup = await (await fetch(img.currentSrc)).text();
+    const svg = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement;
+    const probe = document.importNode(svg, true); probe.style.cssText = 'position:absolute;left:-9999px;visibility:hidden'; document.body.append(probe);
+    const bounds = probe.querySelector('path').getBBox(), view = probe.viewBox.baseVal;
+    const data = { src: img.getAttribute('src'), height: img.getBoundingClientRect().height, ratio: img.naturalWidth / img.naturalHeight,
+      paints: [...probe.querySelectorAll('path')].map(p => getComputedStyle(p).fill),
+      viewBox: [view.x, view.y, view.width, view.height], bounds: [bounds.x, bounds.y, bounds.width, bounds.height] };
+    probe.remove(); return data;
+  });
+}
+
 export async function openingChecks(browser, url, observeErrors) {
   const result = {};
 
@@ -63,9 +105,11 @@ export async function openingChecks(browser, url, observeErrors) {
     await page.waitForFunction(() => window.__opening && window.__kb);
     const onLoad = await state(page);
     assert.ok(['loading', 'ready'].includes(onLoad.opening.phase));
-    assert.equal(await page.getByRole('heading', { level: 1 }).textContent(), 'Hear it before you build it.');
-    const cta = page.getByRole('button', { name: 'Configure my keyboard', exact: true });
+    assert.equal(await page.getByRole('heading', { level: 1 }).textContent(), 'Know it before you buy it.');
+    const cta = page.getByRole('button', { name: 'Build mine', exact: true });
     assert.ok(await cta.isVisible(), 'Opening screen and its keycap CTA are visible on load');
+    assert.equal(await page.locator('.opening-lede').textContent(), 'Real lighting, real desk, real sound. Pick your colorway, then make it yours.');
+    assert.equal(await page.locator('.opening-headline em').textContent(), 'before');
     assert.equal(onLoad.active, 'button.cap', 'The keycap CTA has focus on load');
     assert.equal(onLoad.unlocked, false); assert.equal(onLoad.contexts, 0, 'No AudioContext before a gesture');
     const progress = [];
@@ -77,6 +121,12 @@ export async function openingChecks(browser, url, observeErrors) {
     await page.waitForTimeout(1500); await frames(page);
     const held = await state(page); assertGated(held, 'ready, not entered');
     await page.evaluate(() => document.fonts.ready);
+    result.brand = await inspectBrand(page);
+    assert.equal(result.brand.src, '/brand/wawasensei-logo-white.svg');
+    assert.ok(result.brand.paints.every(fill => fill === 'rgb(255, 255, 255)'));
+    assert.deepEqual(result.brand.viewBox, [0, 106, 512, 268]);
+    assert.ok(result.brand.viewBox[3] - result.brand.bounds[3] < 4, 'Crop empty space around the actual vector mark');
+    assert.equal(result.brand.height, 36);
     await page.screenshot({ path: 'screenshots/opening-screen.png' }); console.log('screenshots/opening-screen.png');
     await cta.click();
     const clicked = await state(page);
@@ -100,6 +150,12 @@ export async function openingChecks(browser, url, observeErrors) {
     await page.waitForFunction(() => !document.querySelector('.toast.is-shown'), null, { timeout: 8000 });
     await page.waitForTimeout(350); await frames(page, 8);
     await page.screenshot({ path: 'screenshots/ui-hero.png' }); console.log('screenshots/ui-hero.png');
+    const cards = await page.evaluate(() => ['.variant-picker', '.sound-toggle', '.toast'].map(selector => { const s = getComputedStyle(document.querySelector(selector)); return { selector, background: s.backgroundColor, color: s.color, backdrop: s.backdropFilter, shadow: s.boxShadow }; }));
+    for (const card of cards) { assert.equal(card.background, 'rgb(246, 246, 240)'); assert.equal(card.backdrop, 'none'); }
+    assert.equal(cards[0].color, 'rgb(48, 54, 50)');
+    result.cards = { status: 'passed', styles: cards };
+    assert.deepEqual(await inspectBrand(page), result.brand, 'The same white mark persists into the studio');
+    result.submitAfterCta = await submitAfterOpening(page, 'cta');
     // Picker: still keyboard-navigable from the studio (Escape, then Tab, leaves typing).
     await page.keyboard.press('Escape'); await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Glacial Blue');
@@ -152,8 +208,21 @@ export async function openingChecks(browser, url, observeErrors) {
       await waitIntroDone(page);
       const after = await page.evaluate(() => ({ transcript: window.__screen().transcript.length, text: window.__screen().text }));
       assert.equal(after.transcript, transcript, 'The entering key is not typed into the monitor'); assert.equal(after.text, '');
+      result.submitAfterKeyboard = await submitAfterOpening(page, 'keyboard');
       result.keyboard = { status: 'passed', progressWhileHdriPending: loading.progress, tabMovesFocusOnly: true, armedBeforeReady: armed, focusAfterEnter: live.active };
     } finally { release(); await context.close(); }
+  }
+
+  // A printable opening key must also be consumed, then later typing submits.
+  {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage(); observeErrors(page);
+    try {
+      await page.goto(url); await page.waitForFunction(() => window.__opening?.().sceneReady);
+      await page.keyboard.press('g'); await waitLive(page); await waitIntroDone(page);
+      assert.equal(await page.evaluate(() => window.__screen().text), '', 'The opening character must not leak into the prompt');
+      result.submitAfterAnyKey = await submitAfterOpening(page, 'any-key');
+    } finally { await context.close(); }
   }
 
   // 3. "Continue without sound": enters with sound off, persisted, toggle reflects it.

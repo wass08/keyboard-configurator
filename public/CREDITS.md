@@ -47,6 +47,14 @@ Wood Table 001 (2K), https://polyhaven.com/a/wood_table_001, CC0 1.0. Replaced a
 
 Keyboard, desk and prop geometry, generic control-pad icon atlas, procedural satin-paint maps, wallpaper and UI are generated locally. No third-party logos or wordmarks are used. Reference photos in references/ were supplied by the project owner and are not redistributed as app assets.
 
+## Wawa Sensei brand mark
+
+`brand/wawasensei-logo-white.svg` is the project owner's own fully white brand
+asset, supplied from their character-studio project. The artwork and wordmark
+are unchanged; the viewBox is cropped to `0 106 512 268` to remove empty space.
+Used on the opening screen and as the persistent studio corner mark. This brand
+asset belongs to the project owner and is separate from the CC0 scans above.
+
 ## Sound effects
 
 ### Recorded key presses (`audio/keys.ogg`, `audio/keys.m4a`, `audio/keys.json`)

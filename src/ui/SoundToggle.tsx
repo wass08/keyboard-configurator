@@ -69,7 +69,7 @@ function Speaker({ on }: { on: boolean }) {
   </svg>;
 }
 
-/** The design's glass "Sound on / off" pill. Its accessible name stays "Sound"; aria-pressed carries the state. */
+/** The studio's light "Sound on / off" pill. Its accessible name stays "Sound"; aria-pressed carries the state. */
 export function SoundToggle() {
   useSoundControls();
   const enabled = useSound(state => state.enabled);
@@ -78,7 +78,7 @@ export function SoundToggle() {
     useSound.getState().setEnabled(next);
     useUi.getState().showToast(next ? 'Sound on. Type to hear the switches.' : 'Sound off.');
   };
-  return <button type="button" className="sound-toggle glass" aria-pressed={enabled} onClick={toggle}>
+  return <button type="button" className="sound-toggle studio-card" aria-pressed={enabled} onClick={toggle}>
     <Speaker on={enabled} />
     <span>Sound<span className="sound-state" aria-hidden="true"> {enabled ? 'on' : 'off'}</span></span>
   </button>;

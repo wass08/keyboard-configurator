@@ -17,7 +17,7 @@ export function VariantPicker() {
     else return;
     event.preventDefault(); setVariant(VARIANTS[index].id); buttons.current[index]?.focus();
   };
-  return <section className="variant-picker glass" aria-label="Keyboard colorway">
+  return <section className="variant-picker studio-card" aria-label="Keyboard colorway">
     <div className="variant-caption" aria-live="polite" aria-atomic="true"><span className="variant-number">{String(selectedIndex + 1).padStart(2, '0')} / {String(VARIANTS.length).padStart(2, '0')}</span><span className="variant-name">{getVariant(selectedId).name}</span></div>
     <div className="swatches" role="radiogroup" aria-label="Colorways" onKeyDown={onKeyDown}>
       {VARIANTS.map((variant, i) => <button key={variant.id} type="button" role="radio" aria-checked={variant.id === selectedId} aria-label={variant.name} title={variant.name} tabIndex={variant.id === selectedId ? 0 : -1} ref={element => { buttons.current[i] = element; }} onClick={() => setVariant(variant.id)} className="swatch-button" style={{ '--alpha': variant.groups.alpha.cap, '--mod': variant.groups.mod.cap, '--accent': variant.groups.accent.cap } as CSSProperties}><span className="swatch" /></button>)}

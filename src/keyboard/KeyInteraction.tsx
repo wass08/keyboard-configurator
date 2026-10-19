@@ -26,7 +26,9 @@ const EDITING: Record<string, string> = { backspace: 'Backspace', delete: 'Delet
 const CONTROL_KEYS = new Set([' ', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab', 'Escape']);
 
 const isEditable = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || Boolean(target.closest('#studio-controls')));
-const isControl = (target: EventTarget | null) => target instanceof HTMLElement && target !== document.body && Boolean(target.closest('button, a[href], [role="radio"], [role="button"], [tabindex]'));
+// The programmatically focused studio <main tabIndex={-1}> receives typing;
+// it is not an activating control. Real buttons/radios still own their keys.
+const isControl = (target: EventTarget | null) => target instanceof HTMLElement && target !== document.body && Boolean(target.closest('button, a[href], [role="radio"], [role="button"], [tabindex]:not(main)'));
 
 /** Critically damped on the way down; a softer, slightly springy return. */
 function step(y: number, v: number, target: number, dt: number, pressRelease: boolean) {

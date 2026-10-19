@@ -20,7 +20,12 @@ try {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle }); await cdp.send('Performance.enable');
     await page.goto(`http://127.0.0.1:${port}/?perf=1`);
     await page.waitForFunction(() => window.__kb?.ready && window.__film);
-    await page.evaluate(() => window.__kb.finish());
+    const enter = page.getByRole('button', { name: 'Build mine', exact: true });
+    if (await enter.count()) {
+      // Profile the live studio, not the opening overlay and its backdrop blur.
+      await enter.click();
+      await page.waitForFunction(() => window.__opening().phase === 'live' && window.__kb.finished && window.__kb.introPhase === 'done');
+    } else await page.evaluate(() => window.__kb.finish()); // preserved pre-opening baseline builds
     const loadBefore = loadavg();
     const sample = async () => {
       await page.evaluate(() => new Promise(resolve => { let n = 24; const tick = () => --n ? requestAnimationFrame(tick) : resolve(); requestAnimationFrame(tick); }));
