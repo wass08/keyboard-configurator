@@ -350,3 +350,16 @@ Attached: saved as `references/issue-dof-close-edges.png`.
 
 > thanks. in parallel, use an opus agent to add this /Users/wawa/Library/Application Support/Open Design/namespaces/release-stable/data/projects/26defe7d-948b-4177-8c39-44ce1a6af9ab/index.html opening screen and adjust our UI.
 > Use wawa sensei logo (you can find it in the aquarium folder)
+
+---
+
+## 34 — Picker color, white logo, Enter in terminal, opening copy (2026-10-18)
+
+> 2 issues:
+> - why did the preset pick on the bottom became transparent with blur instead of its' previous color? also use the fully white wawa sensei logo
+> - when typing in the prompt and hitting enter. it doesn't add it to the text on screen
+>
+> also adjust the text to :
+> - headline: Know it before you buy it.
+> - subhead: Real lighting, real desk, real sound. Pick your colorway, then make it yours.
+> - keycap cta: Build mine
