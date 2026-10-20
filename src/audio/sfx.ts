@@ -1,4 +1,5 @@
 import { SFX_CATEGORIES, useSound } from './soundStore';
+import { fullStageAudio } from '../stages/store';
 import type { SfxCategory } from './soundStore';
 import { CHARACTER_VOICES, DEFAULT_CHARACTER, VARIANTS, VOICE_ORDER, renderVoice } from './synth';
 import type { Character, VoiceName } from './synth';
@@ -185,12 +186,14 @@ function release(voice: Voice, t: number) {
 }
 
 export function play(name: SfxName, opts: PlayOptions = {}): boolean {
+  const fullAudio = fullStageAudio();
+  if (!fullAudio && !/^key(Down|Up)(Stab|Space)?$/.test(name)) return false;
   const state = useSound.getState();
   if (!state.enabled) { stats.muted++; return false; }
   if (!ctx || !stats.unlocked) { stats.suppressed++; return false; }
   // Recorded keys: wait (briefly, via the pending queue) for an in-flight decode;
   // otherwise fall back to the synthesized voice.
-  const sampled = recordedKeys && !forceSynth ? SAMPLE_VOICE[name] : undefined;
+  const sampled = recordedKeys && fullAudio && !forceSynth ? SAMPLE_VOICE[name] : undefined;
   const slices = sampled && bank ? bank.slices[sampled[0]][sampled[1]] : undefined;
   if (sampled && !slices && sampleStats.status === 'decoding') {
     if (pending.length < 32) pending.push({ name, opts, at: performance.now() });

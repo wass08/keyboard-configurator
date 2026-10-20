@@ -8,6 +8,7 @@ import { openIntroGate, useIntroGate } from '../state/introGate';
 import { useUi } from './uiStore';
 import type { OpeningPhase } from './uiStore';
 import './opening.css';
+import { isStageHotkey } from '../stages/store';
 
 declare global { interface Window {
   /** Opening-screen state for scripts/screenshots.mjs. */
@@ -122,7 +123,7 @@ export function OpeningScreen() {
   useEffect(() => {
     if (live) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (started.current !== null || event.repeat) return;
+      if (isStageHotkey(event) || started.current !== null || event.repeat) return;
       if (IGNORED.has(event.key) || /^F\d{1,2}$/.test(event.key) || event.metaKey || event.ctrlKey || event.altKey || isEditable(event.target)) return;
       const mute = event.target instanceof HTMLElement && event.target.classList.contains('opening-mute');
       if (mute && (event.key === 'Enter' || event.key === ' ')) return; // the focused link-button owns it

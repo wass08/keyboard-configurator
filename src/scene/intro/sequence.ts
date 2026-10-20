@@ -5,6 +5,7 @@ import { createAssembly, type AssemblyHandle } from '../../keyboard/assembly';
 import type { KeyboardMaterials } from '../../keyboard/materials';
 import { useConfigurator } from '../../state/store';
 import { sfx } from '../../audio/sfx';
+import { features, useStages } from '../../stages/store';
 
 export type IntroPhase = 'hold' | 'mat' | 'frame' | 'keys' | 'done';
 export interface IntroDurations { startDelay: number; mat: number; frame: number; keys: number }
@@ -19,15 +20,16 @@ export function createIntro(root: Group, keys: Group, mat: Object3D, caps: Group
   const assembly = createAssembly(caps, knob, materials, id, true, reduced);
   assembly.timeline.pause();
   const holdEnd = reduced ? 0 : durations.startDelay;
-  const matEnd = reduced ? 0 : holdEnd + durations.mat;
+  const matDuration = features(useStages.getState().stage).dressing ? durations.mat : 0;
+  const matEnd = reduced ? 0 : holdEnd + matDuration;
   // The roll is already past the keyboard footprint before the case appears.
-  const frameAt = reduced ? 0 : holdEnd + durations.mat * 0.94;
+  const frameAt = reduced ? 0 : holdEnd + matDuration * 0.94;
   const frameEnd = frameAt + (reduced ? 0 : durations.frame);
   const keysAt = reduced ? 0 : frameAt + durations.frame * 0.81;
   if (!reduced) assembly.timeline.timeScale(assembly.timeline.duration() / durations.keys);
   const end = keysAt + assembly.timeline.totalDuration() / assembly.timeline.timeScale();
-  const intro: IntroState = { phase: reduced ? 'keys' : holdEnd > 0 ? 'hold' : 'mat', timings: { holdEnd, matEnd, frameAt, frameEnd, keysAt, end }, reduced };
-  const roll = { progress: reduced ? 1 : 0 };
+  const intro: IntroState = { phase: reduced ? 'keys' : holdEnd > 0 ? 'hold' : matDuration ? 'mat' : 'frame', timings: { holdEnd, matEnd, frameAt, frameEnd, keysAt, end }, reduced };
+  const roll = { progress: reduced || !matDuration ? 1 : 0 };
   // Animate an offset rather than an absolute world height: GSAP rounds tween
   // values to micrometers, which could otherwise put the feet below the felt.
   const drop = { y: reduced ? 0 : 0.065 };
@@ -44,7 +46,7 @@ export function createIntro(root: Group, keys: Group, mat: Object3D, caps: Group
   };
   const timeline = gsap.timeline({ onUpdate: update });
   if (!reduced) {
-    timeline.to(roll, { progress: 1, duration: durations.mat, ease: 'power2.out' }, holdEnd);
+    if (matDuration) timeline.to(roll, { progress: 1, duration: matDuration, ease: 'power2.out' }, holdEnd);
     const landing = durations.frame * 0.81;
     timeline.to(drop, { y: 0, duration: landing, ease: 'power2.in' }, frameAt);
     timeline.to(drop, { y: 0.0008, duration: durations.frame * 0.07, ease: 'power2.out' }, frameAt + landing);

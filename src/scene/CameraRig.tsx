@@ -8,6 +8,7 @@ import { Box3, Matrix4, PerspectiveCamera, Vector3 } from 'three';
 import type { Object3D } from 'three';
 import { DEFAULT_DOF, DEFAULT_FOCAL_LENGTH_MM, DEFAULT_PROJECTION, keyboardFocus, useDepthOfField } from './lens';
 import { dampedScalar } from '../animation/dampedScalar';
+import { stageMix } from '../stages/store';
 import type { LensValues } from './lens';
 import { supportHeight, useLayoutStore } from '../state/layout';
 
@@ -17,6 +18,7 @@ export function CameraRig() {
   const reset = useRef<() => void>(() => {});
   const lastReadout = useRef(-1);
   const projection = useRef({ ...DEFAULT_PROJECTION, verticalFovDeg: PORTRAIT_FOV });
+  const stageFov = useRef<number | null>(null);
   const projectionEdited = useRef(false);
   const apply = useRef<(patch: Partial<LensValues>) => void>(() => {});
   const focus = useRef<() => void>(() => {});
@@ -28,7 +30,7 @@ export function CameraRig() {
   const defaultMax = portrait ? PORTRAIT_MAX_DISTANCE : DEFAULT_MAX;
   const debug = new URLSearchParams(location.search).has('debug');
   const lensSnapshot = (): LensValues => ({
-    focalLengthMm: camera.getFocalLength(), verticalFovDeg: camera.fov,
+    focalLengthMm: stageFov.current === null ? camera.getFocalLength() : 0.5 * camera.getFilmHeight() / Math.tan(stageFov.current * Math.PI / 360), verticalFovDeg: stageFov.current ?? camera.fov,
     filmGaugeMm: camera.filmGauge, near: camera.near, far: camera.far,
     ...useDepthOfField.getState(),
     focusDistance: useDepthOfField.getState().autoFocus ? keyboardFocus.distance : useDepthOfField.getState().focusDistance,
@@ -78,7 +80,9 @@ export function CameraRig() {
     }, { collapsed: false, order: -100 }),
   }));
   const syncLens = () => set(lensSnapshot());
+  const restoreStageLens = () => { if (stageFov.current !== null) { camera.fov = stageFov.current; stageFov.current = null; camera.updateProjectionMatrix(); } };
   apply.current = patch => {
+    restoreStageLens();
     // Use Three's sensor/aspect-aware conversions in both directions. A sensor
     // edit retains the current focal length; a FOV edit recalculates that lens.
     const previousFocalLength = camera.getFocalLength();
@@ -195,6 +199,7 @@ export function CameraRig() {
   });
   useEffect(() => {
     const setView = (view: CameraView) => {
+      restoreStageLens();
       // Flush orbit inertia before setting a deterministic view/reset pose.
       const orbit = controls.current;
       if (orbit) {
@@ -292,6 +297,15 @@ export function CameraRig() {
     };
     return () => { delete window.__camera; delete window.__cameraStore; };
   }, [camera, size, set]);
+  useFrame(() => {
+    // Keep the optical controls and Copy camera values tuned. Only the render
+    // camera sees the untouched 50-degree lens in the first four stages.
+    if (stageMix.lens < 1) {
+      stageFov.current ??= camera.fov;
+      const fov = 50 + (stageFov.current - 50) * stageMix.lens;
+      if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    } else restoreStageLens();
+  }, 0.5);
   useEffect(() => () => { useDepthOfField.setState(DEFAULT_DOF); }, []);
   return <OrbitControls ref={controls} makeDefault enablePan={false} enableDamping dampingFactor={0.08} minDistance={values.minDistance} maxDistance={values.maxDistance} minPolarAngle={0.2} maxPolarAngle={1.38} minAzimuthAngle={-1.15} maxAzimuthAngle={1.15} target={HERO_TARGET} />;
 }

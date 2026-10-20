@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { INITIAL_STAGE } from '../stages/store';
 
 /**
  * Intro gate: the opening screen holds the 3D intro (mat → frame → keys) until
@@ -9,7 +10,7 @@ import { create } from 'zustand';
  * the gate open and never show the opening screen.
  */
 const params = typeof location === 'undefined' ? new URLSearchParams() : new URLSearchParams(location.search);
-export const SKIP_OPENING_SCREEN = params.has('capture') || params.has('skipIntroScreen');
+export const SKIP_OPENING_SCREEN = params.has('capture') || params.has('skipIntroScreen') || INITIAL_STAGE !== null;
 
 interface IntroGateState {
   /** The intro timeline may play. */

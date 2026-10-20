@@ -10,6 +10,7 @@ import { wallChecks } from './wall-checks.mjs';
 import { dofChecks, perfPixelChecks, adaptiveQualityCheck } from './dof-checks.mjs';
 import { highlightChecks } from './highlight-checks.mjs';
 import { openingChecks } from './opening-checks.mjs';
+import { stageChecks } from './stage-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
 
@@ -660,6 +661,7 @@ try {
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.openingScreen = await openingChecks(browser, url, observeErrors);
+  checks.recordingStages = await stageChecks(browser, url, observeErrors);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   checks.screenCacheRefresh = await screenCacheRefreshChecks(browser, observeErrors);
   checks.depthOfField = await dofChecks(browser, url, observeErrors);

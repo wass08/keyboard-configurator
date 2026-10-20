@@ -9,6 +9,7 @@ import type { AssemblyHandle } from './assembly';
 import { CODE_TO_KEY, KEY_INDEX, STABILIZED, characterFor } from './keymap';
 import { useConfigurator } from '../state/store';
 import { sfx } from '../audio/sfx';
+import { isStageHotkey } from '../stages/store';
 import { useSound } from '../audio/soundStore';
 import { applyEditingKey, typeFromKeyboardEvent, typing } from '../screen/typing';
 
@@ -189,7 +190,7 @@ export function KeyInteraction({ caps, knob, root, assembly }: { caps: RefObject
 
     // --- physical keyboard --------------------------------------------------
     function onKeyDown(event: KeyboardEvent) {
-      if (!assembled() || isEditable(event.target)) return;
+      if (isStageHotkey(event) || (event.altKey && /^(AltLeft|AltRight)$/.test(event.code)) || !assembled() || isEditable(event.target)) return;
       const id = CODE_TO_KEY[event.code], i = id === undefined ? undefined : KEY_INDEX.get(id);
       if (i !== undefined && !event.repeat && !physicalCodes.has(event.code)) {
         physicalCodes.set(event.code, i);

@@ -10,6 +10,7 @@ import { areaOrientation } from './lightTransforms';
 import { KEYBOARD_Y } from './dimensions';
 import { SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_REFLECTION_COLOR, SCREEN_RADIANCE } from './PracticalFixtures';
 import { observeManagedDisposal } from '../resources/ownership';
+import { useStages } from '../stages/store';
 
 // Diffuse wall return: approximate paint reflectance / PI and emitter
 // solid angle. It follows the bias-light control, not the LCD white balance.
@@ -47,11 +48,12 @@ function Probe({ audit, revision }: { audit: Audit; revision: string }) {
 }
 
 export function RigEnvironment({ settings: s, enabled }: { settings: LightingSettings; enabled: boolean }) {
+  const stage = useStages(state => state.stage);
   const hdri = useEnvironment({ files: '/hdri/studio_small_09_1k.hdr' });
   const audit = useRef<Audit>({ captures: 0 });
   // Only reflection-affecting controls enter this key. Assembly, orbit, picker,
   // debug readouts, spot changes and exposure never trigger another cube capture.
-  const revision = JSON.stringify([enabled, s.lightformerIntensity, s.hdriIntensity, s.environmentRotation,
+  const revision = JSON.stringify([stage, enabled, s.lightformerIntensity, s.hdriIntensity, s.environmentRotation,
     s.keyPosition, s.keyAim, s.softboxWidth, s.softboxHeight, s.softboxIntensity, s.keyColor,
     s.fillPosition, s.fillAim, s.fillWidth, s.fillHeight, s.fillIntensity, s.fillColor,
     s.screenOn, s.rimPosition, s.rimAim, s.rimColor, s.wallGlow]);
@@ -59,7 +61,7 @@ export function RigEnvironment({ settings: s, enabled }: { settings: LightingSet
     const screenOrientation = monitorOrientation(s);
     const screenPosition = new Vector3(0, 0.003, 0.0001).applyQuaternion(screenOrientation).add(new Vector3(...xyz(s.rimPosition)));
     return <>
-      <Environment map={hdri} background="only" backgroundIntensity={enabled ? s.hdriIntensity : 0.008} backgroundRotation={[0, s.environmentRotation, 0]} />
+      <Environment map={hdri} background="only" backgroundIntensity={enabled ? s.hdriIntensity : stage !== null && stage < 3 ? 0 : 0.008} backgroundRotation={[0, s.environmentRotation, 0]} />
       {enabled && <>
         <Lightformer name="reflection-softbox" form="rect" position={xyz(s.keyPosition)} rotation={new Euler().setFromQuaternion(areaOrientation(s.keyPosition, s.keyAim))} target={false} scale={[s.softboxWidth, s.softboxHeight, 1]} color={s.keyColor} intensity={s.softboxIntensity * s.lightformerIntensity} />
         <Lightformer name="reflection-fill" form="rect" position={xyz(s.fillPosition)} rotation={new Euler().setFromQuaternion(areaOrientation(s.fillPosition, s.fillAim))} target={false} scale={[s.fillWidth, s.fillHeight, 1]} color={s.fillColor} intensity={s.fillIntensity * s.lightformerIntensity} />

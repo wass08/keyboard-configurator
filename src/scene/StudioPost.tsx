@@ -15,6 +15,7 @@ import { PassProfiler } from './post/PassProfiler';
 import { HighlightAudit } from './post/HighlightAudit';
 import type { FacePoint, LinearSample } from './post/HighlightAudit';
 import { renderMetrics } from './renderMetrics';
+import { features, stageMix, useStages } from '../stages/store';
 
 declare global { interface Window {
   __film?: () => { passes: { name: string; enabled: boolean }[]; rendererToneMapping: number; operator: string; outputColorSpace: string; toneMapStages: number; outputDefines: Record<string, unknown>; reference: boolean; gradingActive: boolean; gpu: ReturnType<PassProfiler['report']>; metrics: ReturnType<typeof renderMetrics>; startup: { firstSceneFrameMs: number; introReadyMs: number } };
@@ -24,6 +25,8 @@ declare global { interface Window {
 export function StudioPost({ settings }: { settings: LightingSettings }) {
   const { gl, scene, camera, size, viewport: { dpr } } = useThree();
   const dof = useDepthOfField();
+  const stage = useStages(s => s.stage);
+  const enabled = features(stage);
   const startup = useRef({ firstSceneFrameMs: 0, introReadyMs: 0 });
   const pipeline = useMemo(() => {
     const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false, samples: new URLSearchParams(location.search).has('postReference') ? 4 : 0 });
@@ -83,13 +86,15 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     const previous = gl.toneMapping; gl.toneMapping = NoToneMapping;
     return () => { gl.toneMapping = previous; };
   }, [gl]);
+  useEffect(() => { if (stage === null || stage === 7) pipeline.bloom.enabled = true; }, [stage, pipeline]);
   pipeline.bloom.strength = settings.bloomStrength; pipeline.bloom.threshold = settings.bloomThreshold;
-  pipeline.depth.enabled = dof.depthOfField;
-  pipeline.output.configure(settings);
+  pipeline.depth.enabled = dof.depthOfField && Boolean(enabled.lens);
+  const outputSettings = enabled.final ? settings : { ...settings, toneOperator: 'None', gradeEnabled: false, vignetteAmount: 0 };
+  pipeline.output.configure(outputSettings);
   useEffect(() => {
     window.__film = () => ({
       passes: pipeline.stages.map(([name, pass]) => ({ name, enabled: pass.enabled })), rendererToneMapping: gl.toneMapping,
-      operator: settings.toneOperator, outputColorSpace: gl.outputColorSpace, toneMapStages: pipeline.stages.filter(([, pass]) => pass.enabled && pass instanceof FilmOutputPass).length,
+      operator: outputSettings.toneOperator, outputColorSpace: gl.outputColorSpace, toneMapStages: pipeline.output.operator === NoToneMapping ? 0 : pipeline.stages.filter(([, pass]) => pass.enabled && pass instanceof FilmOutputPass).length,
       outputDefines: { ...pipeline.output.material.defines }, reference: pipeline.output.reference, gradingActive: pipeline.output.uniforms.gradeEnabled.value, gpu: pipeline.profiler.report(),
       metrics: renderMetrics(gl, scene, [pipeline.composer.renderTarget1, pipeline.composer.renderTarget2, pipeline.bloom.renderTargetBright, ...pipeline.bloom.renderTargetsHorizontal, ...pipeline.bloom.renderTargetsVertical, pipeline.render.target]), startup: { ...startup.current },
     });
@@ -113,15 +118,33 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
       },
     };
     return () => { delete window.__film; delete window.__filmControl; };
-  }, [pipeline, gl, settings]);
+  }, [pipeline, gl, settings, stage]);
   // The final output pass applies the selected tone mapper and exposure once.
   useFrame((_, delta) => {
     const lens = useDepthOfField.getState();
+    pipeline.dust.enabled = settings.dustEnabled && stageMix.final > 0;
+    if (stage !== null || useStages.getState().transitioning) {
+      const mix = stageMix.final;
+      // A clean midpoint cut for the tone operator; all continuous film
+      // controls, bloom and DoF fade in both directions around that cut.
+      pipeline.output.configure({ ...settings, toneOperator: mix < 0.5 ? 'None' : settings.toneOperator,
+        gradeEnabled: settings.gradeEnabled && mix > 0,
+        contrast: 1 + (settings.contrast - 1) * mix, saturation: 1 + (settings.saturation - 1) * mix,
+        vibrance: settings.vibrance * mix, temperature: settings.temperature * mix, tint: settings.tint * mix,
+        lift: { x: settings.lift.x * mix, y: settings.lift.y * mix, z: settings.lift.z * mix },
+        gamma: { x: 1 + (settings.gamma.x - 1) * mix, y: 1 + (settings.gamma.y - 1) * mix, z: 1 + (settings.gamma.z - 1) * mix },
+        gain: { x: 1 + (settings.gain.x - 1) * mix, y: 1 + (settings.gain.y - 1) * mix, z: 1 + (settings.gain.z - 1) * mix },
+        vignetteAmount: settings.vignetteAmount * mix,
+      });
+      pipeline.bloom.enabled = mix > 0;
+      pipeline.bloom.strength = settings.bloomStrength * mix;
+      pipeline.depth.enabled = lens.depthOfField && stageMix.lens > 0;
+    }
     const distance = lens.autoFocus ? keyboardFocus.distance : lens.focusDistance;
     const uniform = pipeline.depth.material.uniforms.focus;
     if (uniform.value !== distance) uniform.value = distance;
     pipeline.depth.material.uniforms.focalRange.value = lens.autoFocalRange ? keyboardFocus.range : lens.focalRange;
-    pipeline.depth.material.uniforms.bokehScale.value = lens.bokehScale * (1 - lens.bokehDistanceScale + lens.bokehDistanceScale * Math.min(1.3, Math.max(0.35, distance / 1.35)));
+    pipeline.depth.material.uniforms.bokehScale.value = stageMix.lens * lens.bokehScale * (1 - lens.bokehDistanceScale + lens.bokehDistanceScale * Math.min(1.3, Math.max(0.35, distance / 1.35)));
     gl.info.reset(); pipeline.profiler.beginFrame();
     try { pipeline.composer.render(delta); }
     finally { pipeline.profiler.endFrame(); }

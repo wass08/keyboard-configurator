@@ -14,6 +14,7 @@ import { DEFAULT_FOCAL_LENGTH_MM, DEFAULT_PROJECTION } from './lens';
 import type { PerspectiveCamera } from 'three';
 import './ltcGuard';
 import { AdaptiveQuality } from './AdaptiveQuality';
+import { StageRuntime } from '../stages/StageRuntime';
 
 function StudioFloor() {
   const roughness = useMemo(() => {
@@ -40,8 +41,8 @@ export function Stage() {
     <AdaptiveQuality />
     <Suspense fallback={null}>
       <LayoutControls />
-      <Lighting><Desk /><DeskProps /></Lighting>
-      <Keyboard />
+      <Lighting><Desk /><DeskProps /><StageRuntime /></Lighting>
+      <group name="keyboard-stage-support"><Keyboard /></group>
       <CameraRig />
       <StudioFloor />
       {/* Static floor contact is a cached occlusion pass, not another emitter.

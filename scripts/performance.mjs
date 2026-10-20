@@ -3,6 +3,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { loadavg } from 'node:os';
+import { stagePerformance } from './stage-perf.mjs';
 
 const url = `http://127.0.0.1:${process.env.PERF_PORT ?? 4176}`;
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(process.env.PERF_PORT ?? 4176), '--strictPort'], { stdio: 'ignore' });
@@ -120,6 +121,7 @@ try {
     const incrementalGpuMs = { bloom: cost(gpuWithoutBloom), depthOfField: cost(gpuWithoutDoF), grading: cost(gpuWithoutGrade) };
     return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, defaults, filmDefaults, assembled, intro, dust, typing, variantChange, depthOfField, allEffects, gradeValues, gpuAllEffects, gpuAllEffectsAfter, gpuWithoutGrade, gpuWithoutBloom, gpuWithoutDoF, incrementalGpuMs, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
+  result.recordingStages = await stagePerformance(page);
   if (errors.length) throw new Error(errors.join('\n'));
   if (!result.finished) throw new Error('The variant did not finish during the timing sample');
   await mkdir('screenshots', { recursive: true });

@@ -523,3 +523,26 @@ window.__lightingStore.set({ // same live Leva store used by the debug panel
   are intentionally outside this milestone.
 
 Protected reference/spec files are not changed by implementation work.
+
+## Recording stages
+
+Open `?stage=1&debug` to skip the opening screen and start with the bare scene.
+The first **Stages** folder selects seven cumulative layers: Bare, Studio light,
+Practicals, Desk dressing, Lens, Sound design, and Final. Stage 7 is the normal
+studio. **Exit stages** removes the overrides; tuning values and camera controls
+are retained throughout. Stages 1–4 render with the untouched 50° lens; stage 5
+introduces the tuned lens and DoF. Stages 1–5 use synthesized keys only.
+
+Use **Alt/Option + 1–7**, or **Alt + ←/→**, while recording. **Alt + H** hides or
+shows the debug panel; **Alt + L** toggles the optional stage label (off by
+default). These shortcuts do not type or press a key in the scene. **Replay
+intro** is available in every stage; stages without the mat skip its unroll.
+Lights and effects ease over 0.6 seconds, with a clean cut for tone mapping;
+props scale in and the keyboard lifts onto the unrolling mat. The reflection
+probe captures once per stage change, never once per animation frame. Shader
+and draw variants are prepared behind the loading screen to avoid first-use
+stalls when revealing off-camera props.
+
+`npm run shots` writes `stage-1.png` through `stage-7.png`, `stages-sheet.png`,
+and the stage checks in `screenshots/checks.json`. `npm run perf` also measures
+stages 1 and 7 and reports transition frame times and probe captures.

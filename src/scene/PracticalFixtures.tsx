@@ -7,6 +7,7 @@ import { DESK_TOP } from './dimensions';
 import { MovableProp } from './PropLayout';
 import type { LightingSettings } from './lightingControls';
 import { OffScreenReflection } from './OffScreenReflection';
+import { useStages } from '../stages/store';
 import { ScreenText } from '../screen/ScreenText';
 import { TERMINAL_RADIANCE, terminalBackground } from '../screen/terminalTheme';
 
@@ -29,6 +30,7 @@ function terminalPanel() {
   const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace; return texture;
 }
 export function Monitor({ settings, enabled, lightEnabled }: { settings: LightingSettings; enabled: boolean; lightEnabled: boolean }) {
+  const stage = useStages(s => s.stage);
   const screen = useMemo(terminalPanel, []);
   useOwnedDisposal('Monitor.Background', [screen]);
   const neckGeometry = useMemo(() => new RoundedBoxGeometry(0.036, 0.29, 0.027, 3, 0.004), []);
@@ -53,7 +55,7 @@ export function Monitor({ settings, enabled, lightEnabled }: { settings: Lightin
       </mesh>
       {/* The terminal canvas and its practical light stay outside the environment portal. */}
       {powered && <ScreenText width={SCREEN_WIDTH} height={SCREEN_HEIGHT} radiance={SCREEN_RADIANCE} settings={settings} lightEnabled={lightEnabled} />}
-      {!powered && <OffScreenReflection width={SCREEN_WIDTH} height={SCREEN_HEIGHT} revision={JSON.stringify(settings)} />}
+      {!powered && (stage === null || stage >= 3) && <OffScreenReflection width={SCREEN_WIDTH} height={SCREEN_HEIGHT} revision={JSON.stringify(settings)} />}
       <mesh position={[0.28, -0.174, 0]}><sphereGeometry args={[0.0009, 8, 6]} /><meshBasicMaterial color={powered ? '#b9d8da' : '#050606'} /></mesh>
     </group>
   </MovableProp>;

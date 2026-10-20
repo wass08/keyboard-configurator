@@ -20,6 +20,7 @@ import { useOwnedDisposal } from '../resources/ownership';
 import { capHeight } from './geometry/keycap';
 import { createIntro, INTRO_DURATIONS } from '../scene/intro/sequence';
 import { setSceneReady, useIntroGate, whenIntroGateOpen } from '../state/introGate';
+import { prepareStageDraws, prepareStageShaders } from '../stages/prepare';
 
 export function Keyboard() {
   const caps = useRef<Group[]>([]);
@@ -32,7 +33,7 @@ export function Keyboard() {
   const started = useRef(false);
   const generation = useRef(0);
   const preparation = useRef({ ready: false, compiled: false, firstFrameRendered: false, textures: 0 });
-  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: HalfFloatType }), []);
+  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 }), []);
   useOwnedDisposal('Keyboard.Precompile', [precompileTarget]);
   // One material set per mount; variant transitions mutate its colors.
   const materials = useMemo(() => createKeyboardMaterials(getVariant(useConfigurator.getState().selectedId)), []);
@@ -168,12 +169,11 @@ export function Keyboard() {
       gl.setRenderTarget(previousTarget);
       if (textLight) textLight.visible = textLightVisible!;
       [root.current!.visible, keys.current!.visible] = visible;
-      void compiled.then(() => {
+      void compiled.then(async () => {
         if (cancelled) return;
-        const visible = [root.current!.visible, keys.current!.visible], previousTarget = gl.getRenderTarget();
-        root.current!.visible = keys.current!.visible = true;
-        try { gl.setRenderTarget(precompileTarget); gl.render(scene, camera); }
-        finally { gl.setRenderTarget(previousTarget); [root.current!.visible, keys.current!.visible] = visible; }
+        await prepareStageShaders(gl, scene, camera, precompileTarget, () => cancelled);
+        if (cancelled) return;
+        prepareStageDraws(gl, scene, camera, precompileTarget);
         preparation.current.compiled = true;
         afterCompile = requestAnimationFrame(() => {
           if (cancelled) return;

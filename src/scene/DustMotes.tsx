@@ -5,6 +5,7 @@ import type { SpotLight } from 'three';
 import type { LightingSettings } from './lightingControls';
 import { useOwnedDisposal } from '../resources/ownership';
 import { DUST_LAYER } from './film';
+import { stageMix } from '../stages/store';
 import { keyboardFocus, useDepthOfField } from './lens';
 import { DUST_BLOOM_HEADROOM, DUST_DEFOCUS, DUST_DRIFT, DUST_MAX_COUNT, DUST_NEAR_FRACTION, DUST_SCATTER_G, DUST_WANDER, REDUCED_MOTION_SCALE, dustFragmentShader, dustSeeds, dustVertexShader, evaluateMote } from './dustShader';
 import type { DustUniformValues } from './dustShader';
@@ -86,6 +87,8 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
     const m = motion.current;
     if (!m.frozen) m.time += Math.min(delta, 0.1) * s.dustSpeed * m.scale;
     u.uTime.value = m.time;
+    resources.points.visible = s.dustEnabled && count > 0 && stageMix.final > 0;
+    u.uIntensity.value = s.dustIntensity * stageMix.final;
     if (!resources.points.visible) return;
     if (!spot.current?.parent) spot.current = scene.getObjectByName('studio-key') as SpotLight | null;
     const light = spot.current;

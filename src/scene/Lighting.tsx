@@ -1,7 +1,8 @@
 import { SoftShadows } from '@react-three/drei';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { DeskSettings } from './Desk';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
+import { stageMix, features, useStages } from '../stages/store';
 import { Box3, Frustum, Matrix4, Object3D, Quaternion, Vector3 } from 'three';
 import type { Mesh, RectAreaLight, SpotLight } from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
@@ -20,15 +21,19 @@ import { Monitor, RIM_BAND_HEIGHT, RIM_BAND_Y, SCREEN_WIDTH } from './PracticalF
 RectAreaLightUniformsLib.init();
 export function Lighting({ children }: { children: ReactNode }) {
   const rawSettings = useLightingControls();
+  const stage = useStages(s => s.stage), previous = useStages(s => s.previous), transitioning = useStages(s => s.transitioning);
+  const enabled = features(stage);
   const monitorPose = useLayoutStore(state => state.poses.monitor);
   const poses = useLayoutStore(state => state.poses);
   const dragging = useLayoutStore(state => state.dragging);
-  const settings = useMemo(() => monitorSettings(rawSettings, monitorPose), [rawSettings, monitorPose]);
+  const transformed = useMemo(() => monitorSettings(rawSettings, monitorPose), [rawSettings, monitorPose]);
+  const settings = useMemo(() => enabled.practicals ? transformed : { ...transformed, screenOn: false, deckSpill: 0 }, [transformed, enabled.practicals]);
   const requestedSolo = new URLSearchParams(location.search).get('solo');
   const solo = ['key', 'softbox', 'spot', 'fill', 'rim', 'env'].includes(requestedSolo ?? '') ? requestedSolo : null;
   const softbox = !solo || solo === 'key' || solo === 'softbox';
   const spot = !solo || solo === 'key' || solo === 'spot';
   const fill = !solo || solo === 'fill', rim = !solo || solo === 'rim', env = !solo || solo === 'env';
+  const monitorRaw = useMemo(() => enabled.practicals ? rawSettings : { ...rawSettings, screenOn: false }, [rawSettings, enabled.practicals]);
   const environmentSettings = useRef(settings);
   if (!dragging) environmentSettings.current = settings;
   const target = useMemo(() => new Object3D(), []);
@@ -42,6 +47,20 @@ export function Lighting({ children }: { children: ReactNode }) {
   const bandPosition = new Vector3(0, RIM_BAND_Y, 0.002).applyQuaternion(screenOrientation).add(new Vector3(...xyz(rimPosition)));
   const backPosition = new Vector3(0, 0, -0.06).applyQuaternion(screenOrientation).add(new Vector3(...xyz(rimPosition)));
   target.position.set(...xyz(spotAim));
+  useFrame(() => {
+    for (const [name, intensity] of [
+      ['stage-bare', stageMix.bare], ['key-softbox', softbox ? settings.softboxIntensity * stageMix.studio : 0],
+      ['studio-key', spot ? settings.keyIntensity * stageMix.studio : 0], ['studio-fill', fill ? settings.fillIntensity * stageMix.studio : 0],
+      ['screen-rim', rim && settings.screenOn ? settings.rimIntensity * stageMix.practicals : 0],
+      ['screen-wall-glow', rim && settings.screenOn ? settings.wallGlow * stageMix.practicals : 0],
+      ['streamdeck-spill', solo ? 0 : rawSettings.deckSpill * stageMix.practicals],
+    ] as const) {
+      const light = scene.getObjectByName(name) as RectAreaLight | undefined;
+      if (light) light.intensity = intensity;
+    }
+    const text = scene.getObjectByName('screen-text-light') as RectAreaLight | undefined;
+    if (text) { text.intensity *= stageMix.practicals; text.visible = text.intensity > 0; }
+  }, 0.4);
   useEffect(() => {
     gl.shadowMap.autoUpdate = phase !== 'assembled';
     gl.shadowMap.needsUpdate = true;
@@ -83,11 +102,12 @@ export function Lighting({ children }: { children: ReactNode }) {
   }, [gl, scene, camera, solo, settings, rawSettings]);
   return <DeskSettings.Provider value={settings}>
     <SoftShadows size={settings.shadowSoftness * settings.shadowRadius / 3} samples={24} />
-    <RigEnvironment settings={environmentSettings.current} enabled={env} />
-    <Monitor settings={rawSettings} enabled={rim || env} lightEnabled={rim} />
+    <RigEnvironment settings={environmentSettings.current} enabled={env && Boolean(enabled.practicals)} />
+    <Monitor settings={monitorRaw} enabled={rim || env} lightEnabled={rim} />
     <primitive object={target} />
+    {(stage === 1 || (transitioning && previous === 1)) && <directionalLight name="stage-bare" position={xyz(keyPosition)} target={target} color="#ffffff" intensity={stageMix.bare} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-1} shadow-camera-right={1} shadow-camera-top={1} shadow-camera-bottom={-1} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.0001} />}
     <rectAreaLight name="key-softbox" position={xyz(keyPosition)} quaternion={areaOrientation(keyPosition, keyAim)} width={settings.softboxWidth} height={settings.softboxHeight} intensity={softbox ? settings.softboxIntensity : 0} color={settings.keyColor} />
-    <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot} shadow-radius={settings.shadowRadius} shadow-mapSize={[2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
+    <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot && Boolean(enabled.studio)} shadow-radius={settings.shadowRadius} shadow-mapSize={[2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
     <rectAreaLight name="studio-fill" position={xyz(settings.fillPosition)} quaternion={areaOrientation(settings.fillPosition, settings.fillAim)} width={settings.fillWidth} height={settings.fillHeight} intensity={fill ? settings.fillIntensity : 0} color={settings.fillColor} />
     <rectAreaLight name="screen-rim" position={bandPosition} quaternion={rimOrientation} width={SCREEN_WIDTH} height={RIM_BAND_HEIGHT} intensity={rim && settings.screenOn ? settings.rimIntensity : 0} color={settings.rimColor} />
     {/* Screen-motivated rear glow illuminates real painted wall, not a backdrop

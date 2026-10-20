@@ -115,3 +115,6 @@ canvas { display: block; touch-action: none; }
   .hud:not(.is-live) .variant-picker { transform: translateX(-50%); }
   .hud:not(.is-live) .hud-sound { transform: none; }
 }
+
+/* Optional recording label, toggled without exposing the debug panel. */
+.stage-label { position: absolute; z-index: 25; left: var(--edge); bottom: max(var(--hud-edge), env(safe-area-inset-bottom)); border-radius: 12px; padding: 10px 14px; font-size: 12px; pointer-events: none; }
