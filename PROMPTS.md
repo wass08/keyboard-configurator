@@ -363,3 +363,28 @@ Attached: saved as `references/issue-dof-close-edges.png`.
 > - headline: Know it before you buy it.
 > - subhead: Real lighting, real desk, real sound. Pick your colorway, then make it yours.
 > - keycap cta: Build mine
+
+---
+
+## 35 — Run dev server (2026-10-19)
+
+> can you run the dev server?
+
+---
+
+## 36 — Stop dev server (2026-10-19)
+
+> ok stop it
+
+---
+
+## 37 — Debug "stages" for video explanations (2026-10-19)
+
+> To be able to do video recording explanation I'd like the debug to allow me to have "stages" so I can do my video recording explanation of it.
+> - stage 1 -> one simple directional light / no screen / no airpods / no stream deck / dof disabled / default focal length / no tone mapping / no color correction / sound design synthesized for the keys (if we still have it, otherwise no sound)
+> - stage 2 -> key and fill light
+> - stage 3 -> screen / stream deck
+> - stage 4 -> desk mat / airpods
+> - stage 5 -> focal length depth of field
+> - stage 6 -> sound design
+> - stage 7 -> everything we have
