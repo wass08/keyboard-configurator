@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { DeskSettings } from './Desk';
 import { useFrame, useThree } from '@react-three/fiber';
 import { stageMix, features, useStages } from '../stages/store';
+
+// Stage 1 has no environment or fill, so a unit-intensity sun reads almost black.
+const STAGE_BARE_INTENSITY = 2.6;
 import { Box3, Frustum, Matrix4, Object3D, Quaternion, Vector3 } from 'three';
 import type { Mesh, RectAreaLight, SpotLight } from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
@@ -49,7 +52,7 @@ export function Lighting({ children }: { children: ReactNode }) {
   target.position.set(...xyz(spotAim));
   useFrame(() => {
     for (const [name, intensity] of [
-      ['stage-bare', stageMix.bare], ['key-softbox', softbox ? settings.softboxIntensity * stageMix.studio : 0],
+      ['stage-bare', STAGE_BARE_INTENSITY * stageMix.bare], ['key-softbox', softbox ? settings.softboxIntensity * stageMix.studio : 0],
       ['studio-key', spot ? settings.keyIntensity * stageMix.studio : 0], ['studio-fill', fill ? settings.fillIntensity * stageMix.studio : 0],
       ['screen-rim', rim && settings.screenOn ? settings.rimIntensity * stageMix.practicals : 0],
       ['screen-wall-glow', rim && settings.screenOn ? settings.wallGlow * stageMix.practicals : 0],
@@ -105,7 +108,7 @@ export function Lighting({ children }: { children: ReactNode }) {
     <RigEnvironment settings={environmentSettings.current} enabled={env && Boolean(enabled.practicals)} />
     <Monitor settings={monitorRaw} enabled={rim || env} lightEnabled={rim} />
     <primitive object={target} />
-    {(stage === 1 || (transitioning && previous === 1)) && <directionalLight name="stage-bare" position={xyz(keyPosition)} target={target} color="#ffffff" intensity={stageMix.bare} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-1} shadow-camera-right={1} shadow-camera-top={1} shadow-camera-bottom={-1} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.0001} />}
+    {(stage === 1 || (transitioning && previous === 1)) && <directionalLight name="stage-bare" position={xyz(keyPosition)} target={target} color="#ffffff" intensity={STAGE_BARE_INTENSITY * stageMix.bare} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-1} shadow-camera-right={1} shadow-camera-top={1} shadow-camera-bottom={-1} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.0001} />}
     <rectAreaLight name="key-softbox" position={xyz(keyPosition)} quaternion={areaOrientation(keyPosition, keyAim)} width={settings.softboxWidth} height={settings.softboxHeight} intensity={softbox ? settings.softboxIntensity : 0} color={settings.keyColor} />
     <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot && Boolean(enabled.studio)} shadow-radius={settings.shadowRadius} shadow-mapSize={[2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
     <rectAreaLight name="studio-fill" position={xyz(settings.fillPosition)} quaternion={areaOrientation(settings.fillPosition, settings.fillAim)} width={settings.fillWidth} height={settings.fillHeight} intensity={fill ? settings.fillIntensity : 0} color={settings.fillColor} />

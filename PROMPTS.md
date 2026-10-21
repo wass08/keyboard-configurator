@@ -388,3 +388,23 @@ Attached: saved as `references/issue-dof-close-edges.png`.
 > - stage 5 -> focal length depth of field
 > - stage 6 -> sound design
 > - stage 7 -> everything we have
+
+---
+
+## 38 — Run dev server to check (2026-10-21)
+
+> can you run the dev serv so I check?
+
+---
+
+## 39 — Question: why stage 1 still looks nice (2026-10-21)
+
+> awesome. stage 1 seems not that ugly. does it have some noise something that make the keyboard nice like this?
+
+Attached: stage 1 close-up screenshot.
+
+---
+
+## 40 — Brighter stage 1 light (2026-10-21)
+
+> nope thanks for telling me. can you just on stage 1 make the light a bit brighter it's super dark
