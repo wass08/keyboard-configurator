@@ -426,3 +426,20 @@ Attached: stage 1 close-up screenshot.
 ## 43 — GitHub, Vercel, Cloudflare subdomain (2026-10-24)
 
 > btw please add the project to github. host it on my vercel. and connect a subdomain on cloudflare to wawasensei.dev
+
+---
+
+## 44 — Stop server, use the existing Cloudflare token (2026-10-24)
+
+> you can stop the server. why you don't do it yourself on cloudflare? I gave you a token in the past to have access
+
+---
+
+## 45 — Cloudflare DNS token (2026-10-24)
+
+> here it is: `[REDACTED: Cloudflare API token]` keep it in your personal memory or mcp I don't know
+> accountid: `[REDACTED]`
+>
+> it's claude-dns-token for dns write on my wass08 account
+
+(The token and account ID are stored outside the repo in `~/.config/wawasensei/`, mode 600.)
