@@ -1,7 +1,8 @@
+import { MOBILE_PROFILE, targetType, sceneSamples } from './deviceProfile';
 import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
 import { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
-import { HalfFloatType, NoToneMapping, Vector2, Vector3, WebGLRenderTarget } from 'three';
+import { NoToneMapping, Vector2, Vector3, WebGLRenderTarget } from 'three';
 import type { PerspectiveCamera } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -32,9 +33,9 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
   const enabled = features(stage);
   const startup = useRef({ firstSceneFrameMs: 0, introReadyMs: 0 });
   const pipeline = useMemo(() => {
-    const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false, samples: new URLSearchParams(location.search).has('postReference') ? 4 : 0 });
+    const target = new WebGLRenderTarget(1, 1, { type: targetType(gl), depthBuffer: false, samples: new URLSearchParams(location.search).has('postReference') ? sceneSamples(gl) : 0 });
     const composer = new EffectComposer(gl, target);
-    const render = new SceneResolvePass(scene, camera);
+    const render = new SceneResolvePass(scene, camera, targetType(gl), sceneSamples(gl));
     const bloom = new UnrealBloomPass(new Vector2(1, 1), settings.bloomStrength, 0.25, settings.bloomThreshold);
     if (!new URLSearchParams(location.search).has('postReference')) {
       const resizeBloom = bloom.setSize.bind(bloom);
@@ -42,11 +43,12 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
       // sources survive thresholding; blur the sparse seed at quarter size.
       // Keep its physical kernel footprint instead of doubling glow radius.
       bloom.setSize = (width, height) => {
-        resizeBloom(Math.max(2, width / 2), Math.max(2, height / 2));
-        bloom.renderTargetBright.setSize(Math.round(width / 2), Math.round(height / 2));
+        resizeBloom(Math.max(2, width / (MOBILE_PROFILE ? 4 : 2)), Math.max(2, height / (MOBILE_PROFILE ? 4 : 2)));
+        bloom.renderTargetBright.setSize(Math.max(1, Math.round(width / (MOBILE_PROFILE ? 4 : 2))), Math.max(1, Math.round(height / (MOBILE_PROFILE ? 4 : 2))));
         for (const material of bloom.separableBlurMaterials) material.uniforms.invSize.value.multiplyScalar(0.5);
       };
     }
+    for (const target of [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical]) target.texture.type = targetType(gl);
     const depth = new DepthAwareDoFPass(camera as PerspectiveCamera);
     depth.depthTexture = render.target.depthTexture;
     const dust = new DustOverlayPass(scene, camera as PerspectiveCamera, depth);

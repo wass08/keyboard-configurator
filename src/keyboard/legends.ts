@@ -1,3 +1,4 @@
+import { MOBILE_PROFILE } from '../scene/deviceProfile';
 import { BufferGeometry, CanvasTexture, Float32BufferAttribute, LinearMipmapLinearFilter } from 'three';
 import { KEY_LAYOUT, PITCH } from './layout';
 import type { KeyDefinition } from './layout';
@@ -9,8 +10,9 @@ const geometries = new Map<string, BufferGeometry>();
 export function getLegendAtlas() {
   if (atlas) return atlas;
   const canvas = document.createElement('canvas');
-  canvas.width = SIZE; canvas.height = SIZE;
+  canvas.width = canvas.height = MOBILE_PROFILE ? 1024 : SIZE;
   const ctx = canvas.getContext('2d')!;
+  if (MOBILE_PROFILE) ctx.scale(0.5, 0.5);
   ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'top';
   KEY_LAYOUT.forEach((key, index) => {

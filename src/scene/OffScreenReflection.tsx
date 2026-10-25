@@ -1,3 +1,4 @@
+import { MOBILE_PROFILE, targetType } from './deviceProfile';
 import { useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { PlaneGeometry, type ShaderMaterial } from 'three';
@@ -9,15 +10,16 @@ import { useOwnedDisposal } from '../resources/ownership';
  * coated glass. Cache while stationary; refresh moving reflections at 30 Hz.
  * This pass is independent of the once-per-light-change environment capture. */
 export function OffScreenReflection({ width, height, revision }: { width: number; height: number; revision: string }) {
-  const camera = useThree(state => state.camera);
+  const { camera, gl } = useThree();
   const phase = useConfigurator(state => state.phase);
   const selected = useConfigurator(state => state.selectedId);
   const state = useRef({ phase, revision, selected });
   state.current = { phase, revision, selected };
   const reflector = useMemo(() => {
     const object = new Reflector(new PlaneGeometry(width, height), {
-      textureWidth: 768, textureHeight: 432, multisample: 2, clipBias: 0.0001,
+      textureWidth: MOBILE_PROFILE ? 256 : 768, textureHeight: MOBILE_PROFILE ? 144 : 432, multisample: MOBILE_PROFILE ? 0 : Math.min(2, gl.capabilities.maxSamples), clipBias: 0.0001,
     });
+    object.getRenderTarget().texture.type = targetType(gl);
     const material = object.material as ShaderMaterial;
     material.fragmentShader = material.fragmentShader.replace(
       'gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );',
@@ -39,7 +41,7 @@ export function OffScreenReflection({ width, height, revision }: { width: number
       object.userData.captures = ++captures;
     };
     return object;
-  }, [width, height, camera]);
+  }, [width, height, camera, gl]);
   // primitive objects are not recursively disposed by R3F. Release each owned
   // allocation directly, including the reflector's internal render target.
   useOwnedDisposal('Monitor.Reflection', [reflector.geometry, reflector.material as ShaderMaterial, reflector.getRenderTarget()]);

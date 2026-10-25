@@ -1,3 +1,4 @@
+import { MOBILE_PROFILE } from './deviceProfile';
 import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
 import { ContactShadows } from './ContactShadows';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -107,16 +108,16 @@ export function Lighting({ children }: { children: ReactNode }) {
   return <DeskSettings.Provider value={settings}>
     <ContactShadows size={settings.shadowSoftness * settings.shadowRadius / 3} />
     <RigEnvironment settings={environmentSettings.current} enabled={env && Boolean(enabled.practicals)} />
-    <Monitor settings={monitorRaw} enabled={rim || env} lightEnabled={rim} />
+    <Monitor settings={monitorRaw} enabled={rim || env} lightEnabled={rim && !MOBILE_PROFILE} />
     <primitive object={target} />
     {(stage === 1 || (transitioning && previous === 1)) && <directionalLight name="stage-bare" position={xyz(keyPosition)} target={target} color="#ffffff" intensity={STAGE_BARE_INTENSITY * stageMix.bare} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-1} shadow-camera-right={1} shadow-camera-top={1} shadow-camera-bottom={-1} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.0001} />}
     <rectAreaLight name="key-softbox" position={xyz(keyPosition)} quaternion={areaOrientation(keyPosition, keyAim)} width={settings.softboxWidth} height={settings.softboxHeight} intensity={softbox ? settings.softboxIntensity : 0} color={settings.keyColor} />
-    <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot && Boolean(enabled.studio)} shadow-radius={settings.shadowRadius} shadow-mapSize={[2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
+    <spotLight name="studio-key" position={xyz(spotPosition)} target={target} intensity={spot ? settings.keyIntensity : 0} color={settings.keyColor} angle={settings.keyAngle} penumbra={settings.keyPenumbra} decay={2} distance={4} castShadow={spot && Boolean(enabled.studio)} shadow-radius={settings.shadowRadius} shadow-mapSize={MOBILE_PROFILE ? [1024, 1024] : [2048, 2048]} shadow-camera-near={0.1} shadow-camera-far={4} shadow-bias={-0.000025} shadow-normalBias={0.0001} />
     <rectAreaLight name="studio-fill" position={xyz(settings.fillPosition)} quaternion={areaOrientation(settings.fillPosition, settings.fillAim)} width={settings.fillWidth} height={settings.fillHeight} intensity={fill ? settings.fillIntensity : 0} color={settings.fillColor} />
-    <rectAreaLight name="screen-rim" position={bandPosition} quaternion={rimOrientation} width={SCREEN_WIDTH} height={RIM_BAND_HEIGHT} intensity={rim && settings.screenOn ? settings.rimIntensity : 0} color={settings.rimColor} />
+    {!MOBILE_PROFILE && <rectAreaLight name="screen-rim" position={bandPosition} quaternion={rimOrientation} width={SCREEN_WIDTH} height={RIM_BAND_HEIGHT} intensity={rim && settings.screenOn ? settings.rimIntensity : 0} color={settings.rimColor} />}
     {/* Screen-motivated rear glow illuminates real painted wall, not a backdrop
         texture or emissive decal. It follows the monitor's transform. */}
-    <rectAreaLight name="screen-wall-glow" position={backPosition} quaternion={screenOrientation} width={0.5} height={0.26} intensity={rim && settings.screenOn ? settings.wallGlow : 0} color={settings.rimColor} />
+    {!MOBILE_PROFILE && <rectAreaLight name="screen-wall-glow" position={backPosition} quaternion={screenOrientation} width={0.5} height={0.26} intensity={rim && settings.screenOn ? settings.wallGlow : 0} color={settings.rimColor} />}
     {children}
     <StudioWall settings={settings} />
     <StudioPost settings={settings} />

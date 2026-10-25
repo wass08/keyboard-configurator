@@ -1,0 +1,74 @@
+{
+  "hero-glacial-blue": {
+    "status": "passed",
+    "meanChannelDelta": 0.2905745884773663,
+    "p99ChannelDelta": 4,
+    "maxChannelDelta": 87,
+    "channelsOver8Percent": 0.17512860082304527,
+    "limits": {
+      "mean": 0.65,
+      "p99": 5,
+      "over8Percent": 0.6
+    }
+  },
+  "hero-cool-black": {
+    "status": "passed",
+    "meanChannelDelta": 0.28624819958847736,
+    "p99ChannelDelta": 4,
+    "maxChannelDelta": 87,
+    "channelsOver8Percent": 0.1604423868312757,
+    "limits": {
+      "mean": 0.65,
+      "p99": 5,
+      "over8Percent": 0.6
+    }
+  },
+  "hero-pink": {
+    "status": "passed",
+    "meanChannelDelta": 0.29104835390946504,
+    "p99ChannelDelta": 4,
+    "maxChannelDelta": 87,
+    "channelsOver8Percent": 0.1758230452674897,
+    "limits": {
+      "mean": 0.65,
+      "p99": 5,
+      "over8Percent": 0.6
+    }
+  },
+  "closeup": {
+    "status": "passed",
+    "meanChannelDelta": 0.2094945987654321,
+    "p99ChannelDelta": 2,
+    "maxChannelDelta": 34,
+    "channelsOver8Percent": 0.0867283950617284,
+    "limits": {
+      "mean": 0.65,
+      "p99": 5,
+      "over8Percent": 0.6
+    }
+  },
+  "terminal": {
+    "status": "passed",
+    "meanChannelDelta": 0.003281378600823045,
+    "p99ChannelDelta": 0,
+    "maxChannelDelta": 3,
+    "channelsOver8Percent": 0,
+    "limits": {
+      "mean": 0.65,
+      "p99": 5,
+      "over8Percent": 0.6
+    }
+  },
+  "stage-7": {
+    "status": "passed",
+    "meanChannelDelta": 0.2905748456790124,
+    "p99ChannelDelta": 4,
+    "maxChannelDelta": 87,
+    "channelsOver8Percent": 0.17512860082304527,
+    "limits": {
+      "mean": 0.65,
+      "p99": 5,
+      "over8Percent": 0.6
+    }
+  }
+}

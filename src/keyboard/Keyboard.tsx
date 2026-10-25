@@ -1,8 +1,9 @@
+import { MOBILE_PROFILE, targetType, sceneSamples } from '../scene/deviceProfile';
 import { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { Group, Mesh, MeshStandardMaterial } from 'three';
-import { Box3, DepthTexture, HalfFloatType, UnsignedIntType, Vector3, WebGLRenderTarget } from 'three';
+import { Box3, DepthTexture, UnsignedIntType, Vector3, WebGLRenderTarget } from 'three';
 import { KEY_LAYOUT, PITCH, TILT } from './layout';
 import { colorGroupFor, getVariant } from './variants';
 import { applyKeyboardPalette, createKeyboardMaterials } from './materials';
@@ -33,12 +34,12 @@ export function Keyboard() {
   const started = useRef(false);
   const generation = useRef(0);
   const preparation = useRef({ ready: false, compiled: false, firstFrameRendered: false, textures: 0, uploadMs: 0, compileMs: 0, stageCompileMs: 0, warmDrawMs: 0 });
-  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4, depthTexture: new DepthTexture(1, 1, UnsignedIntType) }), []);
+  const gl = useThree(state => state.gl);
+  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: targetType(gl), samples: sceneSamples(gl), depthTexture: new DepthTexture(1, 1, UnsignedIntType) }), [gl]);
   useOwnedDisposal('Keyboard.Precompile', [precompileTarget]);
   // One material set per mount; variant transitions mutate its colors.
   const materials = useMemo(() => createKeyboardMaterials(getVariant(useConfigurator.getState().selectedId)), []);
   useOwnedDisposal('Keyboard', [materials.body, materials.frame, materials.knob, materials.ring, ...Object.values(materials.caps), ...Object.values(materials.legends)]);
-  const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
   const camera = useThree(state => state.camera);
   const selectedId = useConfigurator(state => state.selectedId);
@@ -176,11 +177,11 @@ export function Keyboard() {
         if (cancelled) return;
         preparation.current.compileMs=performance.now()-compileStart;
         const stageCompileStart=performance.now();
-        await prepareStageShaders(gl, scene, camera, precompileTarget, () => cancelled);
+        if (!MOBILE_PROFILE) await prepareStageShaders(gl, scene, camera, precompileTarget, () => cancelled);
         if (cancelled) return;
         preparation.current.stageCompileMs=performance.now()-stageCompileStart;
         const warmStart=performance.now();
-        prepareStageDraws(gl, scene, camera, precompileTarget);
+        if (!MOBILE_PROFILE) prepareStageDraws(gl, scene, camera, precompileTarget);
         preparation.current.warmDrawMs=performance.now()-warmStart;
         preparation.current.compiled = true;
         afterCompile = requestAnimationFrame(() => {
@@ -190,6 +191,11 @@ export function Keyboard() {
           // The opening screen holds the intro until the visitor enters.
           if (!capture) cancelGate = whenIntroGateOpen(() => { if (!cancelled) handle.current?.timeline.play(0); });
         });
+      }).catch(error => {
+        if (!cancelled) {
+          console.error('Studio preparation failed', error);
+          window.dispatchEvent(new Event('studioerror'));
+        }
       });
     };
     firstFrame = requestAnimationFrame(prepare);

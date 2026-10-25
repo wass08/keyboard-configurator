@@ -1,0 +1,1149 @@
+{
+  "build": "production",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)",
+  "viewport": [
+    1440,
+    900
+  ],
+  "dpr": 1.5,
+  "defaults": {
+    "focalLengthMm": 80.343,
+    "verticalFovDeg": 15.50461926473262,
+    "filmGaugeMm": 35,
+    "near": 0.008,
+    "far": 25,
+    "depthOfField": true,
+    "autoFocus": true,
+    "focusDistance": 1.3793952113727068,
+    "bokehScale": 1,
+    "focalRange": 0.38,
+    "autoFocalRange": true,
+    "minFocalRange": 0.38,
+    "focalMargin": 0.025,
+    "bokehDistanceScale": 0.65
+  },
+  "filmDefaults": {
+    "toneMapping": "ACES Filmic",
+    "exposure": 1,
+    "grade": {
+      "enabled": true,
+      "contrast": 1.11,
+      "saturation": 1,
+      "vibrance": 0.19,
+      "temperature": 0.28,
+      "tint": 0.22,
+      "lift": [
+        0,
+        0,
+        0
+      ],
+      "gamma": [
+        1,
+        1,
+        1
+      ],
+      "gain": [
+        1,
+        1,
+        1
+      ]
+    },
+    "vignette": {
+      "amount": 0.52,
+      "softness": 0.48
+    }
+  },
+  "assembled": {
+    "frames": 150,
+    "medianFrameMs": 16.69999999999891,
+    "p95FrameMs": 16.700000000000728,
+    "averageFps": 60.00240009600385
+  },
+  "intro": {
+    "frames": 335,
+    "medianFrameMs": 16.69999999999891,
+    "p95FrameMs": 16.700000000000728,
+    "averageFps": 60.05198530074016,
+    "beats": {
+      "hold": {
+        "frames": 55,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.30701754405667
+      },
+      "mat": {
+        "frames": 112,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.00214293367625
+      },
+      "frame": {
+        "frames": 39,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 59.99999999999999
+      },
+      "keys": {
+        "frames": 129,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.799999999999272,
+        "averageFps": 60.002790827480304
+      }
+    }
+  },
+  "dust": {
+    "on": {
+      "frames": 150,
+      "medianFrameMs": 16.700000000000728,
+      "p95FrameMs": 16.799999999999272,
+      "averageFps": 59.99999999999999
+    },
+    "off": {
+      "frames": 150,
+      "medianFrameMs": 16.69999999999709,
+      "p95FrameMs": 16.700000000000728,
+      "averageFps": 59.99999999999999
+    },
+    "calls": {
+      "on": 241,
+      "off": 240
+    },
+    "count": 84
+  },
+  "typing": {
+    "frames": 220,
+    "medianFrameMs": 16.700000000000728,
+    "p95FrameMs": 16.799999999999272,
+    "averageFps": 60.002727396699854,
+    "keystrokes": 60,
+    "keysPerSecond": 15,
+    "screenRedraws": 60,
+    "staticRedraws": 0,
+    "dynamicCanvas": [
+      1920,
+      216
+    ],
+    "soundsScheduled": 119,
+    "audioContexts": 1,
+    "audioState": "running"
+  },
+  "variantChange": {
+    "frames": 210,
+    "medianFrameMs": 16.700000000000728,
+    "p95FrameMs": 16.700000000000728,
+    "averageFps": 60.04460456344113
+  },
+  "depthOfField": {
+    "frames": 150,
+    "medianFrameMs": 16.69999999999709,
+    "p95FrameMs": 16.700000000004366,
+    "averageFps": 60.00480038403074
+  },
+  "allEffects": {
+    "frames": 150,
+    "medianFrameMs": 16.69999999999709,
+    "p95FrameMs": 16.700000000004366,
+    "averageFps": 60.002400096003804
+  },
+  "gradeValues": {
+    "toneMapping": "ACES Filmic",
+    "exposure": 1,
+    "grade": {
+      "enabled": true,
+      "contrast": 1.11,
+      "saturation": 1,
+      "vibrance": 0.19,
+      "temperature": 0.28,
+      "tint": 0.22,
+      "lift": [
+        0,
+        0,
+        0
+      ],
+      "gamma": [
+        1,
+        1,
+        1
+      ],
+      "gain": [
+        1,
+        1,
+        1
+      ]
+    },
+    "vignette": {
+      "amount": 0.52,
+      "softness": 0.48
+    }
+  },
+  "gpuPassReport": "perf-hunt-after.json",
+  "lens": {
+    "focalLengthMm": 80.343,
+    "verticalFovDeg": 15.50461926473262,
+    "filmGaugeMm": 35,
+    "near": 0.008,
+    "far": 25,
+    "depthOfField": true,
+    "autoFocus": true,
+    "focusDistance": 1.3794123755598382,
+    "bokehScale": 1,
+    "focalRange": 0.38,
+    "autoFocalRange": true,
+    "minFocalRange": 0.38,
+    "focalMargin": 0.025,
+    "bokehDistanceScale": 0.65
+  },
+  "finished": true,
+  "render": {
+    "capOffsets": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "knobOffset": 0,
+    "meshes": 282,
+    "geometries": 226,
+    "calls": 241,
+    "triangles": 486954,
+    "intro": {
+      "phase": "done",
+      "preparation": {
+        "ready": true,
+        "compiled": true,
+        "firstFrameRendered": true,
+        "textures": 23,
+        "uploadMs": 203.19999998807907,
+        "compileMs": 41.3999999910593,
+        "stageCompileMs": 374.70000000298023,
+        "warmDrawMs": 2.9000000059604645
+      },
+      "mat": {
+        "progress": 1,
+        "vertices": 30746,
+        "maxRestError": 0,
+        "minY": 0,
+        "maxY": 0.004000000189989805,
+        "normalError": 3.7995801949186614e-8,
+        "thickness": 0.004
+      },
+      "frameOffset": 0,
+      "frameVisible": true,
+      "keysVisible": true
+    },
+    "framing": {
+      "keyboardWidthRatio": 0.6075234548571508,
+      "deskFrontEdgeNdcY": -0.8670139584857861,
+      "keyboardCenterFromEdge": 0.19
+    },
+    "palette": {
+      "body": "1d1e21",
+      "frame": "282a2b",
+      "knob": "26282a",
+      "ring": "6c7278",
+      "alpha": "2b3040",
+      "mod": "202123",
+      "accent": "e3b232",
+      "alphaLegend": "e3b232",
+      "modLegend": "e3b232",
+      "accentLegend": "242323"
+    },
+    "keys": {
+      "esc": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": "242323",
+        "labels": [
+          "Esc"
+        ]
+      },
+      "f1": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F1"
+        ]
+      },
+      "f2": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F2"
+        ]
+      },
+      "f3": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F3"
+        ]
+      },
+      "f4": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F4"
+        ]
+      },
+      "f5": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "F5"
+        ]
+      },
+      "f6": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "F6"
+        ]
+      },
+      "f7": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "F7"
+        ]
+      },
+      "f8": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "F8"
+        ]
+      },
+      "f9": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F9"
+        ]
+      },
+      "f10": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F10"
+        ]
+      },
+      "f11": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F11"
+        ]
+      },
+      "f12": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F12"
+        ]
+      },
+      "num0": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "~",
+          "`"
+        ]
+      },
+      "num1": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "!",
+          "1"
+        ]
+      },
+      "num2": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "@",
+          "2"
+        ]
+      },
+      "num3": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "#",
+          "3"
+        ]
+      },
+      "num4": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "$",
+          "4"
+        ]
+      },
+      "num5": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "%",
+          "5"
+        ]
+      },
+      "num6": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "^",
+          "6"
+        ]
+      },
+      "num7": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "&",
+          "7"
+        ]
+      },
+      "num8": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "*",
+          "8"
+        ]
+      },
+      "num9": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "(",
+          "9"
+        ]
+      },
+      "num10": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          ")",
+          "0"
+        ]
+      },
+      "num11": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "_",
+          "-"
+        ]
+      },
+      "num12": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "+",
+          "="
+        ]
+      },
+      "backspace": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "← Backspace"
+        ]
+      },
+      "delete": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Delete"
+        ]
+      },
+      "tab": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "⇤",
+          "Tab ⇥"
+        ]
+      },
+      "Q": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "Q"
+        ]
+      },
+      "W": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "W"
+        ]
+      },
+      "E": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "E"
+        ]
+      },
+      "R": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "R"
+        ]
+      },
+      "T": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "T"
+        ]
+      },
+      "Y": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "Y"
+        ]
+      },
+      "U": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "U"
+        ]
+      },
+      "I": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "I"
+        ]
+      },
+      "O": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "O"
+        ]
+      },
+      "P": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "P"
+        ]
+      },
+      "[": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "{",
+          "["
+        ]
+      },
+      "]": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "}",
+          "]"
+        ]
+      },
+      "backslash": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "|",
+          "\\"
+        ]
+      },
+      "pageup": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "PgUp"
+        ]
+      },
+      "caps": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Caps Lock"
+        ]
+      },
+      "A": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "A"
+        ]
+      },
+      "S": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "S"
+        ]
+      },
+      "D": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "D"
+        ]
+      },
+      "F": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "F"
+        ]
+      },
+      "G": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "G"
+        ]
+      },
+      "H": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "H"
+        ]
+      },
+      "J": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "J"
+        ]
+      },
+      "K": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "K"
+        ]
+      },
+      "L": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "L"
+        ]
+      },
+      ";": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          ":",
+          ";"
+        ]
+      },
+      "'": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "\"",
+          "'"
+        ]
+      },
+      "enter": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": "242323",
+        "labels": [
+          "↵ Enter"
+        ]
+      },
+      "pagedown": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "PgDn"
+        ]
+      },
+      "shiftleft": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "⇧ Shift"
+        ]
+      },
+      "Z": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "Z"
+        ]
+      },
+      "X": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "X"
+        ]
+      },
+      "C": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "C"
+        ]
+      },
+      "V": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "V"
+        ]
+      },
+      "B": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "B"
+        ]
+      },
+      "N": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "N"
+        ]
+      },
+      "M": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "M"
+        ]
+      },
+      ",": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "<",
+          ","
+        ]
+      },
+      ".": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          ">",
+          "."
+        ]
+      },
+      "/": {
+        "group": "alpha",
+        "cap": "2b3040",
+        "legend": "e3b232",
+        "labels": [
+          "?",
+          "/"
+        ]
+      },
+      "shiftright": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "⇧ Shift"
+        ]
+      },
+      "up": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": "242323",
+        "labels": [
+          "↑"
+        ]
+      },
+      "end": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "End"
+        ]
+      },
+      "ctrlleft": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Ctrl"
+        ]
+      },
+      "win": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Win"
+        ]
+      },
+      "alt": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Alt"
+        ]
+      },
+      "space": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": null,
+        "labels": []
+      },
+      "fn": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Fn"
+        ]
+      },
+      "ctrlright": {
+        "group": "mod",
+        "cap": "202123",
+        "legend": "e3b232",
+        "labels": [
+          "Ctrl"
+        ]
+      },
+      "left": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": "242323",
+        "labels": [
+          "←"
+        ]
+      },
+      "down": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": "242323",
+        "labels": [
+          "↓"
+        ]
+      },
+      "right": {
+        "group": "accent",
+        "cap": "e3b232",
+        "legend": "242323",
+        "labels": [
+          "→"
+        ]
+      }
+    },
+    "lightSamples": [
+      {
+        "key": "f2",
+        "x": 0.3663811527164609,
+        "y": 0.48961381377057017
+      },
+      {
+        "key": "f4",
+        "x": 0.42757214702201757,
+        "y": 0.494630445959645
+      },
+      {
+        "key": "f6",
+        "x": 0.5084598503466821,
+        "y": 0.5012618769537641
+      },
+      {
+        "key": "f8",
+        "x": 0.5705308080666109,
+        "y": 0.50635065134023
+      },
+      {
+        "key": "f10",
+        "x": 0.6525859243781728,
+        "y": 0.5130777905612619
+      },
+      {
+        "key": "f12",
+        "x": 0.7155559645236483,
+        "y": 0.5182402745824186
+      }
+    ],
+    "colorSamples": [
+      {
+        "key": "H",
+        "group": "alpha",
+        "x": 0.47481980350141284,
+        "y": 0.5893419890192048
+      },
+      {
+        "key": "caps",
+        "group": "mod",
+        "x": 0.27317331972797576,
+        "y": 0.5718931240817723
+      },
+      {
+        "key": "enter",
+        "group": "accent",
+        "x": 0.688779676028088,
+        "y": 0.6078563555872969
+      }
+    ]
+  },
+  "depthOfFieldRender": {
+    "calls": 241,
+    "triangles": 486954
+  },
+  "recordingStages": {
+    "viewport": [
+      1440,
+      900
+    ],
+    "dpr": 1.5,
+    "stage1": {
+      "frames": 180,
+      "fps": 60.04002668427723,
+      "p95Ms": 16.700000000004366,
+      "maxMs": 16.80000000000291,
+      "framesAbove34ms": 0
+    },
+    "stage7": {
+      "frames": 180,
+      "fps": 60.04603529354613,
+      "p95Ms": 16.799999999995634,
+      "maxMs": 16.80000000000291,
+      "framesAbove34ms": 0
+    },
+    "transitions": [
+      {
+        "stage": 1,
+        "frames": 65,
+        "fps": 60.679611650485604,
+        "p95Ms": 16.700000000004366,
+        "maxMs": 16.799999999995634,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      },
+      {
+        "stage": 2,
+        "frames": 65,
+        "fps": 60.162902628158015,
+        "p95Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      },
+      {
+        "stage": 3,
+        "frames": 65,
+        "fps": 60.13507262466455,
+        "p95Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      },
+      {
+        "stage": 4,
+        "frames": 65,
+        "fps": 60.118386977266766,
+        "p95Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      },
+      {
+        "stage": 5,
+        "frames": 65,
+        "fps": 60.157334566998166,
+        "p95Ms": 16.700000000004366,
+        "maxMs": 16.80000000000291,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      },
+      {
+        "stage": 6,
+        "frames": 65,
+        "fps": 60.1017105869817,
+        "p95Ms": 16.700000000004366,
+        "maxMs": 16.80000000000291,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      },
+      {
+        "stage": 7,
+        "frames": 65,
+        "fps": 60.14620153620724,
+        "p95Ms": 16.700000000004366,
+        "maxMs": 16.80000000000291,
+        "framesAbove34ms": 0,
+        "environmentCaptures": 1
+      }
+    ]
+  },
+  "machineLoad": {
+    "before": [
+      5.58349609375,
+      6.2109375,
+      5.98486328125
+    ],
+    "after": [
+      5.66162109375,
+      6.1923828125,
+      5.99267578125
+    ],
+    "windowsMinutes": [
+      1,
+      5,
+      15
+    ]
+  }
+}

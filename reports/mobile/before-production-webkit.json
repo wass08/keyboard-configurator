@@ -1,0 +1,29 @@
+{
+  "url": "https://keyboard.wawasensei.dev/",
+  "errors": [
+    {
+      "message": "Unexpected keyword 'in'. Expected a ';' following a return statement.",
+      "stack": "SyntaxError: Unexpected keyword 'in'. Expected a ';' following a return statement.\n    at unknown (https://keyboard.wawasensei.dev/assets/scene-Demp-5hO.js:1:0)"
+    }
+  ],
+  "diagnostics": {
+    "contextLost": [],
+    "contextRestored": [],
+    "shaderLogs": [],
+    "rejections": [],
+    "capabilities": [],
+    "programs": [],
+    "peakBytes": 0,
+    "liveBytes": 0,
+    "bufferBytes": 0,
+    "maxTextureDimension": 0,
+    "maxRenderbufferDimension": 0,
+    "maxSamples": 0,
+    "renderTargetFormats": []
+  },
+  "syntax": {
+    "joined": "SyntaxError: Unexpected keyword 'in'. Expected a ';' following a return statement.",
+    "parenthesized": "parses",
+    "separate": "parses"
+  }
+}

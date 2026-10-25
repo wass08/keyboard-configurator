@@ -1,3 +1,5 @@
+import { unavailableCheck } from './mobile-unavailable.mjs';
+import { mobileChecks } from './mobile-checks.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -661,6 +663,13 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  if (process.argv.includes('--quick')) {
+    checks.performanceLook = await lookChecks(browser, url);
+    checks.mobileUnavailable = await unavailableCheck(url);
+    checks.mobileEngines = await mobileChecks(url);
+    await writeFile('screenshots/quick-checks.json', JSON.stringify(checks, null, 2));
+    console.log('Quick checks passed: desktop looks, mobile engines, context recovery and WebGL fallback.');
+  } else {
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.openingScreen = await openingChecks(browser, url, observeErrors);
   checks.performanceLook = await lookChecks(browser, url);
@@ -1385,11 +1394,11 @@ try {
   assert.ok(mobileInfo.info.capOffsets.every(y => y === 0));
   const mobileCamera = await mobilePage.evaluate(() => window.__camera());
   assert.equal(mobileCamera.minDistance, 0.317);
-  assert.equal(mobileCamera.maxDistance, 0.719, "Never override the user's max orbit distance for mobile");
-  assert.ok(mobileCamera.distance <= 0.719 + 1e-8);
-  // Spec 04 explicitly retains this limit and requires an honest framing report,
-  // rather than automatically widening the mobile camera to make a fit test pass.
-  checks.mobileFraming = { status: 'measured', fits: mobileInfo.info.framing.keyboardWidthRatio < 0.98, keyboardWidthRatio: mobileInfo.info.framing.keyboardWidthRatio, camera: mobileCamera, viewport: [390, 844] };
+  assert.equal(mobileCamera.maxDistance, 3.6, "Spec 13: portrait bounds allow the whole keyboard to fit");
+  assert.ok(mobileCamera.distance <= 3.6 + 1e-8);
+  // Spec 13 replaces the deferred portrait crop with a complete keyboard view.
+  assert.ok(mobileInfo.info.framing.keyboardWidthRatio < 0.98);
+  checks.mobileFraming = { status: 'passed', fits: mobileInfo.info.framing.keyboardWidthRatio < 0.98, keyboardWidthRatio: mobileInfo.info.framing.keyboardWidthRatio, camera: mobileCamera, viewport: [390, 844] };
   await mobilePage.screenshot({ path: 'screenshots/mobile.png' });
   console.log('screenshots/mobile.png');
   checks.reducedMotionAndMobile = 'passed';
@@ -1398,8 +1407,8 @@ try {
   await renderedPage(mobilePage);
   await mobilePage.waitForFunction(() => window.__camera().lens.verticalFovDeg === 46);
   const mobileLens = await mobilePage.evaluate(() => window.__camera());
-  assert.equal(mobileLens.minDistance, 0.317); assert.equal(mobileLens.maxDistance, 0.719);
-  assert.ok(mobileLens.distance <= 0.719 + 1e-8);
+  assert.equal(mobileLens.minDistance, 0.317); assert.equal(mobileLens.maxDistance, 3.6);
+  assert.ok(mobileLens.distance <= 3.6 + 1e-8);
   assert.ok(Math.abs(mobileLens.lens.focalLengthMm - 35 / (2 * Math.tan(46 * Math.PI / 360))) < 1e-9);
   checks.mobileLiveLens = { status: 'passed', resized: mobileLens, viewport: [430, 900] };
   await mobile.close();
@@ -1805,8 +1814,11 @@ try {
   await debugContext.close();
   assert.deepEqual(errors, [], 'Browser must have no runtime or console errors');
   checks.browserErrors = errors;
+  checks.mobileUnavailable = await unavailableCheck(url);
+  checks.mobileEngines = await mobileChecks(url);
   await writeFile('screenshots/checks.json', `${JSON.stringify(checks, null, 2)}\n`);
   console.log('All checks passed. Evidence saved to screenshots/checks.json');
+  }
 } finally {
   await browser?.close();
   server.kill('SIGTERM');

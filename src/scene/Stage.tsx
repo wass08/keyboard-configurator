@@ -1,5 +1,6 @@
-import { Suspense, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { DPR_CAP, MOBILE_PROFILE } from './deviceProfile';
+import { Suspense, useMemo, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { NeutralToneMapping, DataTexture, PCFShadowMap, RepeatWrapping, RGBAFormat, SRGBColorSpace } from 'three';
 import { Desk } from './Desk';
 import { Lighting } from './Lighting';
@@ -31,13 +32,37 @@ function StudioFloor() {
     <planeGeometry args={[80, 80]} /><meshStandardMaterial color="#292b2f" roughness={0.96} roughnessMap={roughness} />
   </mesh>;
 }
-export function Stage() {
-  return <Canvas shadows={{ type: PCFShadowMap }} dpr={[1, 2]} camera={{ position: HERO_POSITION, fov: PORTRAIT_FOV, near: DEFAULT_PROJECTION.near, far: DEFAULT_PROJECTION.far }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl, camera, size }) => {
+function ContextEvents({ onFailure }: { onFailure: () => void }) {
+  const gl = useThree(state => state.gl);
+  useEffect(() => {
+    const lost = (event: Event) => { event.preventDefault(); onFailure(); };
+    // Cached captures and precompiled materials need a fresh scene after restore.
+    const restored = () => onFailure();
+    window.addEventListener('studioerror', onFailure);
+    const shaderError = gl.debug.onShaderError;
+    gl.debug.onShaderError = (context, program, vertex, fragment) => {
+      console.error('Studio shader failed', context.getProgramInfoLog(program), context.getShaderInfoLog(vertex), context.getShaderInfoLog(fragment));
+      onFailure();
+    };
+    gl.domElement.addEventListener('webglcontextlost', lost);
+    gl.domElement.addEventListener('webglcontextrestored', restored);
+    return () => {
+      gl.debug.onShaderError = shaderError;
+      window.removeEventListener('studioerror', onFailure);
+      gl.domElement.removeEventListener('webglcontextlost', lost);
+      gl.domElement.removeEventListener('webglcontextrestored', restored);
+    };
+  }, [gl, onFailure]);
+  return null;
+}
+export function Stage({ onFailure }: { onFailure: () => void }) {
+  return <Canvas shadows={{ type: PCFShadowMap }} dpr={[1, DPR_CAP]} fallback={<p className="scene-fallback">WebGL is unavailable. Reload to try again.</p>} camera={{ position: HERO_POSITION, fov: PORTRAIT_FOV, near: DEFAULT_PROJECTION.near, far: DEFAULT_PROJECTION.far }} gl={{ antialias: !MOBILE_PROFILE, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl, camera, size }) => {
     gl.toneMappingExposure = 1;
     const lens = camera as PerspectiveCamera; lens.filmGauge = DEFAULT_PROJECTION.filmGaugeMm;
     if (size.width / size.height >= 0.75) lens.setFocalLength(DEFAULT_FOCAL_LENGTH_MM);
   }}>
     <color attach="background" args={['#000000']} />
+    <ContextEvents onFailure={onFailure} />
     <AdaptiveQuality />
     <Suspense fallback={null}>
       <LayoutControls />

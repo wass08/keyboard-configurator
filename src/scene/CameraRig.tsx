@@ -222,7 +222,7 @@ export function CameraRig() {
       // Sensor focal length follows the new aspect, retaining the user's chosen
       // vertical FOV. Portrait distance also uses that live FOV, within bounds.
       const fovScale = portraitView ? Math.tan(PORTRAIT_FOV * Math.PI / 360) / Math.tan(projection.current.verticalFovDeg * Math.PI / 360) : 1;
-      const mobileScale = Math.max(1, (aspect < 0.75 ? 1.62 : 1.12) / aspect) * fovScale;
+      const mobileScale = Math.max(1, (aspect < 0.75 ? 0.95 : 1.12) / aspect) * fovScale;
       // Evidence presets use explicit lens choices without changing orbit bounds.
       if (camera instanceof PerspectiveCamera) {
         camera.fov = view === 'case-corner' ? 10 : view === 'screen-terminal' ? 32 : view === 'wall-paint' ? 70 : view === 'props-wide' ? 64 : view === 'props-airpods' ? 35 : view === 'props-streamdeck' ? 23 : view === 'deskmat-closeup' ? 22 : view === 'desk-sheen' ? 48 : view === 'desk-sheen-closeup' ? 26 : view === 'default' ? projection.current.verticalFovDeg : 32;
@@ -265,7 +265,7 @@ export function CameraRig() {
       else if (view === 'closeup') { camera.position.set(-0.045, 1.002, 0.295); controls.current?.target.set(0.027, 0.795, -0.008); }
       else if (view === 'profile') { camera.position.set(-0.20, 0.89, 0.40); controls.current?.target.set(0, 0.790, 0); }
       else if (portraitView) {
-        const targetX = -0.065;
+        const targetX = 0;
         camera.position.set(targetX - 0.065 * mobileScale, HERO_TARGET[1] + 0.26 * mobileScale, HERO_TARGET[2] + 0.68 * mobileScale);
         controls.current?.target.set(targetX, HERO_TARGET[1], HERO_TARGET[2]);
       }

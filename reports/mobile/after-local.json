@@ -1,0 +1,2405 @@
+[
+  {
+    "name": "ios-webkit",
+    "url": "http://127.0.0.1:4175",
+    "device": "iPhone 15 Pro",
+    "errors": [],
+    "failedRequests": [],
+    "initialQuality": {
+      "enabled": true,
+      "dpr": 1.25,
+      "nativeDpr": 1.25,
+      "fps": 60,
+      "changes": 0,
+      "cooldownSeconds": 0,
+      "mode": "auto",
+      "tier": "low",
+      "decided": true,
+      "decisions": 0
+    },
+    "introComplete": true,
+    "scene": {
+      "quality": {
+        "enabled": true,
+        "dpr": 1.25,
+        "nativeDpr": 1.25,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "low",
+        "decided": true,
+        "decisions": 0
+      },
+      "film": {
+        "passes": [
+          {
+            "name": "scene",
+            "enabled": true
+          },
+          {
+            "name": "bloom",
+            "enabled": true
+          },
+          {
+            "name": "depthOfField",
+            "enabled": false
+          },
+          {
+            "name": "dustAfterDoF",
+            "enabled": true
+          },
+          {
+            "name": "gradingAndOutput",
+            "enabled": true
+          }
+        ],
+        "rendererToneMapping": 0,
+        "operator": "ACES Filmic",
+        "outputColorSpace": "srgb",
+        "toneMapStages": 1,
+        "outputDefines": {
+          "SRGB_TRANSFER": "",
+          "ACES_FILMIC_TONE_MAPPING": ""
+        },
+        "reference": false,
+        "gradingActive": true,
+        "gpu": {
+          "method": "CPU submission only (GPU extension unavailable)",
+          "pending": 0,
+          "contextLost": false,
+          "gpu": {},
+          "cpu": {}
+        },
+        "quality": {
+          "tier": "low",
+          "gatherSamples": 16,
+          "shadowType": 1
+        },
+        "metrics": {
+          "calls": 359,
+          "triangles": 931663,
+          "programs": 63,
+          "geometries": 209,
+          "textures": 57,
+          "textureBytesEstimate": 93210176,
+          "multisampleBytesEstimate": 0,
+          "identifiedBytesEstimate": 93210176,
+          "buffer": [
+            496,
+            833
+          ],
+          "pixelRatio": 1.25,
+          "targetSizes": [
+            {
+              "size": [
+                496,
+                833
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                496,
+                833
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                124,
+                208
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                62,
+                104
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                31,
+                52
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                16,
+                26
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                8,
+                13
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                4,
+                7
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                62,
+                104
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                31,
+                52
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                16,
+                26
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                8,
+                13
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                4,
+                7
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                496,
+                833
+              ],
+              "samples": 0
+            }
+          ]
+        },
+        "startup": {
+          "firstSceneFrameMs": 810,
+          "introReadyMs": 1123
+        }
+      },
+      "framing": {
+        "keyboardWidthRatio": 0.9059015923353693,
+        "deskFrontEdgeNdcY": -0.4641361331834051,
+        "keyboardCenterFromEdge": 0.19
+      },
+      "samples": [
+        {
+          "key": "H",
+          "group": "alpha",
+          "x": 0.468359526514501,
+          "y": 0.5513563761924245
+        },
+        {
+          "key": "caps",
+          "group": "mod",
+          "x": 0.16174902232769728,
+          "y": 0.5580484275105513
+        },
+        {
+          "key": "enter",
+          "group": "accent",
+          "x": 0.7810267423648297,
+          "y": 0.5445321316691792
+        }
+      ],
+      "opening": {
+        "phase": "live",
+        "progress": 100,
+        "gateOpen": true,
+        "gateOpenedAt": 1167,
+        "sceneReady": true,
+        "dismissedAt": 1167,
+        "withSound": false
+      },
+      "glError": 0,
+      "build": "local",
+      "requestedDpr": 3,
+      "viewport": [
+        393,
+        659
+      ]
+    },
+    "startupPeakBytes": 178323241.33333334,
+    "keyboardPixels": {
+      "visibleSamples": 27,
+      "nonBlack": 27,
+      "max": 233
+    },
+    "contextFallback": true,
+    "restoredFallback": true,
+    "diagnostics": {
+      "contextLost": [
+        {
+          "time": 6856,
+          "prevented": true
+        }
+      ],
+      "contextRestored": [
+        6905
+      ],
+      "shaderLogs": [],
+      "rejections": [],
+      "capabilities": [
+        {
+          "MAX_TEXTURE_IMAGE_UNITS": 16,
+          "MAX_FRAGMENT_UNIFORM_VECTORS": 1024,
+          "MAX_VARYING_VECTORS": 30,
+          "MAX_RENDERBUFFER_SIZE": 16384,
+          "MAX_TEXTURE_SIZE": 16384,
+          "MAX_SAMPLES": 8,
+          "fragmentHighp": 23,
+          "extensions": [
+            "EXT_clip_control",
+            "EXT_color_buffer_float",
+            "EXT_color_buffer_half_float",
+            "EXT_conservative_depth",
+            "EXT_depth_clamp",
+            "EXT_float_blend",
+            "EXT_polygon_offset_clamp",
+            "EXT_render_snorm",
+            "EXT_texture_compression_bptc",
+            "EXT_texture_compression_rgtc",
+            "EXT_texture_filter_anisotropic",
+            "EXT_texture_mirror_clamp_to_edge",
+            "EXT_texture_norm16",
+            "KHR_parallel_shader_compile",
+            "NV_shader_noperspective_interpolation",
+            "OES_draw_buffers_indexed",
+            "OES_sample_variables",
+            "OES_shader_multisample_interpolation",
+            "OES_texture_float_linear",
+            "WEBGL_blend_func_extended",
+            "WEBGL_clip_cull_distance",
+            "WEBGL_compressed_texture_astc",
+            "WEBGL_compressed_texture_etc",
+            "WEBGL_compressed_texture_etc1",
+            "WEBGL_compressed_texture_pvrtc",
+            "WEBKIT_WEBGL_compressed_texture_pvrtc",
+            "WEBGL_compressed_texture_s3tc",
+            "WEBGL_compressed_texture_s3tc_srgb",
+            "WEBGL_debug_renderer_info",
+            "WEBGL_debug_shaders",
+            "WEBGL_lose_context",
+            "WEBGL_multi_draw",
+            "WEBGL_polygon_mode",
+            "WEBGL_provoking_vertex",
+            "WEBGL_render_shared_exponent",
+            "WEBGL_stencil_texturing"
+          ],
+          "emulatedLimits": null
+        }
+      ],
+      "programs": [
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 17
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 2
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 3
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 95
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 73
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 22
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 26
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 30
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 34
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 25
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 21
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 99
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 68
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 68
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 82
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 77
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 71
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 2
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 3
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 95
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 73
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 22
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 26
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 30
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 34
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 25
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 21
+        }
+      ],
+      "peakBytes": 178323241.33333334,
+      "liveBytes": 77133062.66666667,
+      "bufferBytes": 5550488,
+      "maxTextureDimension": 1280,
+      "maxRenderbufferDimension": 512,
+      "maxSamples": 0,
+      "renderTargetFormats": [
+        34842,
+        33190,
+        35907,
+        34836,
+        33327,
+        32856
+      ]
+    }
+  },
+  {
+    "name": "ipad-webkit",
+    "url": "http://127.0.0.1:4175",
+    "device": "iPad Pro 11",
+    "errors": [],
+    "failedRequests": [],
+    "initialQuality": {
+      "enabled": true,
+      "dpr": 1.25,
+      "nativeDpr": 1.25,
+      "fps": 60,
+      "changes": 0,
+      "cooldownSeconds": 0,
+      "mode": "auto",
+      "tier": "low",
+      "decided": true,
+      "decisions": 0
+    },
+    "introComplete": true,
+    "scene": {
+      "quality": {
+        "enabled": true,
+        "dpr": 1.25,
+        "nativeDpr": 1.25,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "low",
+        "decided": true,
+        "decisions": 0
+      },
+      "film": {
+        "passes": [
+          {
+            "name": "scene",
+            "enabled": true
+          },
+          {
+            "name": "bloom",
+            "enabled": true
+          },
+          {
+            "name": "depthOfField",
+            "enabled": false
+          },
+          {
+            "name": "dustAfterDoF",
+            "enabled": true
+          },
+          {
+            "name": "gradingAndOutput",
+            "enabled": true
+          }
+        ],
+        "rendererToneMapping": 0,
+        "operator": "ACES Filmic",
+        "outputColorSpace": "srgb",
+        "toneMapStages": 1,
+        "outputDefines": {
+          "SRGB_TRANSFER": "",
+          "ACES_FILMIC_TONE_MAPPING": ""
+        },
+        "reference": false,
+        "gradingActive": true,
+        "gpu": {
+          "method": "CPU submission only (GPU extension unavailable)",
+          "pending": 0,
+          "contextLost": false,
+          "gpu": {},
+          "cpu": {}
+        },
+        "quality": {
+          "tier": "low",
+          "gatherSamples": 16,
+          "shadowType": 1
+        },
+        "metrics": {
+          "calls": 359,
+          "triangles": 931663,
+          "programs": 63,
+          "geometries": 209,
+          "textures": 57,
+          "textureBytesEstimate": 127160328,
+          "multisampleBytesEstimate": 0,
+          "identifiedBytesEstimate": 127160328,
+          "buffer": [
+            1054,
+            1509
+          ],
+          "pixelRatio": 1.25,
+          "targetSizes": [
+            {
+              "size": [
+                1054,
+                1509
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                1054,
+                1509
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                264,
+                377
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                132,
+                189
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                66,
+                95
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                33,
+                48
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                17,
+                24
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                9,
+                12
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                132,
+                189
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                66,
+                95
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                33,
+                48
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                17,
+                24
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                9,
+                12
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                1054,
+                1509
+              ],
+              "samples": 0
+            }
+          ]
+        },
+        "startup": {
+          "firstSceneFrameMs": 790,
+          "introReadyMs": 1101
+        }
+      },
+      "framing": {
+        "keyboardWidthRatio": 0.9143069851399923,
+        "deskFrontEdgeNdcY": -0.5572481168430902,
+        "keyboardCenterFromEdge": 0.19
+      },
+      "samples": [
+        {
+          "key": "H",
+          "group": "alpha",
+          "x": 0.468361599573396,
+          "y": 0.5601479114407499
+        },
+        {
+          "key": "caps",
+          "group": "mod",
+          "x": 0.1612284283647915,
+          "y": 0.5680946502535159
+        },
+        {
+          "key": "enter",
+          "group": "accent",
+          "x": 0.7805499734787174,
+          "y": 0.5520703747225724
+        }
+      ],
+      "opening": {
+        "phase": "live",
+        "progress": 100,
+        "gateOpen": true,
+        "gateOpenedAt": 1162,
+        "sceneReady": true,
+        "dismissedAt": 1162,
+        "withSound": false
+      },
+      "glError": 0,
+      "build": "local",
+      "requestedDpr": 2,
+      "viewport": [
+        834,
+        1194
+      ]
+    },
+    "startupPeakBytes": 212273393.33333334,
+    "keyboardPixels": {
+      "visibleSamples": 27,
+      "nonBlack": 27,
+      "max": 232
+    },
+    "diagnostics": {
+      "contextLost": [],
+      "contextRestored": [],
+      "shaderLogs": [],
+      "rejections": [],
+      "capabilities": [
+        {
+          "MAX_TEXTURE_IMAGE_UNITS": 16,
+          "MAX_FRAGMENT_UNIFORM_VECTORS": 1024,
+          "MAX_VARYING_VECTORS": 30,
+          "MAX_RENDERBUFFER_SIZE": 16384,
+          "MAX_TEXTURE_SIZE": 16384,
+          "MAX_SAMPLES": 8,
+          "fragmentHighp": 23,
+          "extensions": [
+            "EXT_clip_control",
+            "EXT_color_buffer_float",
+            "EXT_color_buffer_half_float",
+            "EXT_conservative_depth",
+            "EXT_depth_clamp",
+            "EXT_float_blend",
+            "EXT_polygon_offset_clamp",
+            "EXT_render_snorm",
+            "EXT_texture_compression_bptc",
+            "EXT_texture_compression_rgtc",
+            "EXT_texture_filter_anisotropic",
+            "EXT_texture_mirror_clamp_to_edge",
+            "EXT_texture_norm16",
+            "KHR_parallel_shader_compile",
+            "NV_shader_noperspective_interpolation",
+            "OES_draw_buffers_indexed",
+            "OES_sample_variables",
+            "OES_shader_multisample_interpolation",
+            "OES_texture_float_linear",
+            "WEBGL_blend_func_extended",
+            "WEBGL_clip_cull_distance",
+            "WEBGL_compressed_texture_astc",
+            "WEBGL_compressed_texture_etc",
+            "WEBGL_compressed_texture_etc1",
+            "WEBGL_compressed_texture_pvrtc",
+            "WEBKIT_WEBGL_compressed_texture_pvrtc",
+            "WEBGL_compressed_texture_s3tc",
+            "WEBGL_compressed_texture_s3tc_srgb",
+            "WEBGL_debug_renderer_info",
+            "WEBGL_debug_shaders",
+            "WEBGL_lose_context",
+            "WEBGL_multi_draw",
+            "WEBGL_polygon_mode",
+            "WEBGL_provoking_vertex",
+            "WEBGL_render_shared_exponent",
+            "WEBGL_stencil_texturing"
+          ],
+          "emulatedLimits": null
+        }
+      ],
+      "programs": [
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 17
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 2
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 3
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 95
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 73
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 22
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 26
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 30
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 34
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 25
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 21
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 99
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 68
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 68
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 82
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 77
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 71
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        }
+      ],
+      "peakBytes": 212273393.33333334,
+      "liveBytes": 205367685.33333334,
+      "bufferBytes": 6905708,
+      "maxTextureDimension": 1509,
+      "maxRenderbufferDimension": 512,
+      "maxSamples": 0,
+      "renderTargetFormats": [
+        34842,
+        33190,
+        35907,
+        34836,
+        33327,
+        32856
+      ]
+    }
+  },
+  {
+    "name": "android-chromium",
+    "url": "http://127.0.0.1:4175",
+    "device": "Pixel 7",
+    "errors": [],
+    "failedRequests": [],
+    "initialQuality": {
+      "enabled": true,
+      "dpr": 1.25,
+      "nativeDpr": 1.25,
+      "fps": 60,
+      "changes": 0,
+      "cooldownSeconds": 0,
+      "mode": "auto",
+      "tier": "low",
+      "decided": true,
+      "decisions": 0
+    },
+    "introComplete": true,
+    "scene": {
+      "quality": {
+        "enabled": true,
+        "dpr": 1.25,
+        "nativeDpr": 1.25,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "low",
+        "decided": true,
+        "decisions": 0
+      },
+      "film": {
+        "passes": [
+          {
+            "name": "scene",
+            "enabled": true
+          },
+          {
+            "name": "bloom",
+            "enabled": true
+          },
+          {
+            "name": "depthOfField",
+            "enabled": false
+          },
+          {
+            "name": "dustAfterDoF",
+            "enabled": true
+          },
+          {
+            "name": "gradingAndOutput",
+            "enabled": true
+          }
+        ],
+        "rendererToneMapping": 0,
+        "operator": "ACES Filmic",
+        "outputColorSpace": "srgb",
+        "toneMapStages": 1,
+        "outputDefines": {
+          "SRGB_TRANSFER": "",
+          "ACES_FILMIC_TONE_MAPPING": ""
+        },
+        "reference": false,
+        "gradingActive": true,
+        "gpu": {
+          "method": "CPU submission only (GPU extension unavailable)",
+          "pending": 0,
+          "contextLost": false,
+          "gpu": {},
+          "cpu": {}
+        },
+        "quality": {
+          "tier": "low",
+          "gatherSamples": 16,
+          "shadowType": 1
+        },
+        "metrics": {
+          "calls": 359,
+          "triangles": 931663,
+          "programs": 62,
+          "geometries": 209,
+          "textures": 57,
+          "textureBytesEstimate": 96996324,
+          "multisampleBytesEstimate": 0,
+          "identifiedBytesEstimate": 96996324,
+          "buffer": [
+            517,
+            1053
+          ],
+          "pixelRatio": 1.25,
+          "targetSizes": [
+            {
+              "size": [
+                517,
+                1053
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                517,
+                1053
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                129,
+                263
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                65,
+                132
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                33,
+                66
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                17,
+                33
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                9,
+                17
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                5,
+                9
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                65,
+                132
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                33,
+                66
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                17,
+                33
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                9,
+                17
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                5,
+                9
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                517,
+                1053
+              ],
+              "samples": 0
+            }
+          ]
+        },
+        "startup": {
+          "firstSceneFrameMs": 2247.8999999910593,
+          "introReadyMs": 4371.70000000298
+        }
+      },
+      "framing": {
+        "keyboardWidthRatio": 0.8974077960857251,
+        "deskFrontEdgeNdcY": -0.37278954755667953,
+        "keyboardCenterFromEdge": 0.19
+      },
+      "samples": [
+        {
+          "key": "H",
+          "group": "alpha",
+          "x": 0.4683573889729582,
+          "y": 0.542291379600301
+        },
+        {
+          "key": "caps",
+          "group": "mod",
+          "x": 0.16228406552936203,
+          "y": 0.5477233688966712
+        },
+        {
+          "key": "enter",
+          "group": "accent",
+          "x": 0.7815199752432027,
+          "y": 0.5367335747007927
+        }
+      ],
+      "opening": {
+        "phase": "live",
+        "progress": 100,
+        "gateOpen": true,
+        "gateOpenedAt": 4514.5,
+        "sceneReady": true,
+        "dismissedAt": 4514.20000000298,
+        "withSound": false
+      },
+      "glError": 0,
+      "build": "local",
+      "requestedDpr": 2.625,
+      "viewport": [
+        412,
+        839
+      ]
+    },
+    "startupPeakBytes": 182043853.33333337,
+    "keyboardPixels": {
+      "visibleSamples": 27,
+      "nonBlack": 27,
+      "max": 231
+    },
+    "diagnostics": {
+      "contextLost": [],
+      "contextRestored": [],
+      "shaderLogs": [],
+      "rejections": [],
+      "capabilities": [
+        {
+          "MAX_TEXTURE_IMAGE_UNITS": 16,
+          "MAX_FRAGMENT_UNIFORM_VECTORS": 1024,
+          "MAX_VARYING_VECTORS": 30,
+          "MAX_RENDERBUFFER_SIZE": 16384,
+          "MAX_TEXTURE_SIZE": 16384,
+          "MAX_SAMPLES": 8,
+          "fragmentHighp": 23,
+          "extensions": [
+            "EXT_clip_control",
+            "EXT_color_buffer_float",
+            "EXT_color_buffer_half_float",
+            "EXT_conservative_depth",
+            "EXT_depth_clamp",
+            "EXT_disjoint_timer_query_webgl2",
+            "EXT_float_blend",
+            "EXT_polygon_offset_clamp",
+            "EXT_render_snorm",
+            "EXT_texture_compression_bptc",
+            "EXT_texture_compression_rgtc",
+            "EXT_texture_filter_anisotropic",
+            "EXT_texture_mirror_clamp_to_edge",
+            "EXT_texture_norm16",
+            "KHR_parallel_shader_compile",
+            "NV_shader_noperspective_interpolation",
+            "OES_draw_buffers_indexed",
+            "OES_sample_variables",
+            "OES_shader_multisample_interpolation",
+            "OES_texture_float_linear",
+            "WEBGL_blend_func_extended",
+            "WEBGL_clip_cull_distance",
+            "WEBGL_compressed_texture_astc",
+            "WEBGL_compressed_texture_etc",
+            "WEBGL_compressed_texture_etc1",
+            "WEBGL_compressed_texture_pvrtc",
+            "WEBGL_compressed_texture_s3tc",
+            "WEBGL_compressed_texture_s3tc_srgb",
+            "WEBGL_debug_renderer_info",
+            "WEBGL_debug_shaders",
+            "WEBGL_lose_context",
+            "WEBGL_multi_draw",
+            "WEBGL_polygon_mode",
+            "WEBGL_provoking_vertex",
+            "WEBGL_render_shared_exponent",
+            "WEBGL_stencil_texturing"
+          ],
+          "emulatedLimits": {
+            "textureUnits": 16,
+            "fragmentUniformVectors": 224,
+            "varyingVectors": 15,
+            "maxSize": 4096,
+            "maxSamples": 0,
+            "floatLinear": false,
+            "hdrRenderable": true
+          }
+        }
+      ],
+      "programs": [
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 17
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 2
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 3
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 95
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 73
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 22
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 26
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 30
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 34
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 25
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 21
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 11,
+          "uniformVectorsUpperBound": 99
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 68
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 68
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 82
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 77
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 64
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 71
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 8,
+          "uniformVectorsUpperBound": 78
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 60
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 65
+        }
+      ],
+      "peakBytes": 182043853.33333337,
+      "liveBytes": 175138145.33333337,
+      "bufferBytes": 6905708,
+      "maxTextureDimension": 1280,
+      "maxRenderbufferDimension": 512,
+      "maxSamples": 0,
+      "renderTargetFormats": [
+        34842,
+        35907,
+        32856,
+        33190,
+        33327
+      ]
+    }
+  },
+  {
+    "name": "android-ldr",
+    "url": "http://127.0.0.1:4175",
+    "device": "Pixel 7",
+    "errors": [],
+    "failedRequests": [],
+    "initialQuality": {
+      "enabled": true,
+      "dpr": 1.25,
+      "nativeDpr": 1.25,
+      "fps": 60,
+      "changes": 0,
+      "cooldownSeconds": 0,
+      "mode": "auto",
+      "tier": "low",
+      "decided": true,
+      "decisions": 0
+    },
+    "introComplete": true,
+    "scene": {
+      "quality": {
+        "enabled": true,
+        "dpr": 1.25,
+        "nativeDpr": 1.25,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "low",
+        "decided": true,
+        "decisions": 0
+      },
+      "film": {
+        "passes": [
+          {
+            "name": "scene",
+            "enabled": true
+          },
+          {
+            "name": "bloom",
+            "enabled": true
+          },
+          {
+            "name": "depthOfField",
+            "enabled": false
+          },
+          {
+            "name": "dustAfterDoF",
+            "enabled": true
+          },
+          {
+            "name": "gradingAndOutput",
+            "enabled": true
+          }
+        ],
+        "rendererToneMapping": 0,
+        "operator": "ACES Filmic",
+        "outputColorSpace": "srgb",
+        "toneMapStages": 1,
+        "outputDefines": {
+          "SRGB_TRANSFER": "",
+          "ACES_FILMIC_TONE_MAPPING": ""
+        },
+        "reference": false,
+        "gradingActive": true,
+        "gpu": {
+          "method": "CPU submission only (GPU extension unavailable)",
+          "pending": 0,
+          "contextLost": false,
+          "gpu": {},
+          "cpu": {}
+        },
+        "quality": {
+          "tier": "low",
+          "gatherSamples": 16,
+          "shadowType": 1
+        },
+        "metrics": {
+          "calls": 359,
+          "triangles": 931663,
+          "programs": 58,
+          "geometries": 194,
+          "textures": 52,
+          "textureBytesEstimate": 90270664,
+          "multisampleBytesEstimate": 0,
+          "identifiedBytesEstimate": 90270664,
+          "buffer": [
+            518,
+            1055
+          ],
+          "pixelRatio": 1.25,
+          "targetSizes": [
+            {
+              "size": [
+                518,
+                1055
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                518,
+                1055
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                130,
+                264
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                65,
+                132
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                33,
+                66
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                17,
+                33
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                9,
+                17
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                5,
+                9
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                65,
+                132
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                33,
+                66
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                17,
+                33
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                9,
+                17
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                5,
+                9
+              ],
+              "samples": 0
+            },
+            {
+              "size": [
+                518,
+                1055
+              ],
+              "samples": 0
+            }
+          ]
+        },
+        "startup": {
+          "firstSceneFrameMs": 1667.2999999970198,
+          "introReadyMs": 3355.8999999910593
+        }
+      },
+      "framing": {
+        "keyboardWidthRatio": 0.8974077949362329,
+        "deskFrontEdgeNdcY": -0.372789535375858,
+        "keyboardCenterFromEdge": 0.19
+      },
+      "samples": [
+        {
+          "key": "H",
+          "group": "alpha",
+          "x": 0.468357388972666,
+          "y": 0.5422913783609592
+        },
+        {
+          "key": "caps",
+          "group": "mod",
+          "x": 0.1622840656023909,
+          "y": 0.5477233674873851
+        },
+        {
+          "key": "enter",
+          "group": "accent",
+          "x": 0.7815199753107499,
+          "y": 0.5367335736327958
+        }
+      ],
+      "opening": {
+        "phase": "live",
+        "progress": 100,
+        "gateOpen": true,
+        "gateOpenedAt": 3498.2999999970198,
+        "sceneReady": true,
+        "dismissedAt": 3498.0999999940395,
+        "withSound": false
+      },
+      "glError": 0,
+      "build": "local",
+      "requestedDpr": 2.625,
+      "viewport": [
+        412,
+        839
+      ]
+    },
+    "startupPeakBytes": 147914581.3333333,
+    "keyboardPixels": {
+      "visibleSamples": 27,
+      "nonBlack": 27,
+      "max": 223
+    },
+    "diagnostics": {
+      "contextLost": [],
+      "contextRestored": [],
+      "shaderLogs": [],
+      "rejections": [],
+      "capabilities": [
+        {
+          "MAX_TEXTURE_IMAGE_UNITS": 16,
+          "MAX_FRAGMENT_UNIFORM_VECTORS": 1024,
+          "MAX_VARYING_VECTORS": 30,
+          "MAX_RENDERBUFFER_SIZE": 16384,
+          "MAX_TEXTURE_SIZE": 16384,
+          "MAX_SAMPLES": 8,
+          "fragmentHighp": 23,
+          "extensions": [
+            "EXT_clip_control",
+            "EXT_color_buffer_float",
+            "EXT_color_buffer_half_float",
+            "EXT_conservative_depth",
+            "EXT_depth_clamp",
+            "EXT_disjoint_timer_query_webgl2",
+            "EXT_float_blend",
+            "EXT_polygon_offset_clamp",
+            "EXT_render_snorm",
+            "EXT_texture_compression_bptc",
+            "EXT_texture_compression_rgtc",
+            "EXT_texture_filter_anisotropic",
+            "EXT_texture_mirror_clamp_to_edge",
+            "EXT_texture_norm16",
+            "KHR_parallel_shader_compile",
+            "NV_shader_noperspective_interpolation",
+            "OES_draw_buffers_indexed",
+            "OES_sample_variables",
+            "OES_shader_multisample_interpolation",
+            "OES_texture_float_linear",
+            "WEBGL_blend_func_extended",
+            "WEBGL_clip_cull_distance",
+            "WEBGL_compressed_texture_astc",
+            "WEBGL_compressed_texture_etc",
+            "WEBGL_compressed_texture_etc1",
+            "WEBGL_compressed_texture_pvrtc",
+            "WEBGL_compressed_texture_s3tc",
+            "WEBGL_compressed_texture_s3tc_srgb",
+            "WEBGL_debug_renderer_info",
+            "WEBGL_debug_shaders",
+            "WEBGL_lose_context",
+            "WEBGL_multi_draw",
+            "WEBGL_polygon_mode",
+            "WEBGL_provoking_vertex",
+            "WEBGL_render_shared_exponent",
+            "WEBGL_stencil_texturing"
+          ],
+          "emulatedLimits": {
+            "textureUnits": 16,
+            "fragmentUniformVectors": 224,
+            "varyingVectors": 15,
+            "maxSize": 4096,
+            "maxSamples": 0,
+            "floatLinear": false,
+            "hdrRenderable": false
+          }
+        }
+      ],
+      "programs": [
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 62
+        },
+        {
+          "samplers": 10,
+          "uniformVectorsUpperBound": 93
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 58
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 63
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 71
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 63
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 22
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 26
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 30
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 34
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 25
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 10
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 21
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 62
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 14
+        },
+        {
+          "samplers": 10,
+          "uniformVectorsUpperBound": 97
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 66
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 66
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 80
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 76
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 76
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 76
+        },
+        {
+          "samplers": 6,
+          "uniformVectorsUpperBound": 75
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 37
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 62
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 69
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 67
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 18
+        },
+        {
+          "samplers": 0,
+          "uniformVectorsUpperBound": 9
+        },
+        {
+          "samplers": 1,
+          "uniformVectorsUpperBound": 13
+        },
+        {
+          "samplers": 7,
+          "uniformVectorsUpperBound": 76
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 63
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 58
+        },
+        {
+          "samplers": 4,
+          "uniformVectorsUpperBound": 65
+        },
+        {
+          "samplers": 5,
+          "uniformVectorsUpperBound": 63
+        }
+      ],
+      "peakBytes": 147914581.3333333,
+      "liveBytes": 141018433.3333333,
+      "bufferBytes": 6896148,
+      "maxTextureDimension": 1280,
+      "maxRenderbufferDimension": 512,
+      "maxSamples": 0,
+      "renderTargetFormats": [
+        35907,
+        32856,
+        33190,
+        34842,
+        33327
+      ]
+    }
+  }
+]

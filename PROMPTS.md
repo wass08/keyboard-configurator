@@ -483,3 +483,5 @@ Attached: `screenshots/closeup.png` (source for the OG image).
 ## 51 — Black screen on mobile (2026-10-25)
 
 > do you know why it doesn't work on mobile? black screen. can you fix it?
+
+(Answer: the black screen was on iPhone · Chrome, which is WebKit on iOS.)

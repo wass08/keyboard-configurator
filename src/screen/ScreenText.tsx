@@ -1,3 +1,4 @@
+import { MOBILE_PROFILE } from '../scene/deviceProfile';
 import { useProfiledFrame as useFrame } from '../scene/post/useProfiledFrame';
 import { useEffect, useMemo, useRef } from 'react';
 import { CanvasTexture, Color, LinearMipmapLinearFilter, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from 'three';
@@ -37,7 +38,7 @@ function rounded(ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
  * light animation and volume feedback never update React or the environment. */
 export function ScreenText({ width, height, radiance, settings, lightEnabled }: { width: number; height: number; radiance: number; settings: LightingSettings; lightEnabled: boolean }) {
   const resources = useMemo(() => {
-    const canvas = document.createElement('canvas'); canvas.width = 1920; canvas.height = Math.round(1920 * height / width);
+    const canvas = document.createElement('canvas'); canvas.width = MOBILE_PROFILE ? 1024 : 1920; canvas.height = Math.round(canvas.width * height / width);
     const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace; texture.anisotropy = 8; texture.minFilter = LinearMipmapLinearFilter;
     const material = new MeshBasicMaterial({ map: texture, depthWrite: false, color: new Color('#ffffff').multiplyScalar(radiance) });
     // The scene's final Neutral tone mapper subtracts the darkest linear

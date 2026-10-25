@@ -1,0 +1,143 @@
+{
+  "quality": {
+    "enabled": false,
+    "dpr": 2,
+    "nativeDpr": 2,
+    "fps": 60,
+    "changes": 0,
+    "cooldownSeconds": 0,
+    "mode": "auto",
+    "tier": "high",
+    "decided": false,
+    "decisions": 0
+  },
+  "film": {
+    "tier": "high",
+    "gatherSamples": 16,
+    "shadowType": 0
+  },
+  "metrics": {
+    "calls": 72,
+    "triangles": 234912,
+    "programs": 215,
+    "geometries": 226,
+    "textures": 57,
+    "textureBytesEstimate": 454544880,
+    "multisampleBytesEstimate": 248832000,
+    "identifiedBytesEstimate": 703376880,
+    "buffer": [
+      2880,
+      1800
+    ],
+    "pixelRatio": 2,
+    "targetSizes": [
+      {
+        "size": [
+          2880,
+          1800
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          2880,
+          1800
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          1440,
+          900
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          720,
+          450
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          360,
+          225
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          180,
+          113
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          90,
+          57
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          45,
+          29
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          720,
+          450
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          360,
+          225
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          180,
+          113
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          90,
+          57
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          45,
+          29
+        ],
+        "samples": 0
+      },
+      {
+        "size": [
+          2880,
+          1800
+        ],
+        "samples": 4
+      }
+    ]
+  },
+  "textureUrls": [
+    "http://127.0.0.1:4173/textures/wood/oak_veneer_01_nor_gl_2k.webp",
+    "http://127.0.0.1:4173/textures/wood/oak_veneer_01_diff_2k.webp",
+    "http://127.0.0.1:4173/textures/wood/oak_veneer_01_rough_2k.webp",
+    "http://127.0.0.1:4173/textures/wood/oak_veneer_01_ao_2k.webp",
+    "http://127.0.0.1:4173/textures/felt/Fabric034_Roughness_2K.webp",
+    "http://127.0.0.1:4173/textures/felt/Fabric034_Color_2K.webp",
+    "http://127.0.0.1:4173/textures/felt/Fabric034_NormalGL_2K.webp"
+  ]
+}

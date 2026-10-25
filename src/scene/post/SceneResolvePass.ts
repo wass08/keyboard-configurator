@@ -1,15 +1,20 @@
-import { DepthTexture, HalfFloatType, MeshBasicMaterial, UnsignedIntType, WebGLRenderTarget } from 'three';
-import type { Camera, Scene, WebGLRenderer } from 'three';
+import { DepthTexture, MeshBasicMaterial, UnsignedIntType, WebGLRenderTarget } from 'three';
+import type { Camera, Scene, WebGLRenderer, TextureDataType } from 'three';
 import { profileGpu } from './PassProfiler';
 import { FullScreenQuad, Pass } from 'three/addons/postprocessing/Pass.js';
 
 /** MSAA belongs to geometry, not every later fullscreen pass. Resolve scene
  * color once into single-sample composer buffers and share its native depth. */
 export class SceneResolvePass extends Pass {
-  target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4, depthTexture: new DepthTexture(1, 1, UnsignedIntType) });
-  material = new MeshBasicMaterial({ map: this.target.texture, depthTest: false, depthWrite: false, toneMapped: false });
-  private quad = new FullScreenQuad(this.material);
-  constructor(private scene: Scene, private camera: Camera) { super(); this.needsSwap = false; }
+  target: WebGLRenderTarget;
+  material: MeshBasicMaterial;
+  private quad: FullScreenQuad;
+  constructor(private scene: Scene, private camera: Camera, type: TextureDataType, samples: number) {
+    super(); this.needsSwap = false;
+    this.target = new WebGLRenderTarget(1, 1, { type, samples, depthTexture: new DepthTexture(1, 1, UnsignedIntType) });
+    this.material = new MeshBasicMaterial({ map: this.target.texture, depthTest: false, depthWrite: false, toneMapped: false });
+    this.quad = new FullScreenQuad(this.material);
+  }
   setSize(width: number, height: number) { this.target.setSize(width, height); }
   render(renderer: WebGLRenderer, _write: WebGLRenderTarget, read: WebGLRenderTarget) {
     // Resolve must follow real draws: an isolated repeated blit of unchanged

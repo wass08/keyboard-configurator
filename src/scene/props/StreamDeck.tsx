@@ -1,3 +1,4 @@
+import { MOBILE_PROFILE } from '../deviceProfile';
 import { useLayoutEffect, useMemo, useRef, useContext, useEffect } from 'react';
 import { CanvasTexture, Color, RectAreaLight, ExtrudeGeometry, InstancedMesh, Matrix4, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, Path, Shape, ShapeGeometry, SRGBColorSpace } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -80,7 +81,7 @@ export function StreamDeck() {
       <mesh name="streamdeck-faceplate" geometry={r.panel} position={[0, 0, 0.0105]} material={r.black} castShadow receiveShadow />
       <instancedMesh name="streamdeck-bezels" ref={bezels} args={[r.bezel, r.glass, 15]} castShadow receiveShadow />
       <instancedMesh name="streamdeck-keycaps" ref={caps} args={[r.cap, r.capGlass, 15]} castShadow receiveShadow />
-      <DeckSpill color={r.atlas.userData.spillColor} intensity={settings.deckSpill} />
+      {!MOBILE_PROFILE && <DeckSpill color={r.atlas.userData.spillColor} intensity={settings.deckSpill} />}
       <mesh name="streamdeck-lcd-keys" geometry={r.faces} material={r.lcd} castShadow receiveShadow />
     </group>
   </group></MovableProp>;

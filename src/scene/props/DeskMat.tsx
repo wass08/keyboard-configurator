@@ -1,3 +1,4 @@
+import { texturePath } from '../deviceProfile';
 import { useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import { MeshPhysicalMaterial, RepeatWrapping, SRGBColorSpace, Vector2 } from 'three';
@@ -5,7 +6,7 @@ import { useOwnedDisposal } from '../../resources/ownership';
 import { DESK_TOP, MAT_CENTER_Z } from '../dimensions';
 import { createRollingMat } from '../intro/matGeometry';
 
-export const FELT_MAPS = ['/textures/felt/Fabric034_Color_2K.webp', '/textures/felt/Fabric034_NormalGL_2K.webp', '/textures/felt/Fabric034_Roughness_2K.webp'];
+export const FELT_MAPS = ['/textures/felt/Fabric034_Color_2K.webp', '/textures/felt/Fabric034_NormalGL_2K.webp', '/textures/felt/Fabric034_Roughness_2K.webp'].map(texturePath);
 export function DeskMat() {
   const maps = useTexture(FELT_MAPS);
   const resources = useMemo(() => {

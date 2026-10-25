@@ -14,4 +14,13 @@ for(const folder of ['wood','felt'])for(const name of await readdir(`public/text
   console.log(`${name}: ${(await stat(source)).size} → ${(await stat(target)).size} bytes`);
   await unlink(source);
 }
-console.log(`Textures: ${before} → ${after} bytes (${(100*(1-after/before)).toFixed(1)}% smaller)`);
+if (before) console.log(`Textures: ${before} → ${after} bytes (${(100*(1-after/before)).toFixed(1)}% smaller)`);
+
+// Derive mobile assets from the shipped 2K WebPs too: rerunning is safe and
+// does not require downloading or deleting the existing desktop masters.
+for (const folder of ['wood', 'felt']) for (const name of await readdir(`public/textures/${folder}`)) {
+  if (!/_2k\.webp$/i.test(name)) continue;
+  const source = `public/textures/${folder}/${name}`, target = source.replace(/_2k\.webp$/i, '_1k.webp');
+  await exec('cwebp', ['-q', '90', '-m', '6', '-sharp_yuv', '-resize', '1024', '1024', source, '-o', target]);
+  console.log(`${name} → ${target}`);
+}

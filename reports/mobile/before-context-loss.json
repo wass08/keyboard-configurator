@@ -1,0 +1,933 @@
+{
+  "fallbackVisible": false,
+  "diagnostics": {
+    "contextLost": [
+      {
+        "time": 13528.09999999404,
+        "prevented": true
+      }
+    ],
+    "contextRestored": [],
+    "shaderLogs": [],
+    "rejections": [],
+    "capabilities": [
+      {
+        "MAX_TEXTURE_IMAGE_UNITS": 16,
+        "MAX_FRAGMENT_UNIFORM_VECTORS": 1024,
+        "MAX_VARYING_VECTORS": 30,
+        "MAX_RENDERBUFFER_SIZE": 16384,
+        "MAX_TEXTURE_SIZE": 16384,
+        "MAX_SAMPLES": 8,
+        "fragmentHighp": 23,
+        "extensions": [
+          "EXT_clip_control",
+          "EXT_color_buffer_float",
+          "EXT_color_buffer_half_float",
+          "EXT_conservative_depth",
+          "EXT_depth_clamp",
+          "EXT_disjoint_timer_query_webgl2",
+          "EXT_float_blend",
+          "EXT_polygon_offset_clamp",
+          "EXT_render_snorm",
+          "EXT_texture_compression_bptc",
+          "EXT_texture_compression_rgtc",
+          "EXT_texture_filter_anisotropic",
+          "EXT_texture_mirror_clamp_to_edge",
+          "EXT_texture_norm16",
+          "KHR_parallel_shader_compile",
+          "NV_shader_noperspective_interpolation",
+          "OES_draw_buffers_indexed",
+          "OES_sample_variables",
+          "OES_shader_multisample_interpolation",
+          "OES_texture_float_linear",
+          "WEBGL_blend_func_extended",
+          "WEBGL_clip_cull_distance",
+          "WEBGL_compressed_texture_astc",
+          "WEBGL_compressed_texture_etc",
+          "WEBGL_compressed_texture_etc1",
+          "WEBGL_compressed_texture_pvrtc",
+          "WEBGL_compressed_texture_s3tc",
+          "WEBGL_compressed_texture_s3tc_srgb",
+          "WEBGL_debug_renderer_info",
+          "WEBGL_debug_shaders",
+          "WEBGL_lose_context",
+          "WEBGL_multi_draw",
+          "WEBGL_polygon_mode",
+          "WEBGL_provoking_vertex",
+          "WEBGL_render_shared_exponent",
+          "WEBGL_stencil_texturing"
+        ]
+      }
+    ],
+    "programs": [
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 17
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 10
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 10
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 10
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 10
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 10
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 2
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 3
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 77
+      },
+      {
+        "samplers": 11,
+        "uniformVectorsUpperBound": 108
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 86
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 80
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 78
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 73
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 73
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 78
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 78
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 22
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 26
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 30
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 34
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 25
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 10
+      },
+      {
+        "samplers": 2,
+        "uniformVectorsUpperBound": 25
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 21
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 77
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 82
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 11,
+        "uniformVectorsUpperBound": 112
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 81
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 81
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 95
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 82
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 82
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 91
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 91
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 80
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 91
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 90
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 77
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 84
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 82
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 71
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 76
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 11,
+        "uniformVectorsUpperBound": 106
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 75
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 75
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 76
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 76
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 74
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 84
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 71
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 78
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 76
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 75
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 80
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 11,
+        "uniformVectorsUpperBound": 110
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 79
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 79
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 93
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 80
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 80
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 78
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 88
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 75
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 82
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 80
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 81
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 86
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 12,
+        "uniformVectorsUpperBound": 116
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 9,
+        "uniformVectorsUpperBound": 99
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 86
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 86
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 95
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 95
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 84
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 95
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 94
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 81
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 88
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 86
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 90
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 12,
+        "uniformVectorsUpperBound": 120
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 9,
+        "uniformVectorsUpperBound": 103
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 90
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 90
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 99
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 99
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 88
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 99
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 98
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 85
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 92
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 90
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 94
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 12,
+        "uniformVectorsUpperBound": 124
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 93
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 93
+      },
+      {
+        "samplers": 9,
+        "uniformVectorsUpperBound": 107
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 94
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 94
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 103
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 103
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 92
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 103
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 102
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 89
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 96
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 94
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 69
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 74
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 11,
+        "uniformVectorsUpperBound": 104
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 73
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 73
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 87
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 74
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 74
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 83
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 83
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 72
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 83
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 82
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 69
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 76
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 74
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 18
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 14
+      },
+      {
+        "samplers": 6,
+        "uniformVectorsUpperBound": 77
+      },
+      {
+        "samplers": 8,
+        "uniformVectorsUpperBound": 91
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 78
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 87
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 87
+      },
+      {
+        "samplers": 5,
+        "uniformVectorsUpperBound": 76
+      },
+      {
+        "samplers": 7,
+        "uniformVectorsUpperBound": 87
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 37
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      },
+      {
+        "samplers": 1,
+        "uniformVectorsUpperBound": 13
+      },
+      {
+        "samplers": 0,
+        "uniformVectorsUpperBound": 9
+      }
+    ],
+    "peakBytes": 647379353.3333334,
+    "liveBytes": 0,
+    "bufferBytes": 0
+  },
+  "build": "c2c2a72bbbbefbfda5f1beb9348011de79648b01"
+}

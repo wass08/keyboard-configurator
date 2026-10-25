@@ -1,3 +1,4 @@
+import { MOBILE_PROFILE, hdrRenderable } from './deviceProfile';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Environment, Lightformer, useEnvironment } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
@@ -49,7 +50,7 @@ function Probe({ audit, revision }: { audit: Audit; revision: string }) {
   return null;
 }
 
-export function RigEnvironment({ settings: s, enabled }: { settings: LightingSettings; enabled: boolean }) {
+function HDRRigEnvironment({ settings: s, enabled }: { settings: LightingSettings; enabled: boolean }) {
   const stage = useStages(state => state.stage);
   const hdri = useEnvironment({ files: '/hdri/studio_small_09_1k.hdr' });
   const audit = useRef<Audit>({ captures: 0 });
@@ -76,5 +77,12 @@ export function RigEnvironment({ settings: s, enabled }: { settings: LightingSet
     // across unrelated rerenders, so Environment's frames={1} really is cached.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision, hdri]);
-  return <Environment frames={1} resolution={256} near={0.01} far={30} environmentIntensity={1} environmentRotation={[0, 0, 0]}>{children}</Environment>;
+  return <Environment frames={1} resolution={MOBILE_PROFILE ? 128 : 256} near={0.01} far={30} environmentIntensity={1} environmentRotation={[0, 0, 0]}>{children}</Environment>;
+}
+
+export function RigEnvironment(props: { settings: LightingSettings; enabled: boolean }) {
+  const gl = useThree(state => state.gl);
+  // PMREM and Drei's portal allocate half-float FBOs internally. When they
+  // cannot be rendered, use cheap ambient fill without creating those targets.
+  return hdrRenderable(gl) ? <HDRRigEnvironment {...props} /> : <hemisphereLight args={['#d4deef', '#494039', 0.6]} />;
 }

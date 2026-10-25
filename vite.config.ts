@@ -7,6 +7,11 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
+        // WebKit rejects an unparenthesized `in` inside an arrow body when
+        // Oxc joins the declaration into a for initializer (Leva/Stitches).
+        // Disable compression until Oxc fixes that transform. Identifier and
+        // whitespace minification, tree shaking and code splitting remain.
+        minify: { compress: false },
         codeSplitting: {
           groups: [
             { name: 'three', test: /node_modules\/three\//, priority: 30 },

@@ -1,0 +1,1534 @@
+{
+  "baseline": "Previously saved repository performance artifacts; not a same-session paired baseline",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)",
+  "frames": {
+    "assembled": {
+      "before": {
+        "frames": 150,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.00240009600385
+      },
+      "after": {
+        "frames": 150,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.00240009600385
+      }
+    },
+    "intro": {
+      "before": {
+        "frames": 335,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.04445081727335,
+        "beats": {
+          "hold": {
+            "frames": 54,
+            "medianFrameMs": 16.700000000000728,
+            "p95FrameMs": 16.700000000000728,
+            "averageFps": 60.261131569836685
+          },
+          "mat": {
+            "frames": 113,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.700000000000728,
+            "averageFps": 60.001061965698476
+          },
+          "frame": {
+            "frames": 39,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.80000000000109,
+            "averageFps": 60.009232189567655
+          },
+          "keys": {
+            "frames": 129,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.799999999999272,
+            "averageFps": 60.002790827480304
+          }
+        }
+      },
+      "after": {
+        "frames": 335,
+        "medianFrameMs": 16.69999999999891,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.05198530074016,
+        "beats": {
+          "hold": {
+            "frames": 55,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.700000000000728,
+            "averageFps": 60.30701754405667
+          },
+          "mat": {
+            "frames": 112,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.700000000000728,
+            "averageFps": 60.00214293367625
+          },
+          "frame": {
+            "frames": 39,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.700000000000728,
+            "averageFps": 59.99999999999999
+          },
+          "keys": {
+            "frames": 129,
+            "medianFrameMs": 16.69999999999891,
+            "p95FrameMs": 16.799999999999272,
+            "averageFps": 60.002790827480304
+          }
+        }
+      }
+    },
+    "typing": {
+      "before": {
+        "frames": 220,
+        "medianFrameMs": 16.700000000000728,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.001090928926004,
+        "keystrokes": 60,
+        "keysPerSecond": 15,
+        "screenRedraws": 60,
+        "staticRedraws": 0,
+        "dynamicCanvas": [
+          1920,
+          216
+        ],
+        "soundsScheduled": 119,
+        "audioContexts": 1,
+        "audioState": "running"
+      },
+      "after": {
+        "frames": 220,
+        "medianFrameMs": 16.700000000000728,
+        "p95FrameMs": 16.799999999999272,
+        "averageFps": 60.002727396699854,
+        "keystrokes": 60,
+        "keysPerSecond": 15,
+        "screenRedraws": 60,
+        "staticRedraws": 0,
+        "dynamicCanvas": [
+          1920,
+          216
+        ],
+        "soundsScheduled": 119,
+        "audioContexts": 1,
+        "audioState": "running"
+      }
+    },
+    "variantChange": {
+      "before": {
+        "frames": 210,
+        "medianFrameMs": 16.700000000000728,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.04632144787179
+      },
+      "after": {
+        "frames": 210,
+        "medianFrameMs": 16.700000000000728,
+        "p95FrameMs": 16.700000000000728,
+        "averageFps": 60.04460456344113
+      }
+    },
+    "depthOfField": {
+      "before": {
+        "frames": 150,
+        "medianFrameMs": 16.69999999999709,
+        "p95FrameMs": 16.700000000004366,
+        "averageFps": 60.002400096003804
+      },
+      "after": {
+        "frames": 150,
+        "medianFrameMs": 16.69999999999709,
+        "p95FrameMs": 16.700000000004366,
+        "averageFps": 60.00480038403074
+      }
+    },
+    "allEffects": {
+      "before": {
+        "frames": 150,
+        "medianFrameMs": 16.69999999999709,
+        "p95FrameMs": 16.700000000004366,
+        "averageFps": 59.99999999999999
+      },
+      "after": {
+        "frames": 150,
+        "medianFrameMs": 16.69999999999709,
+        "p95FrameMs": 16.700000000004366,
+        "averageFps": 60.002400096003804
+      }
+    }
+  },
+  "draws": {
+    "before": 241,
+    "after": 241
+  },
+  "priorGpu": [
+    {
+      "dpr": 1.5,
+      "pacing": {
+        "frames": 320,
+        "fps": 60.07246240784661,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.799999999999272
+      },
+      "mainThreadMs": 1.3512937500000004,
+      "metrics": {
+        "calls": 241,
+        "triangles": 486954,
+        "programs": 215,
+        "geometries": 226,
+        "textures": 57,
+        "textureBytesEstimate": 383489232,
+        "multisampleBytesEstimate": 139968000,
+        "identifiedBytesEstimate": 523457232,
+        "buffer": [
+          2160,
+          1350
+        ],
+        "pixelRatio": 1.5,
+        "targetSizes": [
+          {
+            "size": [
+              2160,
+              1350
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2160,
+              1350
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              1080,
+              675
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              540,
+              338
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              270,
+              169
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              135,
+              85
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              68,
+              43
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              34,
+              22
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              540,
+              338
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              270,
+              169
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              135,
+              85
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              68,
+              43
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              34,
+              22
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2160,
+              1350
+            ],
+            "samples": 4
+          }
+        ]
+      },
+      "quality": {
+        "enabled": false,
+        "dpr": 1.5,
+        "nativeDpr": 1.5,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "high",
+        "decided": false,
+        "decisions": 0
+      },
+      "gpu": {
+        "frame": {
+          "samples": 340,
+          "meanMs": 13.225263097058814,
+          "medianMs": 13.982541,
+          "p95Ms": 16.496833
+        },
+        "mainScene": {
+          "samples": 340,
+          "meanMs": 7.835141058823539,
+          "medianMs": 7.9545,
+          "p95Ms": 9.448208
+        },
+        "shadowMap": {
+          "samples": 340,
+          "meanMs": 0.2671204500000003,
+          "medianMs": 0.250958,
+          "p95Ms": 0.485875
+        },
+        "environment.capture": {
+          "samples": 340,
+          "meanMs": 0.48274276470588245,
+          "medianMs": 0.311624,
+          "p95Ms": 1.164124
+        },
+        "scene.resolve": {
+          "samples": 340,
+          "meanMs": 0.3876151,
+          "medianMs": 0.387375,
+          "p95Ms": 0.774416
+        },
+        "depthOfField": {
+          "samples": 340,
+          "meanMs": 1.6324172764705902,
+          "medianMs": 1.650999,
+          "p95Ms": 2.371916
+        },
+        "bloom.threshold": {
+          "samples": 340,
+          "meanMs": 0.09239917058823537,
+          "medianMs": 0.072833,
+          "p95Ms": 0.074125
+        },
+        "bloom.mip0.x": {
+          "samples": 340,
+          "meanMs": 0.1302323264705883,
+          "medianMs": 0.067875,
+          "p95Ms": 0.388833
+        },
+        "bloom.mip0.y": {
+          "samples": 340,
+          "meanMs": 0.13555932058823536,
+          "medianMs": 0.093875,
+          "p95Ms": 0.275166
+        },
+        "bloom.mip1.x": {
+          "samples": 340,
+          "meanMs": 0.1297008264705882,
+          "medianMs": 0.076791,
+          "p95Ms": 0.296958
+        },
+        "bloom.mip1.y": {
+          "samples": 340,
+          "meanMs": 0.0896430205882353,
+          "medianMs": 0.053625,
+          "p95Ms": 0.23925
+        },
+        "bloom.mip2.x": {
+          "samples": 340,
+          "meanMs": 0.07691052058823533,
+          "medianMs": 0.063125,
+          "p95Ms": 0.074999
+        },
+        "bloom.mip2.y": {
+          "samples": 340,
+          "meanMs": 0.06398396176470583,
+          "medianMs": 0.048624,
+          "p95Ms": 0.055875
+        },
+        "bloom.mip3.x": {
+          "samples": 340,
+          "meanMs": 0.06757324705882356,
+          "medianMs": 0.066874,
+          "p95Ms": 0.068208
+        },
+        "bloom.mip3.y": {
+          "samples": 340,
+          "meanMs": 0.06614403529411757,
+          "medianMs": 0.051624,
+          "p95Ms": 0.053124
+        },
+        "bloom.mip4.x": {
+          "samples": 340,
+          "meanMs": 0.06801312647058823,
+          "medianMs": 0.0545,
+          "p95Ms": 0.055499
+        },
+        "bloom.mip4.y": {
+          "samples": 340,
+          "meanMs": 0.053691544117647066,
+          "medianMs": 0.046375,
+          "p95Ms": 0.048
+        },
+        "bloom.composite": {
+          "samples": 340,
+          "meanMs": 0.09931909705882344,
+          "medianMs": 0.049125,
+          "p95Ms": 0.379999
+        },
+        "bloom.blend": {
+          "samples": 340,
+          "meanMs": 0.20897612941176474,
+          "medianMs": 0.102999,
+          "p95Ms": 0.723458
+        },
+        "dustAfterDoF": {
+          "samples": 340,
+          "meanMs": 0.04555992647058819,
+          "medianMs": 0.037958,
+          "p95Ms": 0.045333
+        },
+        "gradingAndOutput": {
+          "samples": 340,
+          "meanMs": 0.28534972941176484,
+          "medianMs": 0.300041,
+          "p95Ms": 0.303708
+        },
+        "scene.withResolve": {
+          "samples": 340,
+          "meanMs": 8.05409299705883,
+          "medianMs": 7.988583,
+          "p95Ms": 9.773291
+        },
+        "frame.offscreen": {
+          "samples": 340,
+          "meanMs": 13.66812956764705,
+          "medianMs": 14.625125,
+          "p95Ms": 17.802375
+        }
+      }
+    },
+    {
+      "dpr": 2,
+      "pacing": {
+        "frames": 320,
+        "fps": 60.07020705454536,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.700000000000728
+      },
+      "mainThreadMs": 1.4135999999999995,
+      "metrics": {
+        "calls": 241,
+        "triangles": 486954,
+        "programs": 215,
+        "geometries": 226,
+        "textures": 57,
+        "textureBytesEstimate": 454544880,
+        "multisampleBytesEstimate": 248832000,
+        "identifiedBytesEstimate": 703376880,
+        "buffer": [
+          2880,
+          1800
+        ],
+        "pixelRatio": 2,
+        "targetSizes": [
+          {
+            "size": [
+              2880,
+              1800
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2880,
+              1800
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              1440,
+              900
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              720,
+              450
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              360,
+              225
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              180,
+              113
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              90,
+              57
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              45,
+              29
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              720,
+              450
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              360,
+              225
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              180,
+              113
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              90,
+              57
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              45,
+              29
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2880,
+              1800
+            ],
+            "samples": 4
+          }
+        ]
+      },
+      "quality": {
+        "enabled": false,
+        "dpr": 2,
+        "nativeDpr": 2,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "high",
+        "decided": false,
+        "decisions": 0
+      },
+      "gpu": {
+        "frame": {
+          "samples": 340,
+          "meanMs": 15.75676509411765,
+          "medianMs": 16.41025,
+          "p95Ms": 18.461749
+        },
+        "mainScene": {
+          "samples": 340,
+          "meanMs": 8.80417978823529,
+          "medianMs": 8.538916,
+          "p95Ms": 9.937083
+        },
+        "shadowMap": {
+          "samples": 340,
+          "meanMs": 0.3162547529411765,
+          "medianMs": 0.318666,
+          "p95Ms": 0.42825
+        },
+        "environment.capture": {
+          "samples": 340,
+          "meanMs": 0.24717056764705908,
+          "medianMs": 0.151125,
+          "p95Ms": 0.812583
+        },
+        "scene.resolve": {
+          "samples": 340,
+          "meanMs": 0.2201996029411764,
+          "medianMs": 0.157208,
+          "p95Ms": 0.567041
+        },
+        "depthOfField": {
+          "samples": 340,
+          "meanMs": 1.8820687794117652,
+          "medianMs": 2.088249,
+          "p95Ms": 2.83475
+        },
+        "bloom.threshold": {
+          "samples": 340,
+          "meanMs": 0.16822524411764717,
+          "medianMs": 0.101333,
+          "p95Ms": 0.478916
+        },
+        "bloom.mip0.x": {
+          "samples": 340,
+          "meanMs": 0.16236092352941178,
+          "medianMs": 0.087583,
+          "p95Ms": 0.461375
+        },
+        "bloom.mip0.y": {
+          "samples": 340,
+          "meanMs": 0.12965822647058833,
+          "medianMs": 0.062333,
+          "p95Ms": 0.432625
+        },
+        "bloom.mip1.x": {
+          "samples": 340,
+          "meanMs": 0.1452107882352942,
+          "medianMs": 0.074583,
+          "p95Ms": 0.430833
+        },
+        "bloom.mip1.y": {
+          "samples": 340,
+          "meanMs": 0.0795957147058824,
+          "medianMs": 0.051875,
+          "p95Ms": 0.055916
+        },
+        "bloom.mip2.x": {
+          "samples": 340,
+          "meanMs": 0.09982081176470578,
+          "medianMs": 0.078583,
+          "p95Ms": 0.083041
+        },
+        "bloom.mip2.y": {
+          "samples": 340,
+          "meanMs": 0.07958503529411771,
+          "medianMs": 0.056624,
+          "p95Ms": 0.06075
+        },
+        "bloom.mip3.x": {
+          "samples": 340,
+          "meanMs": 0.10339265294117657,
+          "medianMs": 0.070208,
+          "p95Ms": 0.082166
+        },
+        "bloom.mip3.y": {
+          "samples": 340,
+          "meanMs": 0.11424619705882347,
+          "medianMs": 0.051958,
+          "p95Ms": 0.395125
+        },
+        "bloom.mip4.x": {
+          "samples": 341,
+          "meanMs": 0.5997459560117305,
+          "medianMs": 0.417999,
+          "p95Ms": 1.552875
+        },
+        "bloom.mip4.y": {
+          "samples": 341,
+          "meanMs": 0.6432173519061586,
+          "medianMs": 0.500875,
+          "p95Ms": 1.604249
+        },
+        "bloom.composite": {
+          "samples": 341,
+          "meanMs": 0.6219767800586512,
+          "medianMs": 0.468083,
+          "p95Ms": 1.662125
+        },
+        "bloom.blend": {
+          "samples": 341,
+          "meanMs": 0.8783466480938413,
+          "medianMs": 0.473291,
+          "p95Ms": 2.445124
+        },
+        "dustAfterDoF": {
+          "samples": 341,
+          "meanMs": 0.48223728152492684,
+          "medianMs": 0.251875,
+          "p95Ms": 0.959749
+        },
+        "gradingAndOutput": {
+          "samples": 341,
+          "meanMs": 0.9991882991202341,
+          "medianMs": 0.783041,
+          "p95Ms": 1.783416
+        },
+        "scene.withResolve": {
+          "samples": 340,
+          "meanMs": 8.732073994117652,
+          "medianMs": 8.477416,
+          "p95Ms": 10.150041
+        },
+        "frame.offscreen": {
+          "samples": 340,
+          "meanMs": 15.405961002941194,
+          "medianMs": 16.471583,
+          "p95Ms": 18.655833
+        }
+      }
+    },
+    {
+      "dpr": 2,
+      "pacing": {
+        "frames": 320,
+        "fps": 33.794130381984594,
+        "medianMs": 33.30000000000018,
+        "p95Ms": 33.400000000001455
+      },
+      "mainThreadMs": 1.6776656250000008,
+      "metrics": {
+        "calls": 241,
+        "triangles": 486954,
+        "programs": 215,
+        "geometries": 226,
+        "textures": 57,
+        "textureBytesEstimate": 551998080,
+        "multisampleBytesEstimate": 398131200,
+        "identifiedBytesEstimate": 950129280,
+        "buffer": [
+          3840,
+          2160
+        ],
+        "pixelRatio": 2,
+        "targetSizes": [
+          {
+            "size": [
+              3840,
+              2160
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              3840,
+              2160
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              1920,
+              1080
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              960,
+              540
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              480,
+              270
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              240,
+              135
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              120,
+              68
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              60,
+              34
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              960,
+              540
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              480,
+              270
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              240,
+              135
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              120,
+              68
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              60,
+              34
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              3840,
+              2160
+            ],
+            "samples": 4
+          }
+        ]
+      },
+      "quality": {
+        "enabled": false,
+        "dpr": 2,
+        "nativeDpr": 2,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "high",
+        "decided": false,
+        "decisions": 0
+      },
+      "gpu": {
+        "frame": {
+          "samples": 341,
+          "meanMs": 84.71324472727272,
+          "medianMs": 85.267249,
+          "p95Ms": 106.244166
+        },
+        "mainScene": {
+          "samples": 341,
+          "meanMs": 188.51337084457478,
+          "medianMs": 158.418416,
+          "p95Ms": 325.37725
+        },
+        "shadowMap": {
+          "samples": 341,
+          "meanMs": 30.103716750733142,
+          "medianMs": 30.05425,
+          "p95Ms": 35.81
+        },
+        "environment.capture": {
+          "samples": 342,
+          "meanMs": 1.6434635380116966,
+          "medianMs": 1.33825,
+          "p95Ms": 3.416416
+        },
+        "scene.resolve": {
+          "samples": 341,
+          "meanMs": 1.2994674926686207,
+          "medianMs": 0.793375,
+          "p95Ms": 3.657458
+        },
+        "depthOfField": {
+          "samples": 341,
+          "meanMs": 3.391958451612904,
+          "medianMs": 2.722249,
+          "p95Ms": 7.081833
+        },
+        "bloom.threshold": {
+          "samples": 341,
+          "meanMs": 1.3793530000000014,
+          "medianMs": 0.797874,
+          "p95Ms": 3.409375
+        },
+        "bloom.mip0.x": {
+          "samples": 341,
+          "meanMs": 1.1229605161290321,
+          "medianMs": 0.723708,
+          "p95Ms": 2.782
+        },
+        "bloom.mip0.y": {
+          "samples": 341,
+          "meanMs": 0.9119335102639292,
+          "medianMs": 0.581124,
+          "p95Ms": 2.020874
+        },
+        "bloom.mip1.x": {
+          "samples": 341,
+          "meanMs": 0.8989472873900288,
+          "medianMs": 0.574499,
+          "p95Ms": 1.913624
+        },
+        "bloom.mip1.y": {
+          "samples": 341,
+          "meanMs": 0.9925613489736068,
+          "medianMs": 0.654791,
+          "p95Ms": 2.906124
+        },
+        "bloom.mip2.x": {
+          "samples": 341,
+          "meanMs": 0.7213698533724346,
+          "medianMs": 0.334458,
+          "p95Ms": 1.935499
+        },
+        "bloom.mip2.y": {
+          "samples": 340,
+          "meanMs": 0.2131219382352941,
+          "medianMs": 0.076208,
+          "p95Ms": 0.520124
+        },
+        "bloom.mip3.x": {
+          "samples": 340,
+          "meanMs": 0.20915084705882345,
+          "medianMs": 0.079625,
+          "p95Ms": 0.508916
+        },
+        "bloom.mip3.y": {
+          "samples": 340,
+          "meanMs": 0.18905070000000007,
+          "medianMs": 0.073416,
+          "p95Ms": 0.502499
+        },
+        "bloom.mip4.x": {
+          "samples": 340,
+          "meanMs": 0.22037977941176454,
+          "medianMs": 0.08725,
+          "p95Ms": 0.567333
+        },
+        "bloom.mip4.y": {
+          "samples": 340,
+          "meanMs": 0.20163482647058803,
+          "medianMs": 0.071041,
+          "p95Ms": 0.539666
+        },
+        "bloom.composite": {
+          "samples": 340,
+          "meanMs": 0.15246837352941175,
+          "medianMs": 0.078749,
+          "p95Ms": 0.535749
+        },
+        "bloom.blend": {
+          "samples": 340,
+          "meanMs": 0.6363003294117643,
+          "medianMs": 0.353375,
+          "p95Ms": 1.438833
+        },
+        "dustAfterDoF": {
+          "samples": 340,
+          "meanMs": 0.12434560588235308,
+          "medianMs": 0.042125,
+          "p95Ms": 0.380333
+        },
+        "gradingAndOutput": {
+          "samples": 340,
+          "meanMs": 1.3789472970588241,
+          "medianMs": 1.08075,
+          "p95Ms": 2.3425
+        }
+      }
+    }
+  ],
+  "currentGpu": [
+    {
+      "dpr": 1.5,
+      "pacing": {
+        "frames": 320,
+        "fps": 60.08261359362408,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.700000000000728
+      },
+      "mainThreadMs": 1.3719406249999997,
+      "metrics": {
+        "calls": 241,
+        "triangles": 486954,
+        "programs": 215,
+        "geometries": 226,
+        "textures": 57,
+        "textureBytesEstimate": 383489232,
+        "multisampleBytesEstimate": 139968000,
+        "identifiedBytesEstimate": 523457232,
+        "buffer": [
+          2160,
+          1350
+        ],
+        "pixelRatio": 1.5,
+        "targetSizes": [
+          {
+            "size": [
+              2160,
+              1350
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2160,
+              1350
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              1080,
+              675
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              540,
+              338
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              270,
+              169
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              135,
+              85
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              68,
+              43
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              34,
+              22
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              540,
+              338
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              270,
+              169
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              135,
+              85
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              68,
+              43
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              34,
+              22
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2160,
+              1350
+            ],
+            "samples": 4
+          }
+        ]
+      },
+      "quality": {
+        "enabled": false,
+        "dpr": 1.5,
+        "nativeDpr": 1.5,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "high",
+        "decided": false,
+        "decisions": 0
+      },
+      "gpu": {
+        "frame": {
+          "samples": 340,
+          "meanMs": 18.03696788823531,
+          "medianMs": 18.734208,
+          "p95Ms": 23.51025
+        },
+        "mainScene": {
+          "samples": 340,
+          "meanMs": 8.619418029411763,
+          "medianMs": 8.247791,
+          "p95Ms": 10.808749
+        },
+        "shadowMap": {
+          "samples": 340,
+          "meanMs": 0.45066273529411777,
+          "medianMs": 0.465458,
+          "p95Ms": 0.513958
+        },
+        "environment.capture": {
+          "samples": 340,
+          "meanMs": 0.1750638205882353,
+          "medianMs": 0.149958,
+          "p95Ms": 0.327833
+        },
+        "scene.resolve": {
+          "samples": 340,
+          "meanMs": 0.16819227352941188,
+          "medianMs": 0.103666,
+          "p95Ms": 0.563333
+        },
+        "scene.withResolve": {
+          "samples": 340,
+          "meanMs": 6.822841167647056,
+          "medianMs": 6.636,
+          "p95Ms": 7.73575
+        },
+        "depthOfField": {
+          "samples": 340,
+          "meanMs": 1.267253514705883,
+          "medianMs": 1.188875,
+          "p95Ms": 1.675916
+        },
+        "bloom.threshold": {
+          "samples": 340,
+          "meanMs": 0.08941948823529414,
+          "medianMs": 0.072875,
+          "p95Ms": 0.07475
+        },
+        "bloom.mip0.x": {
+          "samples": 340,
+          "meanMs": 0.08183395000000003,
+          "medianMs": 0.067416,
+          "p95Ms": 0.071499
+        },
+        "bloom.mip0.y": {
+          "samples": 340,
+          "meanMs": 0.07427356764705882,
+          "medianMs": 0.052124,
+          "p95Ms": 0.05575
+        },
+        "bloom.mip1.x": {
+          "samples": 340,
+          "meanMs": 0.09301899117647065,
+          "medianMs": 0.070958,
+          "p95Ms": 0.076791
+        },
+        "bloom.mip1.y": {
+          "samples": 340,
+          "meanMs": 0.08426832058823522,
+          "medianMs": 0.052875,
+          "p95Ms": 0.058166
+        },
+        "bloom.mip2.x": {
+          "samples": 340,
+          "meanMs": 0.15687020588235281,
+          "medianMs": 0.062833,
+          "p95Ms": 0.767458
+        },
+        "bloom.mip2.y": {
+          "samples": 340,
+          "meanMs": 0.06266442647058824,
+          "medianMs": 0.047749,
+          "p95Ms": 0.052833
+        },
+        "bloom.mip3.x": {
+          "samples": 340,
+          "meanMs": 0.0970261,
+          "medianMs": 0.0675,
+          "p95Ms": 0.072249
+        },
+        "bloom.mip3.y": {
+          "samples": 340,
+          "meanMs": 0.1335739176470588,
+          "medianMs": 0.052333,
+          "p95Ms": 0.740375
+        },
+        "bloom.mip4.x": {
+          "samples": 340,
+          "meanMs": 0.07041005294117655,
+          "medianMs": 0.054374,
+          "p95Ms": 0.058999
+        },
+        "bloom.mip4.y": {
+          "samples": 340,
+          "meanMs": 0.10328099411764705,
+          "medianMs": 0.046,
+          "p95Ms": 0.508083
+        },
+        "bloom.composite": {
+          "samples": 340,
+          "meanMs": 0.11643466176470577,
+          "medianMs": 0.049041,
+          "p95Ms": 0.510625
+        },
+        "bloom.blend": {
+          "samples": 340,
+          "meanMs": 0.1178270852941177,
+          "medianMs": 0.102458,
+          "p95Ms": 0.108499
+        },
+        "dustAfterDoF": {
+          "samples": 340,
+          "meanMs": 0.16850146470588226,
+          "medianMs": 0.073416,
+          "p95Ms": 1.000666
+        },
+        "gradingAndOutput": {
+          "samples": 340,
+          "meanMs": 0.4893126558823529,
+          "medianMs": 0.319374,
+          "p95Ms": 1.545041
+        }
+      }
+    },
+    {
+      "dpr": 2,
+      "pacing": {
+        "frames": 320,
+        "fps": 60.06118733466432,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.700000000000728
+      },
+      "mainThreadMs": 1.4483374999999994,
+      "metrics": {
+        "calls": 241,
+        "triangles": 486954,
+        "programs": 215,
+        "geometries": 226,
+        "textures": 57,
+        "textureBytesEstimate": 454544880,
+        "multisampleBytesEstimate": 248832000,
+        "identifiedBytesEstimate": 703376880,
+        "buffer": [
+          2880,
+          1800
+        ],
+        "pixelRatio": 2,
+        "targetSizes": [
+          {
+            "size": [
+              2880,
+              1800
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2880,
+              1800
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              1440,
+              900
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              720,
+              450
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              360,
+              225
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              180,
+              113
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              90,
+              57
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              45,
+              29
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              720,
+              450
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              360,
+              225
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              180,
+              113
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              90,
+              57
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              45,
+              29
+            ],
+            "samples": 0
+          },
+          {
+            "size": [
+              2880,
+              1800
+            ],
+            "samples": 4
+          }
+        ]
+      },
+      "quality": {
+        "enabled": false,
+        "dpr": 2,
+        "nativeDpr": 2,
+        "fps": 60,
+        "changes": 0,
+        "cooldownSeconds": 0,
+        "mode": "auto",
+        "tier": "high",
+        "decided": false,
+        "decisions": 0
+      },
+      "gpu": {
+        "frame": {
+          "samples": 340,
+          "meanMs": 15.132218888235304,
+          "medianMs": 15.91425,
+          "p95Ms": 17.072
+        },
+        "mainScene": {
+          "samples": 340,
+          "meanMs": 7.8043798794117665,
+          "medianMs": 7.57125,
+          "p95Ms": 8.261458
+        },
+        "shadowMap": {
+          "samples": 340,
+          "meanMs": 0.32122951764705887,
+          "medianMs": 0.300875,
+          "p95Ms": 0.4495
+        },
+        "environment.capture": {
+          "samples": 340,
+          "meanMs": 0.8037906705882351,
+          "medianMs": 0.902749,
+          "p95Ms": 1.51775
+        },
+        "scene.resolve": {
+          "samples": 340,
+          "meanMs": 0.33333336764705895,
+          "medianMs": 0.267499,
+          "p95Ms": 0.63525
+        },
+        "scene.withResolve": {
+          "samples": 340,
+          "meanMs": 7.641211014705886,
+          "medianMs": 7.356624,
+          "p95Ms": 8.023208
+        },
+        "depthOfField": {
+          "samples": 340,
+          "meanMs": 2.4750954882352927,
+          "medianMs": 2.445833,
+          "p95Ms": 3.40025
+        },
+        "bloom.threshold": {
+          "samples": 340,
+          "meanMs": 0.25396027058823545,
+          "medianMs": 0.144041,
+          "p95Ms": 0.609249
+        },
+        "bloom.mip0.x": {
+          "samples": 340,
+          "meanMs": 0.24488569999999996,
+          "medianMs": 0.187875,
+          "p95Ms": 0.474375
+        },
+        "bloom.mip0.y": {
+          "samples": 340,
+          "meanMs": 0.23368041176470586,
+          "medianMs": 0.209375,
+          "p95Ms": 0.483124
+        },
+        "bloom.mip1.x": {
+          "samples": 340,
+          "meanMs": 0.20500735588235297,
+          "medianMs": 0.108,
+          "p95Ms": 0.484291
+        },
+        "bloom.mip1.y": {
+          "samples": 340,
+          "meanMs": 0.18502192647058827,
+          "medianMs": 0.068583,
+          "p95Ms": 0.524166
+        },
+        "bloom.mip2.x": {
+          "samples": 340,
+          "meanMs": 0.18590343823529418,
+          "medianMs": 0.090625,
+          "p95Ms": 0.521124
+        },
+        "bloom.mip2.y": {
+          "samples": 340,
+          "meanMs": 0.14868408235294114,
+          "medianMs": 0.067749,
+          "p95Ms": 0.456291
+        },
+        "bloom.mip3.x": {
+          "samples": 340,
+          "meanMs": 0.16689471764705877,
+          "medianMs": 0.080749,
+          "p95Ms": 0.483083
+        },
+        "bloom.mip3.y": {
+          "samples": 340,
+          "meanMs": 0.15442712941176465,
+          "medianMs": 0.061625,
+          "p95Ms": 0.5085
+        },
+        "bloom.mip4.x": {
+          "samples": 340,
+          "meanMs": 0.162606894117647,
+          "medianMs": 0.074875,
+          "p95Ms": 0.456791
+        },
+        "bloom.mip4.y": {
+          "samples": 340,
+          "meanMs": 0.14447046764705881,
+          "medianMs": 0.057874,
+          "p95Ms": 0.451375
+        },
+        "bloom.composite": {
+          "samples": 340,
+          "meanMs": 0.14105122352941174,
+          "medianMs": 0.06325,
+          "p95Ms": 0.511208
+        },
+        "bloom.blend": {
+          "samples": 340,
+          "meanMs": 0.25708296470588227,
+          "medianMs": 0.160125,
+          "p95Ms": 0.588333
+        },
+        "dustAfterDoF": {
+          "samples": 340,
+          "meanMs": 0.1616959147058823,
+          "medianMs": 0.042916,
+          "p95Ms": 0.525583
+        },
+        "gradingAndOutput": {
+          "samples": 340,
+          "meanMs": 0.6887437441176475,
+          "medianMs": 0.619333,
+          "p95Ms": 1.2105
+        }
+      }
+    }
+  ],
+  "note": "Local desktop profiling completed. The separate cold production navigation timed out; the user requested no repeat profiling, no 4K rerun, and no cold-load rerun. Deployed mobile WebKit verification follows the push."
+}
