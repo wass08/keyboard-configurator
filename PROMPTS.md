@@ -457,3 +457,17 @@ Attached: video thumbnail, saved as `docs/media/thumbnail.jpg`.
 ## 47 — Performance pass: find what is killing performance (2026-10-24)
 
 > also do a performance pass, try to find what is killing performance and fix it.
+
+---
+
+## 48 — Status; only the final result matters for perf (2026-10-25)
+
+> any updates? I don't mind about the 7 stages it's only the final result that counts here
+
+---
+
+## 49 — Favicon and OG image (2026-10-25)
+
+> also can you add the proper favicon for my websites, and an og image (compress it)
+
+Attached: `screenshots/closeup.png` (source for the OG image).
