@@ -5,7 +5,7 @@ import { useOwnedDisposal } from '../../resources/ownership';
 import { DESK_TOP, MAT_CENTER_Z } from '../dimensions';
 import { createRollingMat } from '../intro/matGeometry';
 
-export const FELT_MAPS = ['/textures/felt/Fabric034_Color_2K.jpg', '/textures/felt/Fabric034_NormalGL_2K.jpg', '/textures/felt/Fabric034_Roughness_2K.jpg'];
+export const FELT_MAPS = ['/textures/felt/Fabric034_Color_2K.webp', '/textures/felt/Fabric034_NormalGL_2K.webp', '/textures/felt/Fabric034_Roughness_2K.webp'];
 export function DeskMat() {
   const maps = useTexture(FELT_MAPS);
   const resources = useMemo(() => {

@@ -1,0 +1,8 @@
+{
+  "baselineCommit": "4017d76",
+  "viewport": [1440, 900],
+  "deviceScaleFactor": 1,
+  "renderer": "ANGLE Metal",
+  "capture": "scripts/look-checks.mjs --baseline against the preserved instrumented baseline build",
+  "limits": {"meanChannelDelta": 0.65, "p99ChannelDelta": 5, "channelsOver8Percent": 0.6}
+}

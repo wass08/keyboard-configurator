@@ -85,3 +85,15 @@ high-passed and lightly layered, so the same permission and terms apply.
 Hover, knob detent ticks, replacement and intro sounds (and the fallback key
 sounds) are synthesized at runtime by hand-written code in `src/audio/synth.ts`;
 they use no recordings or third-party assets.
+
+## Performance derivatives
+
+The shipped 2K wood and felt maps use `.webp` in place of the source `.jpg`
+filenames above (libwebp quality 95, sharp YUV, unchanged dimensions). CC0
+provenance and map color spaces are unchanged. `npm run assets` downloads the
+masters and reproduces the derivatives with `scripts/optimize-textures.mjs`.
+
+The contact-shadow kernel follows the PCSS implementation in
+[pmndrs/drei SoftShadows](https://github.com/pmndrs/drei/blob/master/src/core/softShadows.tsx)
+(MIT), with a constant rotated disk and fewer samples. No reference photos are
+used as runtime assets.

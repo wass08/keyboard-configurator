@@ -1,6 +1,7 @@
+import { useProfiledFrame as useFrame } from '../scene/post/useProfiledFrame';
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { Box3, Matrix4, Raycaster, Vector2, Vector3 } from 'three';
 import type { Group, InstancedMesh, Object3D } from 'three';
 import { KEY_LAYOUT } from './layout';
@@ -375,6 +376,6 @@ export function KeyInteraction({ caps, knob, root, assembly }: { caps: RefObject
     };
   }, [gl, camera, caps, knob, root, assembly]);
 
-  useFrame((_, dt) => frame.current(dt));
+  useFrame('interaction', (_, dt) => frame.current(dt));
   return null;
 }

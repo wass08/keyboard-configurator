@@ -1,5 +1,6 @@
+import { useProfiledFrame as useFrame } from '../scene/post/useProfiledFrame';
 import { useContext, useEffect, useLayoutEffect, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import type { Light, Mesh, MeshStandardMaterial, PerspectiveCamera } from 'three';
 import { DESK_TOP, KEYBOARD_Y, MAT_THICKNESS } from '../scene/dimensions';
 import { stageMix, features, fullStageAudio, useStages } from './store';
@@ -68,7 +69,7 @@ export function StageRuntime() {
     if (!state.transitioning) settledRevision = state.revision;
   };
   useLayoutEffect(update, []);
-  useFrame(update, 0.6);
+  useFrame('recordingStages', update, 0.6);
   // Key the optical/lighting React readers on selection, never on tween frames.
   return null;
 }

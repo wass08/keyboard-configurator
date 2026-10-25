@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CanvasTexture, Color, Quaternion, SRGBColorSpace, Vector3 } from 'three';
+import { CanvasTexture, Color, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, Quaternion, SRGBColorSpace, Vector3 } from 'three';
 import { RoundedBox } from '@react-three/drei';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { useOwnedDisposal } from '../resources/ownership';
@@ -38,6 +38,15 @@ export function Monitor({ settings, enabled, lightEnabled }: { settings: Lightin
   const { rimPosition: p, rimAim: aim } = settings;
   const orientation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(aim.x - p.x, aim.y - p.y, aim.z - p.z).normalize());
   const powered = settings.screenOn && enabled;
+  // Own both panel states from startup so stage 1 never compiles a new
+  // coated-glass program on its first visible frame. Preparation visits the
+  // hidden off-panel proxy as well as the live emission-only screen.
+  const panels = useMemo(() => ({
+    geometry: new PlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT),
+    on: new MeshBasicMaterial({map: screen, color: new Color('#ffffff').multiplyScalar(SCREEN_RADIANCE)}),
+    off: new MeshPhysicalMaterial({color:'#030405', emissiveIntensity:0, roughness:0.22, metalness:0.08, clearcoat:1, clearcoatRoughness:0.12}),
+  }), [screen]);
+  useOwnedDisposal('Monitor.Panels', Object.values(panels));
   return <MovableProp id="monitor">
     <RoundedBox args={[0.235, 0.009, 0.174]} radius={0.004} smoothness={3} position={[p.x, 0.005, p.z + 0.43 - 0.025]} castShadow receiveShadow><meshStandardMaterial color={graphite} roughness={0.57} metalness={0.45} /></RoundedBox>
     <mesh name="monitor-neck" geometry={neckGeometry} position={[p.x, 0.15, p.z + 0.43 - 0.04]} castShadow><meshStandardMaterial color={graphite} metalness={0.5} roughness={0.55} /></mesh>
@@ -47,12 +56,8 @@ export function Monitor({ settings, enabled, lightEnabled }: { settings: Lightin
       {/* Keep the powered-on terminal emission-only to avoid reflected seams.
           The off panel combines coated-glass studio reflections with a dim,
           cached planar reflection of the actual keyboard and desktop. */}
-      <mesh name="monitor-screen" position={[0, 0.003, 0.0001]}>
-        <planeGeometry args={[SCREEN_WIDTH, SCREEN_HEIGHT]} />
-        {powered
-          ? <meshBasicMaterial key="on" map={screen} color={new Color('#ffffff').multiplyScalar(SCREEN_RADIANCE)} />
-          : <meshPhysicalMaterial key="off" color="#030405" emissiveIntensity={0} roughness={0.22} metalness={0.08} clearcoat={1} clearcoatRoughness={0.12} />}
-      </mesh>
+      <mesh name="monitor-screen" position={[0, 0.003, 0.0001]} geometry={panels.geometry} material={powered ? panels.on : panels.off} />
+      <mesh name="monitor-off-prewarm" visible={false} position={[0, 0.003, 0.0001]} geometry={panels.geometry} material={panels.off} />
       {/* The terminal canvas and its practical light stay outside the environment portal. */}
       {powered && <ScreenText width={SCREEN_WIDTH} height={SCREEN_HEIGHT} radiance={SCREEN_RADIANCE} settings={settings} lightEnabled={lightEnabled} />}
       {!powered && (stage === null || stage >= 3) && <OffScreenReflection width={SCREEN_WIDTH} height={SCREEN_HEIGHT} revision={JSON.stringify(settings)} />}

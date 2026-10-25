@@ -9,10 +9,17 @@ export async function prepareStageShaders(gl: WebGLRenderer, scene: Scene, camer
   const meshes = new Group();
   scene.traverse(object => {
     if (!('material' in object)) return;
-    // A compile-only proxy retains instancing/skinning/geometry flags and the
+    // A borrowed proxy retains instancing/skinning/geometry flags and the
     // actual shared materials, without Object3D.clone serializing userData or
     // copying instance buffers. compileAsync never draws or transforms it.
-    const proxy = Object.assign(Object.create(Object.getPrototypeOf(object)), object, { children: [], parent: null }) as Mesh;
+    const source=object as Mesh;
+    const proxy = Object.assign(Object.create(Object.getPrototypeOf(object)), object, {
+      children: [], parent: null, visible: true, frustumCulled: false,
+      matrix:source.matrix.clone(),matrixWorld:source.matrixWorld.clone(),
+      modelViewMatrix:source.modelViewMatrix.clone(),normalMatrix:source.normalMatrix.clone(),
+      matrixAutoUpdate:false,matrixWorldAutoUpdate:false,
+      onBeforeRender:()=>{},onAfterRender:()=>{},
+    }) as Mesh;
     meshes.add(proxy);
   });
   for (const [rects, directional, spotShadow] of [[4, 1, 0], [5, 1, 0], [4, 1, 1], [5, 1, 1], [6, 1, 1], [4, 0, 1], [5, 0, 1], [6, 0, 1]]) {
@@ -26,11 +33,34 @@ export async function prepareStageShaders(gl: WebGLRenderer, scene: Scene, camer
     try { gl.setRenderTarget(target); ready = gl.compileAsync(meshes, camera, lights); }
     finally { gl.setRenderTarget(previous); }
     await ready;
+    // Metal builds draw PSOs lazily, beyond compileAsync's GLSL completion.
+    // Exercise each real light permutation at 1px, borrowing buffers/materials
+    // while keeping every live transform independent from these proxies.
+    if(!cancelled()) {
+      lights.add(meshes);
+      const previousTarget=gl.getRenderTarget();
+      try {gl.setRenderTarget(target);gl.clear();gl.shadowMap.needsUpdate=true;gl.render(lights,camera);}
+      finally {gl.setRenderTarget(previousTarget);}
+    }
     spot.dispose();
     lights.traverse(o => { if (o instanceof DirectionalLight) o.dispose(); });
     lights.clear();
   }
   meshes.clear(); // Borrowed resources stay with their original owners.
+  // Complete the tiny draws asynchronously before ready, without a blocking
+  // gl.finish on the main thread. Normal frames can continue behind loading.
+  const context=gl.getContext() as WebGL2RenderingContext;
+  const fence=context.fenceSync(context.SYNC_GPU_COMMANDS_COMPLETE,0);
+  if(fence) {
+    context.flush();
+    await new Promise<void>(resolve=>{
+      const poll=()=>{
+        const status=context.clientWaitSync(fence,0,0);
+        if(cancelled()||status===context.ALREADY_SIGNALED||status===context.CONDITION_SATISFIED||status===context.WAIT_FAILED){context.deleteSync(fence);resolve();}
+        else requestAnimationFrame(poll);
+      };requestAnimationFrame(poll);
+    });
+  }
 }
 
 /** A program compile alone does not upload off-frustum prop geometry or warm

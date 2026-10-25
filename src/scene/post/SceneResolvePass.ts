@@ -1,5 +1,6 @@
 import { DepthTexture, HalfFloatType, MeshBasicMaterial, UnsignedIntType, WebGLRenderTarget } from 'three';
 import type { Camera, Scene, WebGLRenderer } from 'three';
+import { profileGpu } from './PassProfiler';
 import { FullScreenQuad, Pass } from 'three/addons/postprocessing/Pass.js';
 
 /** MSAA belongs to geometry, not every later fullscreen pass. Resolve scene
@@ -11,9 +12,13 @@ export class SceneResolvePass extends Pass {
   constructor(private scene: Scene, private camera: Camera) { super(); this.needsSwap = false; }
   setSize(width: number, height: number) { this.target.setSize(width, height); }
   render(renderer: WebGLRenderer, _write: WebGLRenderTarget, read: WebGLRenderTarget) {
-    renderer.setRenderTarget(this.target); renderer.clear(); renderer.render(this.scene, this.camera);
-    // setRenderTarget resolves the color and depth attachments on WebGL2.
-    renderer.setRenderTarget(read); this.quad.render(renderer);
+    // Resolve must follow real draws: an isolated repeated blit of unchanged
+    // attachments can be eliminated by the driver and report zero GPU work.
+    profileGpu('scene.withResolve', () => {
+      renderer.setRenderTarget(this.target); renderer.clear(); renderer.render(this.scene, this.camera);
+      renderer.setRenderTarget(read); // Resolve MSAA color and depth on WebGL2.
+    });
+    this.quad.render(renderer);
   }
   dispose() { this.target.dispose(); this.material.dispose(); }
 }

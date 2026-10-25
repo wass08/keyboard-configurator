@@ -1,6 +1,6 @@
 import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { NeutralToneMapping, DataTexture, PCFSoftShadowMap, RepeatWrapping, RGBAFormat, SRGBColorSpace } from 'three';
+import { NeutralToneMapping, DataTexture, PCFShadowMap, RepeatWrapping, RGBAFormat, SRGBColorSpace } from 'three';
 import { Desk } from './Desk';
 import { Lighting } from './Lighting';
 import { CameraRig } from './CameraRig';
@@ -32,7 +32,7 @@ function StudioFloor() {
   </mesh>;
 }
 export function Stage() {
-  return <Canvas shadows={{ type: PCFSoftShadowMap }} dpr={[1, 2]} camera={{ position: HERO_POSITION, fov: PORTRAIT_FOV, near: DEFAULT_PROJECTION.near, far: DEFAULT_PROJECTION.far }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl, camera, size }) => {
+  return <Canvas shadows={{ type: PCFShadowMap }} dpr={[1, 2]} camera={{ position: HERO_POSITION, fov: PORTRAIT_FOV, near: DEFAULT_PROJECTION.near, far: DEFAULT_PROJECTION.far }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, outputColorSpace: SRGBColorSpace }} onCreated={({ gl, camera, size }) => {
     gl.toneMappingExposure = 1;
     const lens = camera as PerspectiveCamera; lens.filmGauge = DEFAULT_PROJECTION.filmGaugeMm;
     if (size.width / size.height >= 0.75) lens.setFocalLength(DEFAULT_FOCAL_LENGTH_MM);

@@ -10,6 +10,8 @@ import { wallChecks } from './wall-checks.mjs';
 import { dofChecks, perfPixelChecks, adaptiveQualityCheck } from './dof-checks.mjs';
 import { highlightChecks } from './highlight-checks.mjs';
 import { openingChecks } from './opening-checks.mjs';
+import { lookChecks } from './look-checks.mjs';
+import { qualityChecks } from './quality-checks.mjs';
 import { stageChecks } from './stage-checks.mjs';
 import { measureCapColors, measureScreenContinuity } from './color-fidelity.mjs';
 import { exportVoices, exportSampleVoices, table as audioTable } from './audio-analysis.mjs';
@@ -661,6 +663,8 @@ try {
   browser = await chromium.launch({ headless: true, args: process.platform === 'darwin' && process.env.SHOTS_RENDERER !== 'swiftshader' ? ['--use-angle=metal'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   checks.selectionDuringLoading = await selectionDuringLoading(browser);
   checks.openingScreen = await openingChecks(browser, url, observeErrors);
+  checks.performanceLook = await lookChecks(browser, url);
+  checks.qualityTiers = await qualityChecks(browser, url, observeErrors);
   checks.recordingStages = await stageChecks(browser, url, observeErrors);
   checks.screenPolish = await screenPolishChecks(browser, url, observeErrors);
   checks.screenCacheRefresh = await screenCacheRefreshChecks(browser, observeErrors);
@@ -875,7 +879,7 @@ try {
   assert.equal(lighting.shadowAutoUpdate, false);
   assert.equal(lighting.environment, 1, 'Individual source intensities are baked into the environment');
   assert.deepEqual(lighting.values.environment, expectedEnvironment);
-  assert.deepEqual(lighting.values.rendering, { exposure: 1 });
+  assert.deepEqual(lighting.values.rendering, { exposure: 1, quality: 'auto' });
   assert.deepEqual(lighting.values.lights, {
     softbox: { type: 'RectAreaLight', intensity: 0.75, color: '#fff7f0', width: 0.44, height: 0.68, position: [-0.67, 1.75, 0.8], aim: [0, 0.79, -0.02] },
     spot: { type: 'SpotLight', intensity: 6.235, color: '#fff7f0', angle: 0.21, penumbra: 0.78, shadowSoftness: 147, shadowRadius: 4.1, linkedToSoftbox: true, position: [-0.67, 1.75, 0.8], aim: [0, 0.79, -0.02], unlinkedPosition: [-0.67, 1.75, 0.8], unlinkedAim: [0, 0.79, -0.02] },

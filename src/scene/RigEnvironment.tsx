@@ -10,6 +10,7 @@ import { areaOrientation } from './lightTransforms';
 import { KEYBOARD_Y } from './dimensions';
 import { SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_REFLECTION_COLOR, SCREEN_RADIANCE } from './PracticalFixtures';
 import { observeManagedDisposal } from '../resources/ownership';
+import { profileGpu, registerGpuWork } from './post/PassProfiler';
 import { useStages } from '../stages/store';
 
 // Diffuse wall return: approximate paint reflectance / PI and emitter
@@ -19,17 +20,18 @@ const PROBE_ORIGIN: [number, number, number] = [0, KEYBOARD_Y + 0.015, 0];
 interface Audit { captures: number }
 
 function Probe({ audit, revision }: { audit: Audit; revision: string }) {
-  const scene = useThree(state => state.scene);
+  const {scene,gl} = useThree();
   useLayoutEffect(() => {
     // Drei's Environment portal owns this camera/FBO. All rig cards retain
     // literal world transforms; move the sampling origin to the keyboard.
     const camera = scene.children.find(object => object.type === 'CubeCamera') as CubeCamera;
     camera.position.set(...PROBE_ORIGIN);
     const update = camera.update;
-    camera.update = function (...args) { audit.captures++; return update.apply(this, args); };
+    camera.update = function (...args) { audit.captures++; return profileGpu('environment.capture', () => update.apply(this, args)); };
+    const unregister=registerGpuWork('environment.capture',()=>camera.update(gl,scene));
     observeManagedDisposal('Environment.Cubemap', camera.renderTarget as WebGLCubeRenderTarget);
-    return () => { camera.update = update; };
-  }, [scene, audit, revision]);
+    return () => { unregister(); camera.update = update; };
+  }, [scene, gl, audit, revision]);
   useEffect(() => {
     window.__environment = () => {
       scene.updateMatrixWorld(true);

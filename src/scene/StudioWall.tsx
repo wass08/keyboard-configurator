@@ -48,6 +48,12 @@ export function StudioWall({ settings }: { settings: LightingSettings }) {
           uniform vec2 wallMaskCenter, wallMaskRadius;
           uniform float wallMaskFeather;
           uniform bool wallMaskEnabled;`)
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+          // The approved mask makes this radiance exactly zero. Avoid all
+          // paint maps, LTC lobes and PCSS work in that fully black region.
+          if (wallMaskEnabled && length((vWallPosition-wallMaskCenter)/wallMaskRadius)>=1.0) {
+            gl_FragColor=vec4(0.0,0.0,0.0,1.0); return;
+          }`)
         .replace('#include <opaque_fragment>', `
           // Mask the complete linear radiance, including direct light, IBL,
           // paint specular and emission. The interior is an exact identity.
@@ -58,7 +64,7 @@ export function StudioWall({ settings }: { settings: LightingSettings }) {
           #include <opaque_fragment>`);
       paint.userData.maskCompiled = true;
     };
-    paint.customProgramCacheKey = () => 'wall-radiance-mask-v1';
+    paint.customProgramCacheKey = () => 'wall-radiance-mask-v2';
     return paint;
   }, [maps, mask]);
   const center = wallReflectionPosition(settings);

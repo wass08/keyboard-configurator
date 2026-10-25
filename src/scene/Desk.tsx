@@ -86,7 +86,7 @@ export function Desk() {
   const finishes = useMemo(createDeskFinishes, []);
   const { fastener, rubber } = finishes;
   useOwnedDisposal('Desk.Finishes', Object.values(finishes));
-  const maps = useTexture(['/textures/wood/oak_veneer_01_diff_2k.jpg', '/textures/wood/oak_veneer_01_nor_gl_2k.jpg', '/textures/wood/oak_veneer_01_rough_2k.jpg', '/textures/wood/oak_veneer_01_ao_2k.jpg']);
+  const maps = useTexture(['/textures/wood/oak_veneer_01_diff_2k.webp', '/textures/wood/oak_veneer_01_nor_gl_2k.webp', '/textures/wood/oak_veneer_01_rough_2k.webp', '/textures/wood/oak_veneer_01_ao_2k.webp']);
   const resources = useMemo(() => {
     maps.forEach((map, index) => { map.wrapS = map.wrapT = RepeatWrapping; map.anisotropy = 16; if (index === 0) map.colorSpace = SRGBColorSpace; });
     const geometry = new RoundedBoxGeometry(1.6, 0.028, 0.75, 5, 0.004);

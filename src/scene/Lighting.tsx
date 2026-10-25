@@ -1,7 +1,8 @@
-import { SoftShadows } from '@react-three/drei';
+import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
+import { ContactShadows } from './ContactShadows';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { DeskSettings } from './Desk';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { stageMix, features, useStages } from '../stages/store';
 
 // Stage 1 has no environment or fill, so a unit-intensity sun reads almost black.
@@ -50,7 +51,7 @@ export function Lighting({ children }: { children: ReactNode }) {
   const bandPosition = new Vector3(0, RIM_BAND_Y, 0.002).applyQuaternion(screenOrientation).add(new Vector3(...xyz(rimPosition)));
   const backPosition = new Vector3(0, 0, -0.06).applyQuaternion(screenOrientation).add(new Vector3(...xyz(rimPosition)));
   target.position.set(...xyz(spotAim));
-  useFrame(() => {
+  useFrame('lighting', () => {
     for (const [name, intensity] of [
       ['stage-bare', STAGE_BARE_INTENSITY * stageMix.bare], ['key-softbox', softbox ? settings.softboxIntensity * stageMix.studio : 0],
       ['studio-key', spot ? settings.keyIntensity * stageMix.studio : 0], ['studio-fill', fill ? settings.fillIntensity * stageMix.studio : 0],
@@ -104,7 +105,7 @@ export function Lighting({ children }: { children: ReactNode }) {
     return () => { delete window.__lighting; delete window.__lightingStore; };
   }, [gl, scene, camera, solo, settings, rawSettings]);
   return <DeskSettings.Provider value={settings}>
-    <SoftShadows size={settings.shadowSoftness * settings.shadowRadius / 3} samples={24} />
+    <ContactShadows size={settings.shadowSoftness * settings.shadowRadius / 3} />
     <RigEnvironment settings={environmentSettings.current} enabled={env && Boolean(enabled.practicals)} />
     <Monitor settings={monitorRaw} enabled={rim || env} lightEnabled={rim} />
     <primitive object={target} />

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { Group, Mesh, MeshStandardMaterial } from 'three';
-import { Box3, HalfFloatType, Vector3, WebGLRenderTarget } from 'three';
+import { Box3, DepthTexture, HalfFloatType, UnsignedIntType, Vector3, WebGLRenderTarget } from 'three';
 import { KEY_LAYOUT, PITCH, TILT } from './layout';
 import { colorGroupFor, getVariant } from './variants';
 import { applyKeyboardPalette, createKeyboardMaterials } from './materials';
@@ -32,8 +32,8 @@ export function Keyboard() {
   const lastSelected = useRef(useConfigurator.getState().selectedId);
   const started = useRef(false);
   const generation = useRef(0);
-  const preparation = useRef({ ready: false, compiled: false, firstFrameRendered: false, textures: 0 });
-  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 }), []);
+  const preparation = useRef({ ready: false, compiled: false, firstFrameRendered: false, textures: 0, uploadMs: 0, compileMs: 0, stageCompileMs: 0, warmDrawMs: 0 });
+  const precompileTarget = useMemo(() => new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4, depthTexture: new DepthTexture(1, 1, UnsignedIntType) }), []);
   useOwnedDisposal('Keyboard.Precompile', [precompileTarget]);
   // One material set per mount; variant transitions mutate its colors.
   const materials = useMemo(() => createKeyboardMaterials(getVariant(useConfigurator.getState().selectedId)), []);
@@ -153,7 +153,9 @@ export function Keyboard() {
         for (const material of mesh.material ? Array.isArray(mesh.material) ? mesh.material : [mesh.material] : [])
           for (const value of Object.values(material)) if (value && typeof value === 'object' && 'isTexture' in value) textures.add(value as import('three').Texture);
       });
+      const uploadStart=performance.now();
       for (const texture of textures) gl.initTexture(texture);
+      preparation.current.uploadMs=performance.now()-uploadStart;
       preparation.current.textures = textures.size;
       const visible = [root.current!.visible, keys.current!.visible];
       root.current!.visible = keys.current!.visible = true;
@@ -165,15 +167,21 @@ export function Keyboard() {
       // Match the composer's linear HDR target; compiling to the canvas would
       // prepare a different tone-mapping/output shader variant.
       gl.setRenderTarget(precompileTarget);
+      const compileStart=performance.now();
       const compiled = gl.compileAsync(scene, camera);
       gl.setRenderTarget(previousTarget);
       if (textLight) textLight.visible = textLightVisible!;
       [root.current!.visible, keys.current!.visible] = visible;
       void compiled.then(async () => {
         if (cancelled) return;
+        preparation.current.compileMs=performance.now()-compileStart;
+        const stageCompileStart=performance.now();
         await prepareStageShaders(gl, scene, camera, precompileTarget, () => cancelled);
         if (cancelled) return;
+        preparation.current.stageCompileMs=performance.now()-stageCompileStart;
+        const warmStart=performance.now();
         prepareStageDraws(gl, scene, camera, precompileTarget);
+        preparation.current.warmDrawMs=performance.now()-warmStart;
         preparation.current.compiled = true;
         afterCompile = requestAnimationFrame(() => {
           if (cancelled) return;

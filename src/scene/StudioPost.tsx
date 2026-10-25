@@ -1,5 +1,6 @@
+import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { HalfFloatType, NoToneMapping, Vector2, Vector3, WebGLRenderTarget } from 'three';
 import type { PerspectiveCamera } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -15,16 +16,18 @@ import { PassProfiler } from './post/PassProfiler';
 import { HighlightAudit } from './post/HighlightAudit';
 import type { FacePoint, LinearSample } from './post/HighlightAudit';
 import { renderMetrics } from './renderMetrics';
+import { useQuality } from './quality';
 import { features, stageMix, useStages } from '../stages/store';
 
 declare global { interface Window {
-  __film?: () => { passes: { name: string; enabled: boolean }[]; rendererToneMapping: number; operator: string; outputColorSpace: string; toneMapStages: number; outputDefines: Record<string, unknown>; reference: boolean; gradingActive: boolean; gpu: ReturnType<PassProfiler['report']>; metrics: ReturnType<typeof renderMetrics>; startup: { firstSceneFrameMs: number; introReadyMs: number } };
-  __filmControl?: { referenceOutput: (value: boolean) => void; profile: (value: boolean) => void; bloom: (value: boolean) => void; silhouetteProbe: () => Promise<unknown>; measure: (points: FacePoint[]) => Promise<Record<string, LinearSample[]>> };
+  __film?: () => { passes: { name: string; enabled: boolean }[]; rendererToneMapping: number; operator: string; outputColorSpace: string; toneMapStages: number; outputDefines: Record<string, unknown>; reference: boolean; gradingActive: boolean; gpu: ReturnType<PassProfiler['report']>; metrics: ReturnType<typeof renderMetrics>; quality: { tier: string; gatherSamples: number; shadowType: number }; startup: { firstSceneFrameMs: number; introReadyMs: number } };
+  __filmControl?: { referenceOutput: (value: boolean) => void; profile: (value: boolean, target?: string) => void; bloom: (value: boolean) => void; silhouetteProbe: () => Promise<unknown>; measure: (points: FacePoint[]) => Promise<Record<string, LinearSample[]>> };
 } }
 
 export function StudioPost({ settings }: { settings: LightingSettings }) {
   const { gl, scene, camera, size, viewport: { dpr } } = useThree();
   const dof = useDepthOfField();
+  const tier = useQuality(s=>s.tier);
   const stage = useStages(s => s.stage);
   const enabled = features(stage);
   const startup = useRef({ firstSceneFrameMs: 0, introReadyMs: 0 });
@@ -48,6 +51,11 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     depth.depthTexture = render.target.depthTexture;
     const dust = new DustOverlayPass(scene, camera as PerspectiveCamera, depth);
     const output = new FilmOutputPass(), profiler = new PassProfiler(gl);
+    profiler.material('scene.resolve', render.material);
+    profiler.material('bloom.threshold', bloom.materialHighPassFilter);
+    bloom.separableBlurMaterials.forEach((material, i) => profiler.material(`bloom.mip${i}`, material));
+    profiler.material('bloom.composite', bloom.compositeMaterial);
+    profiler.material('bloom.blend', bloom.blendMaterial);
     const audit = new HighlightAudit();
     const renderScene = render.render.bind(render), renderBloom = bloom.render.bind(bloom), renderDepth = depth.render.bind(depth);
     render.render = (...args) => { renderScene(...args); audit.capture('scene', args[0], args[2]); };
@@ -87,8 +95,9 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     return () => { gl.toneMapping = previous; };
   }, [gl]);
   useEffect(() => { if (stage === null || stage === 7) pipeline.bloom.enabled = true; }, [stage, pipeline]);
+  pipeline.depth.setQuality(tier);
   pipeline.bloom.strength = settings.bloomStrength; pipeline.bloom.threshold = settings.bloomThreshold;
-  pipeline.depth.enabled = dof.depthOfField && Boolean(enabled.lens);
+  pipeline.depth.enabled = dof.depthOfField && tier!=='low' && Boolean(enabled.lens);
   const outputSettings = enabled.final ? settings : { ...settings, toneOperator: 'None', gradeEnabled: false, vignetteAmount: 0 };
   pipeline.output.configure(outputSettings);
   useEffect(() => {
@@ -96,11 +105,12 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
       passes: pipeline.stages.map(([name, pass]) => ({ name, enabled: pass.enabled })), rendererToneMapping: gl.toneMapping,
       operator: outputSettings.toneOperator, outputColorSpace: gl.outputColorSpace, toneMapStages: pipeline.output.operator === NoToneMapping ? 0 : pipeline.stages.filter(([, pass]) => pass.enabled && pass instanceof FilmOutputPass).length,
       outputDefines: { ...pipeline.output.material.defines }, reference: pipeline.output.reference, gradingActive: pipeline.output.uniforms.gradeEnabled.value, gpu: pipeline.profiler.report(),
+      quality: {tier:useQuality.getState().tier,gatherSamples:pipeline.depth.material.uniforms.gatherCount.value,shadowType:gl.shadowMap.type},
       metrics: renderMetrics(gl, scene, [pipeline.composer.renderTarget1, pipeline.composer.renderTarget2, pipeline.bloom.renderTargetBright, ...pipeline.bloom.renderTargetsHorizontal, ...pipeline.bloom.renderTargetsVertical, pipeline.render.target]), startup: { ...startup.current },
     });
     window.__filmControl = {
       referenceOutput: value => pipeline.output.useReference(value),
-      profile: value => { if (value) pipeline.profiler.start(); else pipeline.profiler.enabled = false; },
+      profile: (value, target) => { if (value) pipeline.profiler.start(target); else pipeline.profiler.enabled = false; },
       bloom: value => { pipeline.bloom.enabled = value; },
       silhouetteProbe: async () => (await import('./post/dofProbe')).probeSilhouette(gl, camera as PerspectiveCamera),
       measure: points => {
@@ -120,7 +130,7 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     return () => { delete window.__film; delete window.__filmControl; };
   }, [pipeline, gl, settings, stage]);
   // The final output pass applies the selected tone mapper and exposure once.
-  useFrame((_, delta) => {
+  useFrame('composer', (_, delta) => {
     const lens = useDepthOfField.getState();
     pipeline.dust.enabled = settings.dustEnabled && stageMix.final > 0;
     if (stage !== null || useStages.getState().transitioning) {
@@ -138,7 +148,7 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
       });
       pipeline.bloom.enabled = mix > 0;
       pipeline.bloom.strength = settings.bloomStrength * mix;
-      pipeline.depth.enabled = lens.depthOfField && stageMix.lens > 0;
+      pipeline.depth.enabled = lens.depthOfField && tier!=='low' && stageMix.lens > 0;
     }
     const distance = lens.autoFocus ? keyboardFocus.distance : lens.focusDistance;
     const uniform = pipeline.depth.material.uniforms.focus;
@@ -146,8 +156,12 @@ export function StudioPost({ settings }: { settings: LightingSettings }) {
     pipeline.depth.material.uniforms.focalRange.value = lens.autoFocalRange ? keyboardFocus.range : lens.focalRange;
     pipeline.depth.material.uniforms.bokehScale.value = stageMix.lens * lens.bokehScale * (1 - lens.bokehDistanceScale + lens.bokehDistanceScale * Math.min(1.3, Math.max(0.35, distance / 1.35)));
     gl.info.reset(); pipeline.profiler.beginFrame();
-    try { pipeline.composer.render(delta); }
-    finally { pipeline.profiler.endFrame(); }
+    // Diagnostic offscreen frame submits the same chain without presentation
+    // to separate Metal scheduling/presentation from shader/resolve work.
+    const present = pipeline.composer.renderToScreen;
+    if (pipeline.profiler.offscreenFrame) pipeline.composer.renderToScreen = false;
+    try { pipeline.profiler.renderFrame(() => pipeline.composer.render(delta)); }
+    finally { pipeline.composer.renderToScreen = present; pipeline.profiler.endFrame(); }
     pipeline.audit.finish();
     pipeline.profiler.poll();
     if (!startup.current.firstSceneFrameMs) startup.current.firstSceneFrameMs = performance.now();

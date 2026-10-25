@@ -99,27 +99,9 @@ try {
     const allEffects = await measure(180, 30);
     const gradeValues = window.__lighting().values.film;
     if (!window.__film().gradingActive) throw new Error('The default user grade must actually run');
-    const sampleGpu = async () => {
-      await measure(30, 0); // Warm the changed pass configuration before querying.
-      window.__filmControl.profile(true); await measure(120, 0);
-      window.__filmControl.profile(false); await measure(30, 0);
-      return window.__film().gpu;
-    };
-    const gpuAllEffects = await sampleGpu();
-    window.__lightingStore.set({ 'Film.gradeEnabled': false });
-    const gpuWithoutGrade = await sampleGpu();
-    window.__lightingStore.set({ 'Film.gradeEnabled': true });
-    window.__filmControl.bloom(false);
-    const gpuWithoutBloom = await sampleGpu();
-    window.__filmControl.bloom(true);
-    window.__cameraStore.set({ depthOfField: false });
-    const gpuWithoutDoF = await sampleGpu();
-    window.__cameraStore.set({ depthOfField: true });
-    const gpuAllEffectsAfter = await sampleGpu();
-    const fullFrameMs = (gpuAllEffects.gpu.frame?.medianMs + gpuAllEffectsAfter.gpu.frame?.medianMs) / 2;
-    const cost = without => Number.isFinite(fullFrameMs) ? fullFrameMs - without.gpu.frame.medianMs : null;
-    const incrementalGpuMs = { bloom: cost(gpuWithoutBloom), depthOfField: cost(gpuWithoutDoF), grading: cost(gpuWithoutGrade) };
-    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, defaults, filmDefaults, assembled, intro, dust, typing, variantChange, depthOfField, allEffects, gradeValues, gpuAllEffects, gpuAllEffectsAfter, gpuWithoutGrade, gpuWithoutBloom, gpuWithoutDoF, incrementalGpuMs, lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
+    // Direct per-pass GPU timings follow in perf-profile.mjs. Do not infer
+    // effect costs by toggling effects on ANGLE/Metal's frame counters.
+    return { build: 'production', renderer, viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, defaults, filmDefaults, assembled, intro, dust, typing, variantChange, depthOfField, allEffects, gradeValues, gpuPassReport: 'perf-hunt-after.json', lens, finished: window.__kb.finished, render, depthOfFieldRender: { calls: depthOfFieldRender.calls, triangles: depthOfFieldRender.triangles } };
   });
   result.recordingStages = await stagePerformance(page);
   if (errors.length) throw new Error(errors.join('\n'));

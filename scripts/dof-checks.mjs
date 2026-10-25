@@ -110,11 +110,13 @@ export async function adaptiveQualityCheck(browser,url,observeErrors){
       return {initial,final:window.__quality(),transitions,metrics:window.__film().metrics,capturesBefore:captures,capturesAfter:window.__environment().captures};
     });
     assert.equal(result.initial.enabled,true);assert.ok(result.transitions.length>=1 && result.transitions.length<=1,'Two slow windows must lower quality once; cooldown prevents oscillation');
-    assert.ok(result.final.dpr>=1 && result.final.dpr<=2 && result.final.dpr<result.initial.dpr);
+    assert.ok(result.final.dpr>=1 && result.final.dpr<=2 && result.final.dpr<result.initial.dpr,JSON.stringify(result));
     const [w,h]=result.metrics.buffer, targets=result.metrics.targetSizes;
     assert.deepEqual(targets[0].size,[w,h],'Composer follows adaptive DPR, not only the canvas');
     assert.deepEqual(targets.at(-1).size,[w,h],'Shared scene color/depth follows adaptive DPR');
     assert.equal(result.capturesAfter,result.capturesBefore,'A DPR change does not recapture the environment');
+    assert.equal(result.final.decided,true);assert.equal(result.final.decisions,1,'Auto tier is selected once');
+    assert.notEqual(result.final.tier,'high','Sustained 40ms frames must select a cheaper tier');
     return {status:'passed',method:'4.5s of explicit 40ms/frame main-thread pressure; separate from all reported FPS samples',...result};
   }finally{await context.close();}
 }

@@ -1,6 +1,7 @@
+import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { OrbitControls } from '@react-three/drei';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { button, folder, useControls } from 'leva';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { CameraValues, CameraView } from '../debug';
@@ -171,7 +172,7 @@ export function CameraRig() {
   useEffect(() => {
     if (values.minDistance > values.maxDistance) set({ maxDistance: values.minDistance });
   }, [values.minDistance, values.maxDistance, set]);
-  useFrame(({ clock }, delta) => {
+  useFrame('camera.autofocus', ({ clock }, delta) => {
     const state = autofocus.current, lens = useDepthOfField.getState();
     if (lens.autoFocus) {
       keyboardFocus.target = focusTarget();
@@ -297,7 +298,7 @@ export function CameraRig() {
     };
     return () => { delete window.__camera; delete window.__cameraStore; };
   }, [camera, size, set]);
-  useFrame(() => {
+  useFrame('camera.stageLens', () => {
     // Keep the optical controls and Copy camera values tuned. Only the render
     // camera sees the untouched 50-degree lens in the first four stages.
     if (stageMix.lens < 1) {

@@ -550,3 +550,42 @@ stalls when revealing off-camera props.
 `npm run shots` writes `stage-1.png` through `stage-7.png`, `stages-sheet.png`,
 and the stage checks in `screenshots/checks.json`. `npm run perf` also measures
 stages 1 and 7 and reports transition frame times and probe captures.
+
+## Performance capture and quality
+
+`npm run perf` now records direct `EXT_disjoint_timer_query_webgl2` timings
+(340 frames per scope) at 1440×900 DPR 1.5 and 2, plus a 3840×2160 framebuffer
+as a fill-rate proxy. Results, Chrome CPU trace/profile, load timings and bundle
+sizes are in `screenshots/perf-hunt-after.json` and its adjacent directory.
+FPS and Chrome TaskDuration are sampled separately, with GPU queries off.
+
+ANGLE/Metal reports cumulative command-buffer intervals for multiple elapsed
+queries in one frame. The profiler therefore primes the real pipeline inputs,
+then submits only the selected pass on subsequent diagnostic frames. Whole-frame
+counter latency includes encoder scheduling; it is not the sum of isolated pass
+medians. DoF computes CoC inside its gather shader, so its reported cost includes
+both. Shadow/probe benchmarks force updates explicitly; their idle update count
+is recorded separately. `HUNT_BACKEND=swiftshader HUNT_LABELS=all` enables disjoint
+scopes on the software backend (very slow); it is not a mobile GPU benchmark.
+
+`?quality=high|medium|low` overrides **Rendering → Quality**. Auto is the default:
+it starts high and makes one decision after 2.5 seconds of the assembled studio
+(under 50 fps: medium; under 30: low). High uses 12-point contact-hardening PCSS
+and a balanced 16-tap depth-aware DoF gather; medium uses 8/8; low uses hardware
+PCF and omits DoF. Raw lighting/lens values stay unchanged. The existing DPR
+hysteresis runs independently. Capture/perf URLs pin auto to high so adaptation
+cannot conceal a regression. `?shadowReference=1` retains the original 24-point
+shadow kernel for diagnostics.
+
+`npm run shots` compares six deterministic captures against the pre-hunt PNGs
+in `scripts/fixtures/perf-hunt/` (baseline master `4017d76`). Mean channel error
+must stay ≤0.65/255, p99 ≤5/255, and ≤0.6% of channels may differ by over 8/255.
+The before/after crop sheet is `screenshots/perf-hunt-before-after.png`.
+
+The CC0 texture derivatives remain 2048×2048. To reproduce them, install libwebp
+(`brew install webp`) and run `npm run assets`. Existing CREDITS entries are
+preserved. Vercel builds use the checked-in derivatives and need no encoder.
+
+For production verification, `HUNT_URL=https://keyboard.wawasensei.dev node
+scripts/perf-hunt.mjs` records live timings/load errors. `window.__build` exposes
+the Vercel commit SHA, so a smoke check can reject a stale deployment.

@@ -1,5 +1,6 @@
+import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
 import { useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { Color, Mesh, MeshBasicMaterial, MeshDepthMaterial, OrthographicCamera, PlaneGeometry, ShaderMaterial, WebGLRenderTarget } from 'three';
 import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
 import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
@@ -36,7 +37,7 @@ export function FloorContact() {
   }, []);
   const { target, scratch, geometry, depth, horizontal, vertical, display, blurPlane } = resources;
   useOwnedDisposal('FloorContact', [target, scratch, geometry, depth, horizontal, vertical, display]);
-  useFrame(() => {
+  useFrame('floorContact', () => {
     if (captured.current || !camera.current || !group.current) return;
     captured.current = true;
     const background = scene.background, override = scene.overrideMaterial, previousTarget = gl.getRenderTarget();

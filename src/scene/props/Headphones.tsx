@@ -22,7 +22,7 @@ function canopyGeometry() {
 }
 export function Headphones() {
   const scene = useThree(state => state.scene);
-  const maps = useTexture(['/textures/wood/oak_veneer_01_diff_2k.jpg', '/textures/wood/oak_veneer_01_nor_gl_2k.jpg', ...FELT_MAPS.slice(1)]);
+  const maps = useTexture(['/textures/wood/oak_veneer_01_diff_2k.webp', '/textures/wood/oak_veneer_01_nor_gl_2k.webp', ...FELT_MAPS.slice(1)]);
   const r = useMemo(() => {
     const clones = maps.map((map, i) => { const t = map.clone(); t.wrapS = t.wrapT = RepeatWrapping; t.anisotropy = 16; if (i === 0) t.colorSpace = SRGBColorSpace; return t; });
     clones[2].repeat.set(3, 3); clones[3].repeat.set(3, 3);

@@ -1,5 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { button, folder, useControls } from 'leva';
+import { INITIAL_QUALITY, selectQuality } from './quality';
+import type { QualityMode } from './quality';
 import { FILM_DEFAULTS as F, TONE_OPERATORS } from './film';
 
 // Meters, candela (spot), and luminance (area lights). User-tuned defaults.
@@ -100,8 +102,12 @@ export function useLightingControls() {
       vignetteAmount: { value: F.vignetteAmount, min: 0, max: 0.6, step: 0.01, label: 'Vignette' },
       vignetteSoftness: { value: F.vignetteSoftness, min: 0.1, max: 1, step: 0.01, label: 'Vignette softness' },
     }, { collapsed: true, order: 6 }),
+    Rendering: folder({
+      quality: { value: INITIAL_QUALITY, options: ['auto','high','medium','low'], label: 'Quality' },
+    }, { collapsed: true, order: 6.5 }),
     'Copy lighting values': { ...button(() => { void navigator.clipboard.writeText(JSON.stringify(latest.current, null, 2)); }), order: 7 },
   });
+  useEffect(()=>selectQuality(values.quality as QualityMode),[values.quality]);
   latest.current = lightingValues(values);
   return values;
 }
@@ -125,7 +131,7 @@ export function lightingValues(s: LightingSettings) {
     screen: { textLightEnabled: s.textLightEnabled, textIntensity: s.textIntensity, textFlare: s.textFlare },
     wall: { color: s.wallColor, roughness: s.wallRoughness, normalStrength: s.wallNormal,
       mask: { enabled: s.wallMaskEnabled, radiusX: s.wallMaskRadiusX, radiusY: s.wallMaskRadiusY, feather: s.wallMaskFeather } },
-    rendering: { exposure: s.exposure },
+    rendering: { exposure: s.exposure, quality: s.quality },
     film: {
       toneMapping: s.toneOperator, exposure: s.exposure,
       grade: { enabled: s.gradeEnabled, contrast: s.contrast, saturation: s.saturation, vibrance: s.vibrance, temperature: s.temperature, tint: s.tint, lift: xyz(s.lift), gamma: xyz(s.gamma), gain: xyz(s.gain) },

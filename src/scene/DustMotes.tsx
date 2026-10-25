@@ -1,5 +1,6 @@
+import { useProfiledFrame as useFrame } from './post/useProfiledFrame';
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { AddEquation, BufferAttribute, BufferGeometry, Color, CustomBlending, Matrix3, OneFactor, Points, ShaderMaterial, Vector2, Vector3, ZeroFactor } from 'three';
 import type { SpotLight } from 'three';
 import type { LightingSettings } from './lightingControls';
@@ -83,7 +84,7 @@ export function DustMotes({ settings: s }: { settings: LightingSettings }) {
 
   const spot = useRef<SpotLight | null>(null);
   const scratch = useMemo(() => ({ aim: new Vector3(), axis: new Vector3(), right: new Vector3(), up: new Vector3(), drift: new Vector3(...DUST_DRIFT), buffer: new Vector2() }), []);
-  useFrame((state, delta) => {
+  useFrame('dust', (state, delta) => {
     const m = motion.current;
     if (!m.frozen) m.time += Math.min(delta, 0.1) * s.dustSpeed * m.scale;
     u.uTime.value = m.time;

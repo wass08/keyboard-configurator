@@ -1,5 +1,5 @@
+import { useProfiledFrame as useFrame } from '../scene/post/useProfiledFrame';
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, LinearMipmapLinearFilter, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from 'three';
 import type { RectAreaLight } from 'three';
 import { useOwnedDisposal } from '../resources/ownership';
@@ -72,7 +72,7 @@ export function ScreenText({ width, height, radiance, settings, lightEnabled }: 
     const unsubscribe = useSound.subscribe((state, previous) => { if (state.master !== previous.master) drawn.current.osdAt = performance.now(); });
     return () => { unsubscribe(); typing.setVerticalResolver(null); delete window.__screen; delete window.__screenControl; };
   }, [resources, width]);
-  useFrame((_, delta) => {
+  useFrame('terminal', (_, delta) => {
     const now = performance.now(), since = now - typing.editedAt, state = drawn.current;
     const caretOn = state.caretFrozen ? state.caretOn : since < SOLID_AFTER_EDIT_MS || Math.floor((since - SOLID_AFTER_EDIT_MS) / BLINK_MS) % 2 === 1;
     const osdAge = now - state.osdAt, osdAlpha = osdAge < OSD_HOLD_MS ? 1 : Math.max(0, 1 - (osdAge - OSD_HOLD_MS) / OSD_FADE_MS);

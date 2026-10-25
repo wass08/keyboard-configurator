@@ -10,7 +10,9 @@ export function createKeyboardMaterials(variant: Variant) {
     // Satin plastic, with the palette stored exactly. Colored practical lights
     // may tint it naturally; do not compensate by boosting broad white lobes.
     caps[group] = new MeshPhysicalMaterial({ color: variant.groups[group].cap, roughness: 0.6, ior: 1.54, specularIntensity: 1, sheen: 0.12, sheenRoughness: 0.8, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 3.6 });
-    legends[group] = new MeshStandardMaterial({ color: variant.groups[group].legend, map: getLegendAtlas(), transparent: true, depthWrite: false, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 });
+    // Skip fully transparent atlas texels before evaluating the PBR lobes.
+    // The tiny cutoff preserves antialiased glyph coverage.
+    legends[group] = new MeshStandardMaterial({ color: variant.groups[group].legend, map: getLegendAtlas(), transparent: true, alphaTest: 0.000001, depthWrite: false, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 });
   }
   const body = new MeshPhysicalMaterial({ color: variant.caseBody, roughness: 0.45, clearcoat: 0.18, clearcoatRoughness: 0.45 });
   const frame = body.clone(); frame.color.set(variant.caseFrame);
