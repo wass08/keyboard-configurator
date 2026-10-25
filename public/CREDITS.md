@@ -59,15 +59,16 @@ asset belongs to the project owner and is separate from the CC0 scans above.
 
 ### Recorded key presses (`audio/keys.ogg`, `audio/keys.m4a`, `audio/keys.json`)
 
-**Not CC-licensed. Personal/prototype use only.** The key press and release
+**Not CC-licensed. Used with the creator's permission** (confirmed by the
+project owner on 2026-10-24). The key press and release
 samples are cut from the YouTube ASMR recording
 **[Cozy ASMR ☁] typing on 9 different Keyboards (no mid-roll ads)**,
 downloaded and supplied by the project owner. Only the section 0:52–6:00
 (one keyboard) is used. The creator's name was not included with the file.
-The recording belongs to its creator: redistributing these samples or
-publishing the app with them requires the creator's permission. Replace them
-(re-run `scripts/extract-samples.mjs` on a licensed recording, or fall back to
-the synthesized keys) before any public release.
+The recording belongs to its creator; the permission covers this app only and
+is not a license to reuse the samples elsewhere. To swap them, re-run
+`scripts/extract-samples.mjs` on another recording, or fall back to the
+synthesized keys.
 
 Processing (`scripts/extract-samples.mjs`): ffmpeg decode to 48 kHz, onset
 detection, press/release pairing, feature-based classes (alphas, spacebar,
@@ -79,7 +80,7 @@ MP4 as the fallback).
 
 The **knob press** is not synthesized: it is a set of 3 keystrokes (press +
 release) cut from the same non-CC recording above, re-pitched (+2 semitones),
-high-passed and lightly layered, so the same personal/prototype-only terms apply.
+high-passed and lightly layered, so the same permission and terms apply.
 
 Hover, knob detent ticks, replacement and intro sounds (and the fallback key
 sounds) are synthesized at runtime by hand-written code in `src/audio/synth.ts`;

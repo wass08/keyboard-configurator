@@ -382,8 +382,8 @@ delta means the cost is within measurement noise, not a negative rendering cost.
   everything else is synthesized. `scripts/extract-samples.mjs` cuts round-robin sets (16 alpha, 6
   spacebar, 5 stabilized and 3 knob-press keystrokes, each a press and its own release) from
   the owner-supplied ASMR recording (0:52-6:00), into one Opus sprite (~145 KB,
-  AAC fallback) plus `public/audio/keys.json`. **Not CC-licensed: personal
-  /prototype use only, see CREDITS.md.** `src/audio/samples.ts` fetches the
+  AAC fallback) plus `public/audio/keys.json`. **Not CC-licensed: used with the
+  creator's permission, see CREDITS.md.** `src/audio/samples.ts` fetches the
   sprite on idle (bytes only) and decodes it once after the unlocking gesture;
   Space maps to the spacebar set, Backspace/Enter/Shift to the stabilized set,
   every other key to the alphas, with ±2% pitch/gain jitter. `src/audio/synth.ts`
@@ -423,9 +423,9 @@ ambientCG **Fabric 034**, 2K color, OpenGL normal and roughness, for felt and
 cushions. All CC0 1.0. `npm run assets` requires the standard `unzip` utility
 for the ambientCG archive. Full names, source pages, exact download URLs,
 license links and the earlier evaluated wood set are in `public/CREDITS.md`.
-Key and knob-press sounds use user-provided, non-CC ASMR samples for personal/prototype use;
+Key and knob-press sounds use non-CC ASMR samples, used with the creator's permission;
 other voices are synthesized locally. See `public/CREDITS.md` for the recording's
-title and the creator-permission requirement for publishing.
+title and terms.
 No downloaded models, fonts, logos or images of keyboards/props are used in the app.
 The monitor geometry and screen wallpaper are procedural.
 

@@ -408,3 +408,21 @@ Attached: stage 1 close-up screenshot.
 ## 40 — Brighter stage 1 light (2026-10-21)
 
 > nope thanks for telling me. can you just on stage 1 make the light a bit brighter it's super dark
+
+---
+
+## 41 — Run dev server (2026-10-24)
+
+> can you run it?
+
+---
+
+## 42 — Run dev server (2026-10-24)
+
+> can you run it?
+
+---
+
+## 43 — GitHub, Vercel, Cloudflare subdomain (2026-10-24)
+
+> btw please add the project to github. host it on my vercel. and connect a subdomain on cloudflare to wawasensei.dev
