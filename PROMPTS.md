@@ -471,3 +471,9 @@ Attached: video thumbnail, saved as `docs/media/thumbnail.jpg`.
 > also can you add the proper favicon for my websites, and an og image (compress it)
 
 Attached: `screenshots/closeup.png` (source for the OG image).
+
+---
+
+## 50 — Status (2026-10-25)
+
+> any updates?
