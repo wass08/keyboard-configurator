@@ -477,3 +477,9 @@ Attached: `screenshots/closeup.png` (source for the OG image).
 ## 50 — Status (2026-10-25)
 
 > any updates?
+
+---
+
+## 51 — Black screen on mobile (2026-10-25)
+
+> do you know why it doesn't work on mobile? black screen. can you fix it?
