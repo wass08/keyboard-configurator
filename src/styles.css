@@ -53,7 +53,10 @@ canvas { display: block; touch-action: none; }
 
 /* Brand: Wawa Sensei mark, top-left, from the opening screen into the studio */
 .brand { position: absolute; z-index: 30; top: var(--edge); left: var(--edge); pointer-events: none; }
-.brand img { display: block; width: auto; height: 36px; user-select: none; }
+.brand a { display: block; pointer-events: auto; border-radius: 6px; opacity: 1; transition: opacity 160ms ease; }
+.brand a:hover { opacity: 0.8; }
+.brand a:focus-visible { outline: 2px solid var(--signal); outline-offset: 6px; }
+.brand img { display: block; width: auto; height: 36px; user-select: none; -webkit-user-drag: none; }
 
 /* Studio HUD: hidden behind the opening screen, fades in when live */
 .hud > * { opacity: 0; transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out); }

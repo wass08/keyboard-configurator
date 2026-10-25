@@ -127,6 +127,14 @@ export async function openingChecks(browser, url, observeErrors) {
     assert.deepEqual(result.brand.viewBox, [0, 106, 512, 268]);
     assert.ok(result.brand.viewBox[3] - result.brand.bounds[3] < 4, 'Crop empty space around the actual vector mark');
     assert.equal(result.brand.height, 36);
+    // The mark links out to wawasensei.dev in a new tab, without entering the studio.
+    const brandLink = page.locator('.brand a');
+    assert.equal(await brandLink.getAttribute('href'), 'https://wawasensei.dev');
+    assert.equal(await brandLink.getAttribute('target'), '_blank');
+    const [popup] = await Promise.all([page.context().waitForEvent('page'), brandLink.click()]);
+    await popup.close();
+    assertGated(await state(page), 'logo click must not enter');
+    result.brandLink = { href: "https://wawasensei.dev", target: "_blank", entersStudio: false };
     await page.screenshot({ path: 'screenshots/opening-screen.png' }); console.log('screenshots/opening-screen.png');
     await cta.click();
     const clicked = await state(page);

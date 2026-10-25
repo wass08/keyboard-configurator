@@ -443,3 +443,17 @@ Attached: stage 1 close-up screenshot.
 > it's claude-dns-token for dns write on my wass08 account
 
 (The token and account ID are stored outside the repo in `~/.config/wawasensei/`, mode 600.)
+
+---
+
+## 46 — README video + thumbnail, logo link (2026-10-24)
+
+> awesome, can you add the video link (https://youtu.be/aVo3M2IEw9o) and the thumbnail on top of the readme. And on the wawa sensei of the project  link to redirect to wawasensei.dev?
+
+Attached: video thumbnail, saved as `docs/media/thumbnail.jpg`.
+
+---
+
+## 47 — Performance pass: find what is killing performance (2026-10-24)
+
+> also do a performance pass, try to find what is killing performance and fix it.

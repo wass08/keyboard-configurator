@@ -1,3 +1,7 @@
+<a href="https://youtu.be/aVo3M2IEw9o"><img src="docs/media/thumbnail.jpg" alt="Watch: You can't prompt what you can't name. Every light has a name." width="100%"></a>
+
+▶️ **Watch the video:** [You can't prompt what you can't name](https://youtu.be/aVo3M2IEw9o) · **Live demo:** [keyboard.wawasensei.dev](https://keyboard.wawasensei.dev)
+
 # Keyboard — color study
 
 A procedural 75% keyboard on a 160 × 75 cm electric standing desk. React,

@@ -5,7 +5,11 @@ import { useUi } from './uiStore';
 
 /** Wawa Sensei mark, top-left (the design's topbar brand). Persistent from the opening screen into the studio. */
 export function Brand() {
-  return <div className="brand"><img src="/brand/wawasensei-logo-white.svg" width={512} height={268} alt="Wawa Sensei" decoding="async" /></div>;
+  return <div className="brand">
+    <a href="https://wawasensei.dev" target="_blank" rel="noopener" aria-label="Wawa Sensei (opens wawasensei.dev in a new tab)">
+      <img src="/brand/wawasensei-logo-white.svg" width={512} height={268} alt="" decoding="async" />
+    </a>
+  </div>;
 }
 
 function Toast() {
